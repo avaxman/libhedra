@@ -25,21 +25,20 @@ namespace hedra
     // FE : #F by max(D), Stores the Face-Edge relation
     // EF : #E by 2: Stores the Edge-Face relation
 
-    template <typename DerivedF>
-    IGL_INLINE void hedra_edge_topology(const Eigen::PlainObjectBase<DerivedF>& D,
-                                          const Eigen::PlainObjectBase<DerivedF>& F,
+    IGL_INLINE void hedra_edge_topology(const Eigen::VectorXi& D,
+                                          const Eigen::MatrixXi& F,
                                           Eigen::MatrixXi& EV,
-                                          Eigen::MatrixXi& gFE,
-                                          Eigen::MatrixXi& gEF)
+                                          Eigen::MatrixXi& FE,
+                                          Eigen::MatrixXi& EF)
     {
         // Only needs to be edge-manifold
         std::vector<std::vector<int> > ETT;
-        for(int f=0;f<gD.rows();++f)
-            for (int i=0;i<gD(f);++i)
+        for(int f=0;f<D.rows();++f)
+            for (int i=0;i<D(f);++i)
             {
                 // v1 v2 f vi
-                int v1 = gF(f,i);
-                int v2 = gF(f,(i+1)%gD(f));
+                int v1 = F(f,i);
+                int v2 = F(f,(i+1)%D(f));
                 if (v1 > v2) std::swap(v1,v2);
                 std::vector<int> r(4);
                 r[0] = v1; r[1] = v2;
@@ -54,9 +53,9 @@ namespace hedra
             if (!((ETT[i][0] == ETT[i+1][0]) && (ETT[i][1] == ETT[i+1][1])))
                 ++En;
         
-        gEV = Eigen::MatrixXi::Constant((int)(En),2,-1);
-        gFE = Eigen::MatrixXi::Constant((int)(gF.rows()),(int)(gF.cols()),-1);
-        gEF = Eigen::MatrixXi::Constant((int)(En),2,-1);
+        EV = Eigen::MatrixXi::Constant((int)(En),2,-1);
+        FE = Eigen::MatrixXi::Constant((int)(F.rows()),(int)(F.cols()),-1);
+        EF = Eigen::MatrixXi::Constant((int)(En),2,-1);
         En = 0;
         
         for(unsigned i=0;i<ETT.size();++i)
@@ -67,21 +66,21 @@ namespace hedra
             {
                 // Border edge
                 std::vector<int>& r1 = ETT[i];
-                gEV(En,0)     = r1[0];
-                gEV(En,1)     = r1[1];
-                gEF(En,0)    = r1[2];
-                gFE(r1[2],r1[3]) = En;
+                EV(En,0)     = r1[0];
+                EV(En,1)     = r1[1];
+                EF(En,0)    = r1[2];
+                FE(r1[2],r1[3]) = En;
             }
             else
             {
                 std::vector<int>& r1 = ETT[i];
                 std::vector<int>& r2 = ETT[i+1];
-                gEV(En,0)     = r1[0];
-                gEV(En,1)     = r1[1];
-                gEF(En,0)    = r1[2];
-                gEF(En,1)    = r2[2];
-                gFE(r1[2],r1[3]) = En;
-                gFE(r2[2],r2[3]) = En;
+                EV(En,0)     = r1[0];
+                EV(En,1)     = r1[1];
+                EF(En,0)    = r1[2];
+                EF(En,1)    = r2[2];
+                FE(r1[2],r1[3]) = En;
+                FE(r2[2],r2[3]) = En;
                 ++i; // skip the next one
             }
             ++En;
@@ -90,22 +89,22 @@ namespace hedra
         // Sort the relation EF, accordingly to EV
         // the first one is the face on the left of the edge
         
-        for(unsigned i=0; i<gEF.rows(); ++i)
+        for(unsigned i=0; i<EF.rows(); ++i)
         {
-            int fid = gEF(i,0);
+            int fid = EF(i,0);
             bool flip = true;
             // search for edge EV.row(i)
-            for (unsigned j=0; j<gD(fid); ++j)
+            for (unsigned j=0; j<D(fid); ++j)
             {
-                if ((gF(fid,j) == gEV(i,0)) && (gF(fid,(j+1)%gD(fid)) == gEV(i,1)))
+                if ((F(fid,j) == EV(i,0)) && (F(fid,(j+1)%D(fid)) == EV(i,1)))
                     flip = false;
             }
             
             if (flip)
             {
-                int tmp = gEF(i,0);
-                gEF(i,0) = gEF(i,1);
-                gEF(i,1) = tmp;
+                int tmp = EF(i,0);
+                EF(i,0) = EF(i,1);
+                EF(i,1) = tmp;
             }
         }
 
