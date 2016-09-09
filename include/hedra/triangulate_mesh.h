@@ -23,20 +23,19 @@ namespace hedra
     // Outputs:
     //  T  eigen int matrix     #T by 3 - triangles (T is actually sum(D)-rows(D))
     //  TF  eigen int vector    #T by 1 - the original polygonal face in F for each triangle
-    template <typename DerivedF>
-    IGL_INLINE bool triangulate_mesh(const Eigen::PlainObjectBase<DerivedD>& D,
-                                     const Eigen::PlainObjectBase<DerivedF>& F,
+    IGL_INLINE bool triangulate_mesh(const Eigen::VectorXi& D,
+                                     const Eigen::MatrixXi& F,
                                      Eigen::MatrixXi& T,
                                      Eigen::VectorXi& TF)
     {
-        using namespace std
-        vector<Vector3i> NewTriangles;
+        using namespace std;
+        vector<Eigen::Vector3i> NewTriangles;
         vector<int> RawTF;
         
         for (int i=0;i<D.rows();i++){
         //triangulating the face greedily
             for (int CurrIndex=1;CurrIndex<D(i)-1;CurrIndex++){
-                Vector3i NewFace;
+                Eigen::Vector3i NewFace;
                 NewFace<<F(i,0),F(i,CurrIndex),F(i,CurrIndex+1);
                 RawTF.push_back(i);
                 NewTriangles.push_back(NewFace);
@@ -48,8 +47,10 @@ namespace hedra
         for (int i=0;i<NewTriangles.size();i++){
             T.row(i)=NewTriangles[i];
             TF(i)=RawTF[i];
+        }
+        
+        return true;
     }
-    
 }
 
 

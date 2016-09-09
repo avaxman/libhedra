@@ -22,11 +22,10 @@ namespace hedra
     //  V  eigen double matrix  #V by 3 - vertex coordinates
     //  D  eigen int vector     #F by 1 - face degrees
     //  F  eigen int matrix     #F by max(D) - vertex indices in face
-    template <typename DerivedV, typename DerivedD, typename DerivedF>
     IGL_INLINE bool hedra_read_OFF(const std::string str,
-                                     Eigen::PlainObjectBase<DerivedV>& V,
-                                     Eigen::PlainObjectBase<DerivedD>& D,
-                                     Eigen::PlainObjectBase<DerivedF>& F)
+                                     Eigen::MatrixXd& V,
+                                     Eigen::VectorXi& D,
+                                     Eigen::MatrixXi& F)
     {
         
         using namespace std;
