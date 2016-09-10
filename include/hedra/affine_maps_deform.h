@@ -11,6 +11,7 @@
 #include <igl/igl_inline.h>
 #include <Eigen/Core>
 #include <vector>
+#include <igl/min_quad_with_fixed.h>
 
 //This file implements the deformation algorithm described in:
 
@@ -22,6 +23,12 @@ namespace hedra
 {
     // Deform a polyhedral mesh with a single affine map per face
     
+    struct AffineData{
+        Eigen::sparsematrix<double>& E;  //energy matrix
+        Eigen::sparsematrix<double>& C;  //constraint matrix
+        min_quad_with_fixed_data<double> mqwfd;  //data with the quadratic solver
+    };
+    
     
     //precomputation of the necessary matrices
     
@@ -31,12 +38,11 @@ namespace hedra
     //  F  eigen int matrix     #F by max(D) - vertex indices in face
     //  EF eigen int matrix     #E by 2 - map from edges to adjacent faces
     //  EV eigen int matrix     #E by 2 - map from edges to end vertices
-    //  h eigen int vector     #constraint vertex indices (handles)
+    //  h eigen int vector      #constraint vertex indices (handles)
     //  bendFactor double       #the relative similarty between affine maps on adjacent faces
   
     // Output:
-    // E eigen double sparse matrix    Energy matrix
-    // C eigen double sparse matrix    Constraint matrix
+    // ad struct AffineData     the data necessary to solve the linear system.
 
     //TODO: Currently uniform weights. Make them geometric.
     IGL_INLINE void affine_maps_precompute(const Eigen::MatrixXd& V,
@@ -46,13 +52,13 @@ namespace hedra
                                            const Eigen::MatrixXi& EV,
                                            const Eigen::VectorXi& h,
                                            const double bendFactor;
-                                           Eigen::sparsematrix<double>& E,
-                                           Eigen::sparsematrix<double>& C);
+                                           struct AffineData& adata);
     {
+        
         
         //Assembling the constraint matrix C
         int CRows=0;
-        int NumVars=3*D.size()+V.rows();  //every dimension is seperable.
+        int NumVars=3*F.rows()+V.rows();  //every dimension is seperable.
         
         std::vector<Eigen::Triplet<double> > CTripletList;
         for(int i=0;i<E2F.rows();i++)
@@ -69,10 +75,8 @@ namespace hedra
             }
             
         }
-        C.resize(CRows,NumVars);
-        C.setFromTriplets(CTripletList.begin(), CTripletList.end());
         
-        
+    
         //Assembling the energy matrix E
         int ERows=0;
         //NumVars is the same
@@ -98,13 +102,16 @@ namespace hedra
             ERows++;
         }
         
-        E.resize(Arows,NumVars);
-        E.setFromTriplets(ETripletList.begin(), ETripletList.end());
-        
+       
+        adata.E.resize(Arows,NumVars);
+        adata.E.setFromTriplets(ETripletList.begin(), ETripletList.end());
+        adata.C.resize(CRows,NumVars);
+        adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
+        igl::min_quad_with_fixed_precompute<double>(E, h,C,true,adata.mqwfd);
     }
     
     
-    //COmputing the deformation.
+    //Computing the deformation.
     //Prerequisite: affine_maps_precompute is called, and
     //qh input values are matching those in h.
     
