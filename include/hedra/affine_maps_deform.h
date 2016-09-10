@@ -23,10 +23,18 @@ namespace hedra
 {
     // Deform a polyhedral mesh with a single affine map per face
     
+    enum AffineEnergyTypes{
+        ARAP,  //as-rigid-as-possible energy
+        ASAP  //as-similar-as-possible energy ("conformal")
+    };
+    
     struct AffineData{
         Eigen::sparsematrix<double>& E;  //energy matrix
         Eigen::sparsematrix<double>& C;  //constraint matrix
         min_quad_with_fixed_data<double> mqwfd;  //data with the quadratic solver
+        AffineEnergyTypes aet;
+        double bendFactor;
+        int FSize, VSize;
     };
     
     
@@ -42,7 +50,7 @@ namespace hedra
     //  bendFactor double       #the relative similarty between affine maps on adjacent faces
   
     // Output:
-    // ad struct AffineData     the data necessary to solve the linear system.
+    // adata struct AffineData     the data necessary to solve the linear system.
 
     //TODO: Currently uniform weights. Make them geometric.
     IGL_INLINE void affine_maps_precompute(const Eigen::MatrixXd& V,
@@ -51,7 +59,6 @@ namespace hedra
                                            const Eigen::MatrixXi& EF,
                                            const Eigen::MatrixXi& EV,
                                            const Eigen::VectorXi& h,
-                                           const double bendFactor;
                                            struct AffineData& adata);
     {
         
@@ -107,6 +114,8 @@ namespace hedra
         adata.E.setFromTriplets(ETripletList.begin(), ETripletList.end());
         adata.C.resize(CRows,NumVars);
         adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
+        adata.FSize=F.rows();
+        adata.VSize=V.rows();
         igl::min_quad_with_fixed_precompute<double>(E, h,C,true,adata.mqwfd);
     }
     
@@ -116,21 +125,28 @@ namespace hedra
     //qh input values are matching those in h.
     
     //input:
-    // E eigen double sparse matrix     Energy matrix
-    // C eigen double sparse matrix     Constraint matrix
+    // adata struct AffineData     the data necessary to solve the linear system.
     // qh eigen double matrix           h by 3 new handle positions
+    // q0 eigen double matrix           v by 3 initial solution
     
     //output:
     // q eigen double matrix            V by 3 new vertex positions (note: include handles)
     // A eigen double matrix            3*F by 3 affine maps (stacked 3x3 per face)
     
-    IGL_INLINE void affine_maps_deform(const Eigen::sparsematrix<double>& E,
-                                       const Eigen::sparsematrix<double>& C,
-                                       const Eigen::MatrixXd qh,
+    
+    //currently: solving only one global system (thus, initial solution is not used).
+    IGL_INLINE void affine_maps_deform(struct AffineData& adata,
+                                       const Eigen::MatrixXd& qh,
+                                       const Eigen::MatrixXd& q0,
                                        Eigen::MatrixXd q,
-                                       Eigen::MatrixXd A);
+                                       Eigen::MatrixXd A)
     {
+    
+        Eigen::Matrix RawResult;
+        igl::min_quad_with_fixed_solve(adata.mqwf,Eigen::VectorXd:Zero(adata.E.cols()),qh,Eigen::VectorXd:Zero(adata.C.rows()),RawResult);
         
+        A=RawResult.block(0,0,3*adata.FSize,3);
+        q=RawResult.block(3*adata.FSize,0,adata.VSize,3);
     }
 }
 
