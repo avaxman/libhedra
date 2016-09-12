@@ -143,8 +143,13 @@ namespace hedra
     {
     
         Eigen::MatrixXd RawResult;
-        //currently not working!!!
-        igl::min_quad_with_fixed_solve(adata.mqwfd,Eigen::VectorXd::Zero(adata.E.cols()),qh,Eigen::VectorXd::Zero(adata.C.rows()),RawResult);
+        //currently trying to prescribe the identity transformation alone.
+        Eigen::MatrixXd B(3*adata.FSize+adata.VSize,3);
+        for (int i=0;i<adata.FSize;i++)
+            B.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
+        
+        Eigen::MatrixXd Beq=Eigen::MatrixXd::Zero(adata.C.rows(),3);
+        igl::min_quad_with_fixed_solve(adata.mqwfd,B,qh,Beq,RawResult);
         
         A=RawResult.block(0,0,3*adata.FSize,3);
         q=RawResult.block(3*adata.FSize,0,adata.VSize,3);
