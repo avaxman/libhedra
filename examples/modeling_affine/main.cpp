@@ -1,152 +1,131 @@
-#include <hedra/hedra_read_off.h>
+#include <hedra/hedra_read_OFF.h>
+#include <hedra/triangulate_mesh.h>
+#include <hedra/hedra_edge_topology.h>
+#include <hedra/affine_maps_deform.h>
 #include <igl/unproject_onto_mesh.h>
 #include <igl/viewer/Viewer.h>
-#include <iostream>
+#include <igl/readDMAT.h>
 
-Eigen::MatrixXd V, C;
-Eigen::MatrixXi F;
 
 bool LeftButtonDown=false;
 std::vector<int> Handles;
+std::vector<Eigen::RowVector3d> HandlePoses;
 int CurrentHandle;
 
+const Eigen::RowVector3d sea_green(70./255.,252./255.,167./255.);
+Eigen::MatrixXd V,U;
+Eigen::MatrixXi F, T;
+Eigen::VectorXi S,b, D;
+Eigen::MatrixXi EV, EF, FE;
+Eigen::RowVector3d mid;
+double anim_t = 0.0;
+double anim_t_dir = 0.03;
+hedra::AffineData affine_data;
 
-void UpdateCurrentView(igl::viewer::Viewer& viewer){
-    
-}
 
-bool mouse_up(igl::viewer::Viewer& viewer, int button, int modifier)
+bool UpdateCurrentView(igl::viewer::Viewer & viewer)
 {
-    if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
-        LeftButtonDown=false;
-    
-    return true;
-}
-
-bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
-{
-    if (!LeftButtonDown)  //not actively deforming
-        return false;
-    
-    double x = viewer.current_mouse_x;
-    double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-    Vector3f NewPos=igl::unproject<float>(Vector3f(x,y,CurrWinZ),
-                                          viewer.core.view * viewer.core.model,
-                                          viewer.core.proj,
-                                          viewer.core.viewport);
-    
-    
-    if (ReorientationMode){
-        RowVector3d CurrCRVec=(NewPos.transpose().cast<double>()-mm.DeformV.row(ConstCRIndices[CurrActiveCRHandle])).normalized();
-        ConstCR[CurrActiveCRHandle]<<CurrCRVec;
-    } else if (DeformationMode){
-        ConstPoses[CurrActivePosHandle]=NewPos.cast<double>();
-        
-    }
-    
-    mm.UpdateMinimal(ConstPoses, ConstCR ,1000, MinimalMode, VRFactor, FRFactor);
-    RecomputeInterpolation=true;
-    UpdateCurrentView();
-    return true;
-}
-
-
-bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
-{
-    if ((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left)
-        return false;  //left button is only for the default viewer/camera stuff
-    
-    if (!(EditingMode==EDIT_MINIMAL))
-        return false;  //nothing to do in other modes
-    
-    RightButtonDown=true;
-    
-    if ((!ChoosingHandleMode)&&(!ChoosingCRMode))
-        return false;
-    
-    //finding out which vertex
-    int ClosestVertex=0;
-    
-    // Cast a ray in the view direction starting from the mouse position
-    double x = viewer.current_mouse_x;
-    double y = (double)viewer.core.viewport(3) - (double)viewer.current_mouse_y;
-    double MinDistance=3276700.0;
-    V=mm.DeformV;
-    for (int i=0;i<V.rows();i++){
-        Vector3f WinCoords=igl::project<float>(V.row(i).cast<float>(),
-                                               viewer.core.view * viewer.core.model,
-                                               viewer.core.proj,
-                                               viewer.core.viewport);
-        double Distance=(WinCoords(0)-x)*(WinCoords(0)-x)+(WinCoords(1)-y)*(WinCoords(1)-y)+WinCoords(2)*WinCoords(2);
-        
-        if (Distance<MinDistance){
-            ClosestVertex=i;
-            MinDistance=Distance;
-            CurrWinZ=WinCoords(2);
-        }
-    }
-    
-    if (ChoosingHandleMode){
-        //checking if handle already exists
-        bool Found=false;
-        for (int i=0;i<ConstPosIndices.size();i++){
-            if (ConstPosIndices[i]==ClosestVertex){
-                Found=true;
-                CurrActivePosHandle=i;
+    using namespace Eigen;
+    using namespace std;
+    MatrixXd bc(b.size(),V.cols());
+    for(int i = 0;i<b.size();i++)
+    {
+        bc.row(i) = V.row(b(i));
+        switch(S(b(i)))
+        {
+            case 0:
+            {
+                const double r = mid(0)*0.25;
+                bc(i,0) += r*sin(0.5*anim_t*2.*igl::PI);
+                bc(i,1) -= r+r*cos(igl::PI+0.5*anim_t*2.*igl::PI);
                 break;
             }
-        }
-        
-        if (!Found){
-            ConstPosIndices.push_back(ClosestVertex);
-            ConstPoses.push_back(V.row(ClosestVertex));
-            CurrActivePosHandle=(int)(ConstPosIndices.size()-1);
-        }
-        cout << "Picked positional (vertex): "<<CurrActivePosHandle<< ")" << endl;
-    }
-    
-    if (ChoosingCRMode){
-        //checking if handle already exists
-        bool Found=false;
-        for (int i=0;i<ConstCRIndices.size();i++){
-            if (ConstCRIndices[i]==ClosestVertex){
-                Found=true;
-                CurrActiveCRHandle=i;
+            case 1:
+            {
+                const double r = mid(1)*0.15;
+                bc(i,1) += r+r*cos(igl::PI+0.15*anim_t*2.*igl::PI);
+                bc(i,2) -= r*sin(0.15*anim_t*2.*igl::PI);
                 break;
             }
+            case 2:
+            {
+                const double r = mid(1)*0.15;
+                bc(i,2) += r+r*cos(igl::PI+0.35*anim_t*2.*igl::PI);
+                bc(i,0) += r*sin(0.35*anim_t*2.*igl::PI);
+                break;
+            }
+            default:
+                break;
         }
-        
-        if (!Found){
-            ConstCRIndices.push_back(ClosestVertex);
-            ConstCR.push_back(mm.VCR.row(ClosestVertex));
-            CurrActiveCRHandle=(int)(ConstCRIndices.size()-1);
-        }
-        
-        cout << "Picked CR (vertex): "<<CurrActiveCRHandle<< ")" << endl;
     }
-    
-    //cout<<"ConstPosIndicesMat: "<<ConstPosIndicesMat<<endl;
-    //cout<<"ConstCRIndicesMat: "<<ConstCRIndicesMat<<endl;
-    
-    //mm.InitWillmore(ConstPosIndicesMat, ConstCRIndicesMat, isExactMC, isExactPlan);
-    
-    UpdateCurrentView(viewer);
-    return true;
+    Eigen::MatrixXd A;
+    hedra::affine_maps_deform(affine_data,bc, U,U,A);
+    viewer.data.set_vertices(U);
+    viewer.data.compute_normals();
+    if(viewer.core.is_animating)
+    {
+        anim_t += anim_t_dir;
+    }
+    return false;
+}
+
+bool key_down(igl::viewer::Viewer &viewer, unsigned char key, int mods)
+{
+    switch(key)
+    {
+        case ' ':
+            viewer.core.is_animating = !viewer.core.is_animating;
+            return true;
+    }
+    return false;
 }
 
 
 int main(int argc, char *argv[])
 {
-
+    
     // Load a mesh in OFF format
+    using namespace std;
+    using namespace Eigen;
+    
     hedra::hedra_read_OFF(DATA_PATH "/six.off", V, D, F);
-
+    igl::readDMAT(DATA_PATH "/six-selection.dmat",S);
+    
+    // vertices in selection
+    igl::colon<int>(0,V.rows()-1,b);
+    b.conservativeResize(stable_partition( b.data(), b.data()+b.size(),
+                                          [](int i)->bool{return S(i)>=0;})-b.data());
+    // Centroid
+    mid = 0.5*(V.colwise().maxCoeff() + V.colwise().minCoeff());
+    // Precomputation
+    hedra::hedra_edge_topology(D, F, EV, FE, EF);
+    hedra::affine_maps_precompute(V,D,F,EF,EV, b,affine_data);
+    
+    // Set color based on selection
+    //TODO: replace with spheres and planarity plotting
+    MatrixXd C(F.rows(),3);
+    RowVector3d purple(80.0/255.0,64.0/255.0,255.0/255.0);
+    RowVector3d gold(255.0/255.0,228.0/255.0,58.0/255.0);
+    for(int f = 0;f<F.rows();f++)
+    {
+        if( S(F(f,0))>=0 && S(F(f,1))>=0 && S(F(f,2))>=0)
+        {
+            C.row(f) = purple;
+        }else
+        {
+            C.row(f) = gold;
+        }
+    }
+    
+    // Plot the mesh with pseudocolors
     igl::viewer::Viewer viewer;
-    viewer.callback_mouse_down = mouse_down;
-    viewer.callback_mouse_up = mouse_up;
-    viewer.callback_mouse_move = mouse_move;
-  
-    // Show mesh
-    UpdateCurrentView(viewer);
+    viewer.data.set_mesh(U, F);
+    viewer.data.set_colors(C);
+    viewer.callback_pre_draw = &UpdateCurrentView;
+    viewer.callback_key_down = &key_down;
+    viewer.core.is_animating = false;
+    viewer.core.animation_max_fps = 30.;
+    cout<<
+    "Press [space] to toggle animation"<<endl;
     viewer.launch();
 }

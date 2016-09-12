@@ -29,9 +29,9 @@ namespace hedra
     };
     
     struct AffineData{
-        Eigen::sparsematrix<double>& E;  //energy matrix
-        Eigen::sparsematrix<double>& C;  //constraint matrix
-        min_quad_with_fixed_data<double> mqwfd;  //data with the quadratic solver
+        Eigen::SparseMatrix<double> E;  //energy matrix
+        Eigen::SparseMatrix<double> C;  //constraint matrix
+        igl::min_quad_with_fixed_data<double> mqwfd;  //data with the quadratic solver
         AffineEnergyTypes aet;
         double bendFactor;
         int FSize, VSize;
@@ -59,7 +59,7 @@ namespace hedra
                                            const Eigen::MatrixXi& EF,
                                            const Eigen::MatrixXi& EV,
                                            const Eigen::VectorXi& h,
-                                           struct AffineData& adata);
+                                           struct AffineData& adata)
     {
         
         
@@ -68,15 +68,15 @@ namespace hedra
         int NumVars=3*F.rows()+V.rows();  //every dimension is seperable.
         
         std::vector<Eigen::Triplet<double> > CTripletList;
-        for(int i=0;i<E2F.rows();i++)
+        for(int i=0;i<EF.rows();i++)
         {
-            RowVector3d EdgeVector=V.row(E2V(i,1))-V.row(E2V(i,0));
+            Eigen::RowVector3d EdgeVector=V.row(EV(i,1))-V.row(EV(i,0));
             for (int j=0;j<2;j++){
                 if (EF(i,j)!=-1)
                     for (int k=0;k<3;k++){
-                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*E2F(i,j)+k,EdgeVector(k)));
-                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+E2V(i,0),-1.0));
-                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+E2V(i,1),1.0));
+                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*EF(i,j)+k,EdgeVector(k)));
+                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+EV(i,0),-1.0));
+                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+EV(i,1),1.0));
                     }
                 CRows++;
             }
@@ -97,26 +97,26 @@ namespace hedra
         ERows+=3*F.rows();
         
         //"bending" energy to difference of adjacent matrices
-        for(int i=0;i<E2F.rows();i++)
+        for(int i=0;i<EF.rows();i++)
         {
             if ((EF(i,0)==-1)||(EF(i,1)==-1))  //boundary edge
                 continue;
             
             for (int k=0;k<3;k++){
-                ETripletList.push_back(Eigen::Triplet<double>(ERows,3*E2F(i,0)+k,-1.0));
-                ETripletList.push_back(Eigen::Triplet<double>(ERows,3*E2F(i,1)+k,1.0));
+                ETripletList.push_back(Eigen::Triplet<double>(ERows,3*EF(i,0)+k,-1.0));
+                ETripletList.push_back(Eigen::Triplet<double>(ERows,3*EF(i,1)+k,1.0));
             }
             ERows++;
         }
         
        
-        adata.E.resize(Arows,NumVars);
+        adata.E.resize(ERows,NumVars);
         adata.E.setFromTriplets(ETripletList.begin(), ETripletList.end());
         adata.C.resize(CRows,NumVars);
         adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
         adata.FSize=F.rows();
         adata.VSize=V.rows();
-        igl::min_quad_with_fixed_precompute<double>(E, h,C,true,adata.mqwfd);
+        igl::min_quad_with_fixed_precompute<double>(adata.E, h,adata.C,true,adata.mqwfd);
     }
     
     
@@ -130,20 +130,21 @@ namespace hedra
     // q0 eigen double matrix           v by 3 initial solution
     
     //output:
-    // q eigen double matrix            V by 3 new vertex positions (note: include handles)
     // A eigen double matrix            3*F by 3 affine maps (stacked 3x3 per face)
+    // q eigen double matrix            V by 3 new vertex positions (note: include handles)
     
     
     //currently: solving only one global system (thus, initial solution is not used).
     IGL_INLINE void affine_maps_deform(struct AffineData& adata,
                                        const Eigen::MatrixXd& qh,
                                        const Eigen::MatrixXd& q0,
-                                       Eigen::MatrixXd q,
-                                       Eigen::MatrixXd A)
+                                       Eigen::MatrixXd A,
+                                       Eigen::MatrixXd q)
     {
     
-        Eigen::Matrix RawResult;
-        igl::min_quad_with_fixed_solve(adata.mqwf,Eigen::VectorXd:Zero(adata.E.cols()),qh,Eigen::VectorXd:Zero(adata.C.rows()),RawResult);
+        Eigen::MatrixXd RawResult;
+        //currently not working!!!
+        igl::min_quad_with_fixed_solve(adata.mqwfd,Eigen::VectorXd::Zero(adata.E.cols()),qh,Eigen::VectorXd::Zero(adata.C.rows()),RawResult);
         
         A=RawResult.block(0,0,3*adata.FSize,3);
         q=RawResult.block(3*adata.FSize,0,adata.VSize,3);
