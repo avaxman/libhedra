@@ -12,6 +12,7 @@
 #include <igl/setdiff.h>
 #include <Eigen/Core>
 #include <Eigen/SparseLU>
+#include <Eigen/Geometry>
 #include <vector>
 
 
@@ -37,6 +38,8 @@ namespace hedra
         Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::COLAMDOrdering<int> >  solver;
         AffineEnergyTypes aet;
         double bendFactor;
+        Eigen::VectorXi h;  //handle indices
+        Eigen::VectorXi x2f;  //variables to free variables
         int FSize, VSize;
     };
     
@@ -75,21 +78,36 @@ namespace hedra
         int NumFullVars=3*F.rows()+V.rows();  //every dimension is seperable.
         int NumVars=NumFullVars-h.size();
         
+        Eigen::MatrixXd FaceNormals(F.rows(),3);
+        for (int i=0;i<F.rows();i++){
+            Eigen::Matrix3d v; v<<V.row(F(i,0)), V.row(F(i,1)), V.row(F(i,2));
+                                                
+            FaceNormals.row(i)=(v.row(2)-v.row(1)).cross(v.row(0)-v.row(1)).normalized();
+        }
+            
+        
         std::vector<Eigen::Triplet<double> > CTripletList;
         for(int i=0;i<EF.rows();i++)
         {
-            std::cout<<"EV.row(i): "<<EV.row(i)<<std::endl;
+            std::cout<<"EF.row(i): "<<EF.row(i)<<std::endl;
             Eigen::RowVector3d EdgeVector=V.row(EV(i,1))-V.row(EV(i,0));
             for (int j=0;j<2;j++){
                 if (EF(i,j)!=-1)
                     for (int k=0;k<3;k++){
+                        if (3*EF(i,j)+k==317)
+                            std::cout<<"EdgeVector(k)"<<EdgeVector(k)<<std::endl;
                         CTripletList.push_back(Eigen::Triplet<double>(CRows,3*EF(i,j)+k,EdgeVector(k)));
                         CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+EV(i,0),-1.0));
                         CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+EV(i,1),1.0));
                     }
                 CRows++;
             }
-            
+        }
+        //the phantom codntitions for the normals
+        for (int i=0;i<F.rows();i++){
+            for (int j=0;j<3;j++)
+                CTripletList.push_back(Eigen::Triplet<double>(CRows, 3*F.rows()+j,FaceNormals(i,j)));
+            CRows++;
         }
         
     
@@ -136,31 +154,38 @@ namespace hedra
         adata.VSize=V.rows();
         
         //removing the columns of the matrices by filtering the triplets (cheaper than the slice function)
-        //INDEXING IS WRONG!!!! need to account for A and q together.
-        Eigen::VectorXi v2f=Eigen::VectorXi::Zero(V.rows(), 1);  //vertex index to free vertex index
-        int CurrIndex=0;
+        adata.x2f=Eigen::VectorXi::Zero(3*F.rows()+V.rows(), 1);  //vertex index to free vertex index
+        for (int i=0;i<3*F.rows();i++)
+            adata.x2f(i)=i;
+        int CurrIndex=3*F.rows();
         for (int i=0;i<h.size();i++)
-            v2f(h(i))=-1;
+            adata.x2f(h(i)+3*F.rows())=-1;
         
         for (int i=0;i<V.rows();i++)
-            if (v2f(i)!=-1)
-                v2f(i)=CurrIndex++;
+            if (adata.x2f(i+3*F.rows())!=-1)
+                adata.x2f(i+3*F.rows())=CurrIndex++;
+        
+        std::cout<<"CurrIndex: "<<CurrIndex<<std::endl;
+        std::cout<<"adata.x2f: "<<adata.x2f<<std::endl;
         
         std::vector<Eigen::Triplet<double> > temp=ATripletList;
-        ATripletList.empty();
+        ATripletList.clear();
         for (int i=0;i<temp.size();i++)
-            if (v2f(temp[i].col())!=-1)
-                ATripletList.push_back(Eigen::Triplet<double>(temp[i].row(), v2f(temp[i].col()), temp[i].value()));
+            if (adata.x2f(temp[i].col())!=-1)
+                ATripletList.push_back(Eigen::Triplet<double>(temp[i].row(), adata.x2f(temp[i].col()), temp[i].value()));
         
         temp=CTripletList;
-        CTripletList.empty();
+        CTripletList.clear();
         for (int i=0;i<temp.size();i++)
-            if (v2f(temp[i].col())!=-1)
-                CTripletList.push_back(Eigen::Triplet<double>(temp[i].row(), v2f(temp[i].col()), temp[i].value()));
+            if (adata.x2f(temp[i].col())!=-1){
+                CTripletList.push_back(Eigen::Triplet<double>(temp[i].row(), adata.x2f(temp[i].col()), temp[i].value()));
+                std::cout<<CTripletList[i].row()<<","<<CTripletList[i].col()<<std::endl;
+            }
         
         adata.A.resize(ARows,NumVars);
         adata.A.setFromTriplets(ATripletList.begin(), ATripletList.end());
         
+        std::cout<<"NumVars: "<<NumVars<<std::endl;
         adata.C.resize(CRows,NumVars);
         adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
         
@@ -190,6 +215,9 @@ namespace hedra
                 BigMatTris.push_back(Eigen::Triplet<double>(it.col(), it.row()+NumVars, it.value()));
             }
         
+        std::cout<<"3*F.rows()"<<3*F.rows()<<std::endl;
+        std::cout<<"BigMat(:,317)"<<BigMat.col(317)<<std::endl;
+        std::cout<<"C(:,317)"<<adata.C.col(317)<<std::endl;
         BigMat.setFromTriplets(BigMatTris.begin(), BigMatTris.end());
         adata.solver.analyzePattern(BigMat);
         adata.solver.factorize(BigMat);
@@ -220,7 +248,7 @@ namespace hedra
     
         
         //currently trying to prescribe the identity transformation alone.
-        Eigen::MatrixXd Brhs(3*adata.FSize+adata.VSize,3);
+        Eigen::MatrixXd Brhs(adata.A.rows(),3);
         for (int i=0;i<adata.FSize;i++)
             Brhs.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
         
@@ -231,8 +259,17 @@ namespace hedra
         Eigen::MatrixXd rhs(B.rows()+D.rows(),3); rhs<<B,D;
         Eigen::MatrixXd RawResult = adata.solver.solve(rhs);
         
-        A=RawResult.block(0,0,3*adata.FSize,3);
-        q=RawResult.block(3*adata.FSize,0,adata.VSize,3);
+        Eigen::MatrixXd RawFullResult(3*adata.FSize+adata.VSize,3);
+        
+        for (int i=0;i<adata.x2f.size();i++)
+            RawFullResult.row(i)=RawResult.row(adata.x2f(i));
+        
+        for (int i=0;i<adata.h.size();i++)
+            RawFullResult.row(adata.h(i))=qh.row(i);
+            
+        
+        A=RawFullResult.block(0,0,3*adata.FSize,3);
+        q=RawFullResult.block(3*adata.FSize,0,adata.VSize,3);
     }
 }
 
