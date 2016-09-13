@@ -9,9 +9,11 @@
 #define HEDRA_AFFINE_MAPS_DEFORM_H
 
 #include <igl/igl_inline.h>
+#include <igl/setdiff.h>
 #include <Eigen/Core>
+#include <Eigen/SparseLU>
 #include <vector>
-#include <igl/min_quad_with_fixed.h>
+
 
 //This file implements the deformation algorithm described in:
 
@@ -29,9 +31,10 @@ namespace hedra
     };
     
     struct AffineData{
-        Eigen::SparseMatrix<double> E;  //energy matrix
-        Eigen::SparseMatrix<double> C;  //constraint matrix
-        igl::min_quad_with_fixed_data<double> mqwfd;  //data with the quadratic solver
+        Eigen::SparseMatrix<double> AFull, A;  //energy matrices (full and substituted)
+        Eigen::SparseMatrix<double> CFull, C;  //constraint matrices
+        Eigen::MatrixXd toB, toD;  //constant additions to right-hand sides due to handles
+        Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::COLAMDOrdering<int> >  solver;
         AffineEnergyTypes aet;
         double bendFactor;
         int FSize, VSize;
@@ -57,19 +60,25 @@ namespace hedra
                                            const Eigen::VectorXi& D,
                                            const Eigen::MatrixXi& F,
                                            const Eigen::MatrixXi& EF,
+                                           const Eigen::MatrixXi& FE,
                                            const Eigen::MatrixXi& EV,
                                            const Eigen::VectorXi& h,
                                            struct AffineData& adata)
     {
         
         
+        //creating independent sets of edges
+        
+        
         //Assembling the constraint matrix C
         int CRows=0;
-        int NumVars=3*F.rows()+V.rows();  //every dimension is seperable.
+        int NumFullVars=3*F.rows()+V.rows();  //every dimension is seperable.
+        int NumVars=NumFullVars-h.size();
         
         std::vector<Eigen::Triplet<double> > CTripletList;
         for(int i=0;i<EF.rows();i++)
         {
+            std::cout<<"EV.row(i): "<<EV.row(i)<<std::endl;
             Eigen::RowVector3d EdgeVector=V.row(EV(i,1))-V.row(EV(i,0));
             for (int j=0;j<2;j++){
                 if (EF(i,j)!=-1)
@@ -85,16 +94,16 @@ namespace hedra
         
     
         //Assembling the energy matrix E
-        int ERows=0;
+        int ARows=0;
         //NumVars is the same
-        std::vector<Eigen::Triplet<double> > ETripletList;
+        std::vector<Eigen::Triplet<double> > ATripletList;
         
         //prescription to a given matrix per face - just an identity
         //TODO: stack up a stock identity matrix instead of wording it here?
         for(int i=0;i<3*F.rows();i++){
-            ETripletList.push_back(Eigen::Triplet<double>(i,i,1.0));
+            ATripletList.push_back(Eigen::Triplet<double>(i,i,1.0));
         }
-        ERows+=3*F.rows();
+        ARows+=3*F.rows();
         
         //"bending" energy to difference of adjacent matrices
         for(int i=0;i<EF.rows();i++)
@@ -103,20 +112,87 @@ namespace hedra
                 continue;
             
             for (int k=0;k<3;k++){
-                ETripletList.push_back(Eigen::Triplet<double>(ERows,3*EF(i,0)+k,-1.0));
-                ETripletList.push_back(Eigen::Triplet<double>(ERows,3*EF(i,1)+k,1.0));
+                ATripletList.push_back(Eigen::Triplet<double>(ARows,3*EF(i,0)+k,-1.0));
+                ATripletList.push_back(Eigen::Triplet<double>(ARows,3*EF(i,1)+k,1.0));
             }
-            ERows++;
+            ARows++;
         }
         
+        Eigen::MatrixXd xconst=Eigen::MatrixXd::Zero(NumFullVars,3);
+        
        
-        adata.E.resize(ERows,NumVars);
-        adata.E.setFromTriplets(ETripletList.begin(), ETripletList.end());
-        adata.C.resize(CRows,NumVars);
-        adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
+        //constructing Ax-b
+        adata.AFull.resize(ARows,NumFullVars);
+        adata.AFull.setFromTriplets(ATripletList.begin(), ATripletList.end());
+        adata.toB=-adata.AFull*xconst;
+        
+        
+        adata.CFull.resize(CRows,NumFullVars);
+        adata.CFull.setFromTriplets(CTripletList.begin(), CTripletList.end());
+        adata.toD=-adata.CFull*xconst;
+        
+        
         adata.FSize=F.rows();
         adata.VSize=V.rows();
-        igl::min_quad_with_fixed_precompute<double>(adata.E, h,adata.C,true,adata.mqwfd);
+        
+        //removing the columns of the matrices by filtering the triplets (cheaper than the slice function)
+        //INDEXING IS WRONG!!!! need to account for A and q together.
+        Eigen::VectorXi v2f=Eigen::VectorXi::Zero(V.rows(), 1);  //vertex index to free vertex index
+        int CurrIndex=0;
+        for (int i=0;i<h.size();i++)
+            v2f(h(i))=-1;
+        
+        for (int i=0;i<V.rows();i++)
+            if (v2f(i)!=-1)
+                v2f(i)=CurrIndex++;
+        
+        std::vector<Eigen::Triplet<double> > temp=ATripletList;
+        ATripletList.empty();
+        for (int i=0;i<temp.size();i++)
+            if (v2f(temp[i].col())!=-1)
+                ATripletList.push_back(Eigen::Triplet<double>(temp[i].row(), v2f(temp[i].col()), temp[i].value()));
+        
+        temp=CTripletList;
+        CTripletList.empty();
+        for (int i=0;i<temp.size();i++)
+            if (v2f(temp[i].col())!=-1)
+                CTripletList.push_back(Eigen::Triplet<double>(temp[i].row(), v2f(temp[i].col()), temp[i].value()));
+        
+        adata.A.resize(ARows,NumVars);
+        adata.A.setFromTriplets(ATripletList.begin(), ATripletList.end());
+        
+        adata.C.resize(CRows,NumVars);
+        adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
+        
+
+        
+        //igl::min_quad_with_fixed_precompute<double>(adata.E.transpose()*adata.E, h,adata.C,true,adata.mqwfd);
+        
+        //constructing the Lagrangian Matrix
+        
+        
+        Eigen::SparseMatrix<double, Eigen::ColMajor> BigMat(CRows+NumVars, CRows+NumVars);
+        std::vector<Eigen::Triplet<double> > BigMatTris;
+        Eigen::SparseMatrix<double> AtA=adata.A.transpose()*adata.A;
+        
+        //block EtE (there is no better way to do this?)
+        for (int k=0; k < adata.A.outerSize(); ++k)
+            for (Eigen::SparseMatrix<double>::InnerIterator it(adata.A,k); it; ++it)
+                BigMatTris.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+        
+
+        
+        //block C and Ct
+        for (int k=0; k < adata.C.outerSize(); ++k)
+            for (Eigen::SparseMatrix<double>::InnerIterator it(adata.C,k); it; ++it)
+            {
+                BigMatTris.push_back(Eigen::Triplet<double>(it.row()+NumVars, it.col(), it.value()));
+                BigMatTris.push_back(Eigen::Triplet<double>(it.col(), it.row()+NumVars, it.value()));
+            }
+        
+        BigMat.setFromTriplets(BigMatTris.begin(), BigMatTris.end());
+        adata.solver.analyzePattern(BigMat);
+        adata.solver.factorize(BigMat);
     }
     
     
@@ -142,14 +218,18 @@ namespace hedra
                                        Eigen::MatrixXd q)
     {
     
-        Eigen::MatrixXd RawResult;
-        //currently trying to prescribe the identity transformation alone.
-        Eigen::MatrixXd B(3*adata.FSize+adata.VSize,3);
-        for (int i=0;i<adata.FSize;i++)
-            B.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
         
-        Eigen::MatrixXd Beq=Eigen::MatrixXd::Zero(adata.C.rows(),3);
-        igl::min_quad_with_fixed_solve(adata.mqwfd,B,qh,Beq,RawResult);
+        //currently trying to prescribe the identity transformation alone.
+        Eigen::MatrixXd Brhs(3*adata.FSize+adata.VSize,3);
+        for (int i=0;i<adata.FSize;i++)
+            Brhs.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
+        
+        Eigen::MatrixXd B=adata.A.transpose()*(Brhs+adata.toB);
+        
+        Eigen::MatrixXd D=adata.toD;
+        
+        Eigen::MatrixXd rhs(B.rows()+D.rows(),3); rhs<<B,D;
+        Eigen::MatrixXd RawResult = adata.solver.solve(rhs);
         
         A=RawResult.block(0,0,3*adata.FSize,3);
         q=RawResult.block(3*adata.FSize,0,adata.VSize,3);
