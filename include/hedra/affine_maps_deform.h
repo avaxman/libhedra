@@ -98,57 +98,39 @@ namespace hedra
         /********************Assembling the full constraint matrix********************************************/
         vector<Triplet<double> > CTriplets;
         for(int i=0;i<F.rows();i++){
-            //Constructing projection matrix
-            MatrixXd E(D(i)+1,3);
-            for (int j=0;j<D(i);j++)
-                E.row(j)<<V.row(F(i,(j+1)%D(i)))-V.row(F(i,j));
-            
-            E.row(D(i))=OrigNormals.row(i);
-            
-        
-            JacobiSVD<MatrixXd> svd(E, ComputeThinU | ComputeThinV);
-            MatrixXd SpS=MatrixXd::Zero(D(i)+1,D(i)+1);
-            VectorXd s=svd.singularValues();
-            for (int j=0;j<D(i)+1;j++)
-                SpS(j,j)=(std::abs(s(j))>10e-7 ? 1.0 : 0.0);
-            
-            MatrixXd ProjMat=svd.matrixU()*SpS*svd.matrixU().transpose()-MatrixXd::Identity(D(i)+1, D(i)+1);
-            
-            for (int j=0;j<D(i)+1;j++){
-                for (int k=0;k<D(i);k++){
-                    CTriplets.push_back(Triplet<double>(CRows+j, F(i,k), -ProjMat(j,k)));
-                    CTriplets.push_back(Triplet<double>(CRows+j, F(i,(k+1)%D(i)), ProjMat(j,k)));
+            for (int j=0;j<D(i)-3;j++){  //in case of triangle, nothing happens
+                int vi[4];
+                for (int k=0;k<4;k++)
+                    vi[k]=F(i,(j+k)%D(i));
+                
+                Matrix3d Coeffs1; Coeffs1<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(i);
+                Matrix3d Coeffs2; Coeffs2<<V.row(vi[3])-V.row(vi[2]),V.row(vi[2])-V.row(vi[1]), OrigNormals.row(i);
+                
+                Coeffs1=Coeffs1.inverse();
+                Coeffs2=Coeffs2.inverse();
+                
+                for (int k=0;k<3;k++){
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], Coeffs1(k,0)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], -Coeffs1(k,0)));
+                    
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], Coeffs1(k,1)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[0], -Coeffs1(k,1)));
+                    
+                    CTriplets.push_back(Triplet<double>(CRows+k, V.rows()+i, Coeffs1(k,2)));
+                    
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[3], -Coeffs2(k,0)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], Coeffs2(k,0)));
+                    
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], -Coeffs2(k,1)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], Coeffs2(k,1)));
+                    
+                    CTriplets.push_back(Triplet<double>(CRows+k, V.rows()+i, -Coeffs2(k,2)));
                 }
-                CTriplets.push_back(Triplet<double>(CRows+j, V.rows()+i, ProjMat(j,D(i))));
- 
-            }
-            
-            CRows+=D(i)+1;
-        }
-        
-        
-        /*for(int i=0;i<EF.rows();i++)
-        {
-            std::cout<<"EF.row(i): "<<EF.row(i)<<std::endl;
-            Eigen::RowVector3d EdgeVector=V.row(EV(i,1))-V.row(EV(i,0));
-            for (int j=0;j<2;j++){
-                if (EF(i,j)!=-1)
-                    for (int k=0;k<3;k++){
-                        if (3*EF(i,j)+k==317)
-                            std::cout<<"EdgeVector(k)"<<EdgeVector(k)<<std::endl;
-                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*EF(i,j)+k,EdgeVector(k)));
-                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+EV(i,0),-1.0));
-                        CTripletList.push_back(Eigen::Triplet<double>(CRows,3*D.size()+EV(i,1),1.0));
-                    }
-                CRows++;
+                
+                CRows+=3;
             }
         }
-        //the phantom codntitions for the normals
-        for (int i=0;i<F.rows();i++){
-            for (int j=0;j<3;j++)
-                CTripletList.push_back(Eigen::Triplet<double>(CRows, 3*F.rows()+j,FaceNormals(i,j)));
-            CRows++;
-        }*/
+        
         
         /**************Assembling full energy matrix*************/
         
@@ -164,19 +146,9 @@ namespace hedra
             ARows+=D(i);
         }
         
-        //TODO: continue from here
-        
-        
-        
-        
-        //prescription to a given matrix per face - just an identity
-        //TODO: stack up a stock identity matrix instead of wording it here?
-        /*for(int i=0;i<3*F.rows();i++){
-            ATripletList.push_back(Eigen::Triplet<double>(i,i,1.0));
-        }
-        ARows+=3*F.rows();*/
-        
         //"bending" energy to difference of adjacent matrices
+        
+        //continue from here.
         for(int i=0;i<EF.rows();i++)
         {
             if ((EF(i,0)==-1)||(EF(i,1)==-1))  //boundary edge
