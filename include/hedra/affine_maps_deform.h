@@ -13,6 +13,7 @@
 #include <Eigen/Core>
 #include <Eigen/SparseLU>
 #include <Eigen/Geometry>
+#include <Eigen/SVD>
 #include <vector>
 
 
@@ -72,22 +73,61 @@ namespace hedra
         
         //creating independent sets of edges
         
-        
+        using namespace Eigen;
+        using namespace std;
         //Assembling the constraint matrix C
         int CRows=0;
-        int NumFullVars=3*F.rows()+V.rows();  //every dimension is seperable.
+        int NumFullVars=V.rows()+F.rows();  //every dimension is seperable.
         int NumVars=NumFullVars-h.size();
+        MatrixXd OrigNormals(D.rows(),3);
         
-        Eigen::MatrixXd FaceNormals(F.rows(),3);
-        for (int i=0;i<F.rows();i++){
-            Eigen::Matrix3d v; v<<V.row(F(i,0)), V.row(F(i,1)), V.row(F(i,2));
-                                                
-            FaceNormals.row(i)=(v.row(2)-v.row(1)).cross(v.row(0)-v.row(1)).normalized();
+        for (int i=0;i<D.rows();i++){
+            RowVector3d FaceNormal; FaceNormal<<0.0,0.0,0.0;
+            for (int j=0;j<D(i);j++){
+                RowVectorXd vn=V.row(F(i,(j+D(i)-1)%D(i)));
+                RowVectorXd v0=V.row(F(i,j));
+                RowVectorXd v1=V.row(F(i,(j+1)%D(i)));
+                
+                FaceNormal=FaceNormal+((v1-v0).cross(v0-vn)).normalized();
+            }
+            
+            OrigNormals.row(i)=FaceNormal.normalized();
         }
+        
+        
+        /********************Assembling the full constraint matrix********************************************/
+        vector<Triplet<double> > CTriplets;
+        for(int i=0;i<F.rows();i++){
+            //Constructing projection matrix
+            MatrixXd E(D(i)+1,3);
+            for (int j=0;j<D(i);j++)
+                E.row(j)<<V.row(F(i,(j+1)%D(i)))-V.row(F(i,j));
+            
+            E.row(D(i))=OrigNormals.row(i);
             
         
-        std::vector<Eigen::Triplet<double> > CTripletList;
-        for(int i=0;i<EF.rows();i++)
+            JacobiSVD<MatrixXd> svd(E, ComputeThinU | ComputeThinV);
+            MatrixXd SpS=MatrixXd::Zero(D(i)+1,D(i)+1);
+            VectorXd s=svd.singularValues();
+            for (int j=0;j<D(i)+1;j++)
+                SpS(j,j)=(std::abs(s(j))>10e-7 ? 1.0 : 0.0);
+            
+            MatrixXd ProjMat=svd.matrixU()*SpS*svd.matrixU().transpose()-MatrixXd::Identity(D(i)+1, D(i)+1);
+            
+            for (int j=0;j<D(i)+1;j++){
+                for (int k=0;k<D(i);k++){
+                    CTriplets.push_back(Triplet<double>(CRows+j, F(i,k), -ProjMat(j,k)));
+                    CTriplets.push_back(Triplet<double>(CRows+j, F(i,(k+1)%D(i)), ProjMat(j,k)));
+                }
+                CTriplets.push_back(Triplet<double>(CRows+j, V.rows()+i, ProjMat(j,D(i))));
+ 
+            }
+            
+            CRows+=D(i)+1;
+        }
+        
+        
+        /*for(int i=0;i<EF.rows();i++)
         {
             std::cout<<"EF.row(i): "<<EF.row(i)<<std::endl;
             Eigen::RowVector3d EdgeVector=V.row(EV(i,1))-V.row(EV(i,0));
@@ -108,26 +148,41 @@ namespace hedra
             for (int j=0;j<3;j++)
                 CTripletList.push_back(Eigen::Triplet<double>(CRows, 3*F.rows()+j,FaceNormals(i,j)));
             CRows++;
+        }*/
+        
+        /**************Assembling full energy matrix*************/
+        
+        //prescription matrix
+    
+        int ARows=0;
+        vector<Triplet<double> > ATriplets;
+        for (int i=0;i<D.rows();i++){
+            for (int j=0;j<D(i);j++){
+                ATriplets.push_back(Triplet<double>(ARows+j,F(i,j), -1.0));
+                ATriplets.push_back(Triplet<double>(ARows+j,F(i,(j+1)%D(i)), 1.0));
+            }
+            ARows+=D(i);
         }
         
-    
-        //Assembling the energy matrix E
-        int ARows=0;
-        //NumVars is the same
-        std::vector<Eigen::Triplet<double> > ATripletList;
+        //TODO: continue from here
+        
+        
+        
         
         //prescription to a given matrix per face - just an identity
         //TODO: stack up a stock identity matrix instead of wording it here?
-        for(int i=0;i<3*F.rows();i++){
+        /*for(int i=0;i<3*F.rows();i++){
             ATripletList.push_back(Eigen::Triplet<double>(i,i,1.0));
         }
-        ARows+=3*F.rows();
+        ARows+=3*F.rows();*/
         
         //"bending" energy to difference of adjacent matrices
         for(int i=0;i<EF.rows();i++)
         {
             if ((EF(i,0)==-1)||(EF(i,1)==-1))  //boundary edge
                 continue;
+            
+            //comparing
             
             for (int k=0;k<3;k++){
                 ATripletList.push_back(Eigen::Triplet<double>(ARows,3*EF(i,0)+k,-1.0));
