@@ -243,9 +243,9 @@ namespace hedra
         for (int i=0;i<F.rows();i++)
             x.row(V.rows()+i)=OrigNormals.row(i)*T.block(0,0,3,3);
         
-        cout<<"A*x-b"<<adata.AFull*x-B<<endl;
-        cout<<"C*x"<<adata.CFull*x<<endl;
-        exit(0);
+        //cout<<"A*x-b"<<adata.AFull*x-B<<endl;
+        //cout<<"C*x"<<adata.CFull*x<<endl;
+        //exit(0);
         
         //removing the columns of the matrices by filtering the triplets (cheaper than the slice function)
         adata.x2f=Eigen::VectorXi::Zero(V.rows()+F.rows(), 1);  //vertex index to free vertex index
@@ -367,14 +367,15 @@ namespace hedra
         Eigen::MatrixXd RawFullResult(adata.VSize+adata.FSize,3);
         
         for (int i=0;i<adata.x2f.size();i++)
-            RawFullResult.row(i)=RawResult.row(adata.x2f(i));
+            if (adata.x2f(i)!=-1)
+                RawFullResult.row(i)=RawResult.row(adata.x2f(i));
         
         for (int i=0;i<adata.h.size();i++)
             RawFullResult.row(adata.h(i))=qh.row(i);
         
         q=RawFullResult.block(0,0,adata.VSize,3);
-        std::cout<<"q"<<q<<std::endl;
-        exit(0);
+        //std::cout<<"q"<<q<<std::endl;
+        //exit(0);
     }
 }
 
