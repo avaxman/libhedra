@@ -12,6 +12,7 @@
 #include <Eigen/Core>
 #include <vector>
 
+
 namespace hedra
 {
     // Initialize Edges and their topological relations
@@ -24,12 +25,18 @@ namespace hedra
     // EV   #E by 2, Stores the edge description as pair of indices to vertices
     // FE : #F by max(D), Stores the Face-Edge relation
     // EF : #E by 2: Stores the Edge-Face relation
+    // EFi: #E by 2: corresponding to EF and stores the relative position of the edge in the face (e.g., if the edge is (v1,v2) and the face has (vx,vy,v2,v1,vz,va), then the value is 3)
+    // EFs: #E by 2: if the edge is oriented positively or negatively in the face (e.g. in the example above we get -1)
+    // InnerEdges: indices into EV of which edges are internal (not boundary)
 
     IGL_INLINE void hedra_edge_topology(const Eigen::VectorXi& D,
-                                          const Eigen::MatrixXi& F,
-                                          Eigen::MatrixXi& EV,
-                                          Eigen::MatrixXi& FE,
-                                          Eigen::MatrixXi& EF)
+                                        const Eigen::MatrixXi& F,
+                                        Eigen::MatrixXi& EV,
+                                        Eigen::MatrixXi& FE,
+                                        Eigen::MatrixXi& EF,
+                                        Eigen::MatrixXi& EFi,
+                                        Eigen::MatrixXd& FEs,
+                                        Eigen::VectorXi& InnerEdges)
     {
         // Only needs to be edge-manifold
         std::vector<std::vector<int> > ETT;
@@ -107,6 +114,32 @@ namespace hedra
                 EF(i,1) = tmp;
             }
         }
+        
+        
+        std::vector<int> InnerEdgesVec;
+        EFi=Eigen::MatrixXi::Constant(EF.rows(), 2,-1);
+        FEs=Eigen::MatrixXd::Zero(FE.rows(),FE.cols());
+        for (int i=0;i<EF.rows();i++)
+            for (int k=0;k<2;k++){
+                if (EF(i,k)==-1)
+                    continue;
+                    
+                for (int j=0;j<D(EF(i,k));j++)
+                    if (FE(EF(i,k),j)==i)
+                        EFi(i,k)=j;
+            }
+        
+        for (int i=0;i<EF.rows();i++){
+            if (EFi(i,0)!=-1) FEs(EF(i,0),EFi(i,0))=1.0;
+            if (EFi(i,1)!=-1) FEs(EF(i,1),EFi(i,1))=-1.0;
+            if ((EF(i,0)!=-1)&&(EF(i,1)!=-1))
+                InnerEdgesVec.push_back(i);
+        }
+        
+        InnerEdges.resize(InnerEdgesVec.size());
+        for (int i=0;i<InnerEdgesVec.size();i++)
+            InnerEdges(i)=InnerEdgesVec[i];
+        
 
     }
 }

@@ -52,6 +52,7 @@ namespace hedra
     //  D  eigen int vector     #F by 1 - face degrees
     //  F  eigen int matrix     #F by max(D) - vertex indices in face
     //  EF eigen int matrix     #E by 2 - map from edges to adjacent faces
+    //  EFi eigen int matrix    #E by 2 - map from edges to relative index in faces
     //  EV eigen int matrix     #E by 2 - map from edges to end vertices
     //  h eigen int vector      #constraint vertex indices (handles)
     //  bendFactor double       #the relative similarty between affine maps on adjacent faces
@@ -63,11 +64,14 @@ namespace hedra
     IGL_INLINE void affine_maps_precompute(const Eigen::MatrixXd& V,
                                            const Eigen::VectorXi& D,
                                            const Eigen::MatrixXi& F,
+                                           const Eigen::MatrixXi& EV,
                                            const Eigen::MatrixXi& EF,
+                                           const Eigen::MatrixXi& EFi,
                                            const Eigen::MatrixXi& FE,
                                            const Eigen::MatrixXi& EV,
                                            const Eigen::VectorXi& h,
                                            struct AffineData& adata)
+    
     {
         
         
@@ -138,62 +142,100 @@ namespace hedra
     
         int ARows=0;
         vector<Triplet<double> > ATriplets;
-        for (int i=0;i<D.rows();i++){
+        for(int i=0;i<F.rows();i++){
             for (int j=0;j<D(i);j++){
-                ATriplets.push_back(Triplet<double>(ARows+j,F(i,j), -1.0));
-                ATriplets.push_back(Triplet<double>(ARows+j,F(i,(j+1)%D(i)), 1.0));
+                int vi[3];
+                for (int k=0;k<3;k++)
+                    vi[k]=F(i,(j+k)%D(i));
+                
+                Matrix3d Coeffs; Coeffs<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(i);
+               
+                Coeffs1=Coeffs1.inverse();
+  
+                for (int k=0;k<3;k++){
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[2], Coeffs1(k,0)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[1], -Coeffs1(k,0)));
+                    
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[1], Coeffs1(k,1)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -Coeffs1(k,1)));
+                    
+                    ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+i, Coeffs1(k,2)));
+                }
+                
+                ARows+=3;
             }
-            ARows+=D(i);
         }
+
         
         //"bending" energy to difference of adjacent matrices
-        
-        //continue from here.
+    
         for(int i=0;i<EF.rows();i++)
         {
             if ((EF(i,0)==-1)||(EF(i,1)==-1))  //boundary edge
                 continue;
             
-            //comparing
+            
+            int vi[3], vj[3];
+            for (int k=0;k<3;k++){
+                vi[k]=F(EF(i,0),(EFi(i,0)+k)%D(EF(i,0)));
+                vi[k]=F(EF(i,1),(EFi(i,1)+k)%D(EF(i,1)));
+            }
+            
+            Matrix3d Coeffsi; Coeffsi<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(EF(i,0));
+            Matrix3d Coeffsj; Coeffsj<<V.row(vj[2])-V.row(vj[1]),V.row(vj[1])-V.row(vj[0]), OrigNormals.row(EF(i,1));
+            
+            Coeffsi=Coeffsi.inverse();
+            Coeffsj=Coeffsj.inverse();
             
             for (int k=0;k<3;k++){
-                ATripletList.push_back(Eigen::Triplet<double>(ARows,3*EF(i,0)+k,-1.0));
-                ATripletList.push_back(Eigen::Triplet<double>(ARows,3*EF(i,1)+k,1.0));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[2], Coeffsi(k,0)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[1], -Coeffsi(k,0)));
+                
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[1], Coeffsi(k,1)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -Coeffsi(k,1)));
+                
+                ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,0), Coeffsi(k,2)));
+                
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[2], Coeffsj(k,0)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[1], -Coeffsj(k,0)));
+                
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[1], Coeffsj(k,1)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[0], -Coeffsj(k,1)));
+                
+                ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,1), Coeffsj(k,2)));
             }
-            ARows++;
+            
+            ARows+=3;
         }
         
         Eigen::MatrixXd xconst=Eigen::MatrixXd::Zero(NumFullVars,3);
         
-       
         //constructing Ax-b
         adata.AFull.resize(ARows,NumFullVars);
-        adata.AFull.setFromTriplets(ATripletList.begin(), ATripletList.end());
-        adata.toB=-adata.AFull*xconst;
-        
+        adata.AFull.setFromTriplets(ATriplets.begin(), ATriplets.end());
         
         adata.CFull.resize(CRows,NumFullVars);
-        adata.CFull.setFromTriplets(CTripletList.begin(), CTripletList.end());
-        adata.toD=-adata.CFull*xconst;
-        
+        adata.CFull.setFromTriplets(CTriplets.begin(), CTripletsend());
         
         adata.FSize=F.rows();
         adata.VSize=V.rows();
         
         //removing the columns of the matrices by filtering the triplets (cheaper than the slice function)
-        adata.x2f=Eigen::VectorXi::Zero(3*F.rows()+V.rows(), 1);  //vertex index to free vertex index
-        for (int i=0;i<3*F.rows();i++)
-            adata.x2f(i)=i;
-        int CurrIndex=3*F.rows();
+        adata.x2f=Eigen::VectorXi::Zero(V.rows()+F.rows, 1);  //vertex index to free vertex index
+
+        int CurrIndex=0;
         for (int i=0;i<h.size();i++)
-            adata.x2f(h(i)+3*F.rows())=-1;
+            adata.x2f(h(i))=-1;
         
         for (int i=0;i<V.rows();i++)
-            if (adata.x2f(i+3*F.rows())!=-1)
-                adata.x2f(i+3*F.rows())=CurrIndex++;
+            if (adata.x2f(i)!=-1)
+                adata.x2f(i)=CurrIndex++;
+        
+        for (int i=0;i<F.rows();i++)
+            adata(V.rows()+i)=CurrIndex++;
         
         std::cout<<"CurrIndex: "<<CurrIndex<<std::endl;
-        std::cout<<"adata.x2f: "<<adata.x2f<<std::endl;
+        //std::cout<<"adata.x2f: "<<adata.x2f<<std::endl;
         
         std::vector<Eigen::Triplet<double> > temp=ATripletList;
         ATripletList.clear();
@@ -242,39 +284,34 @@ namespace hedra
                 BigMatTris.push_back(Eigen::Triplet<double>(it.col(), it.row()+NumVars, it.value()));
             }
         
-        std::cout<<"3*F.rows()"<<3*F.rows()<<std::endl;
-        std::cout<<"BigMat(:,317)"<<BigMat.col(317)<<std::endl;
-        std::cout<<"C(:,317)"<<adata.C.col(317)<<std::endl;
         BigMat.setFromTriplets(BigMatTris.begin(), BigMatTris.end());
         adata.solver.analyzePattern(BigMat);
         adata.solver.factorize(BigMat);
     }
     
     
-    //Computing the deformation.
+    //Computing a valid transformation that is as close as possible to a prescribed one.
+    //This is the core part of the deformation and the interpoaltion algorithm
     //Prerequisite: affine_maps_precompute is called, and
     //qh input values are matching those in h.
     
     //input:
-    // adata struct AffineData     the data necessary to solve the linear system.
+    // adata struct AffineData          the data necessary to solve the linear system.
     // qh eigen double matrix           h by 3 new handle positions
-    // q0 eigen double matrix           v by 3 initial solution
     
     //output:
-    // A eigen double matrix            3*F by 3 affine maps (stacked 3x3 per face)
+    // A eigen double matrix            prescribed 3*F by 3 affine maps (stacked 3x3 per face)
     // q eigen double matrix            V by 3 new vertex positions (note: include handles)
     
     
     //currently: solving only one global system (thus, initial solution is not used).
-    IGL_INLINE void affine_maps_deform(struct AffineData& adata,
-                                       const Eigen::MatrixXd& qh,
-                                       const Eigen::MatrixXd& q0,
-                                       Eigen::MatrixXd A,
-                                       Eigen::MatrixXd q)
+    IGL_INLINE void affine_maps_prescribe(struct AffineData& adata,
+                                          const Eigen::MatrixXd& q0,
+                                          const Eigen::MatrixXd& A,
+                                          Eigen::MatrixXd& q)
     {
     
         
-        //currently trying to prescribe the identity transformation alone.
         Eigen::MatrixXd Brhs(adata.A.rows(),3);
         for (int i=0;i<adata.FSize;i++)
             Brhs.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
