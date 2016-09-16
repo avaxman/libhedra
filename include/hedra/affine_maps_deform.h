@@ -11,10 +11,11 @@
 #include <igl/igl_inline.h>
 #include <igl/setdiff.h>
 #include <Eigen/Core>
-#include <Eigen/SparseLU>
+#include <Eigen/SparseQR>
 #include <Eigen/Geometry>
 #include <Eigen/SVD>
 #include <vector>
+#include <igl/matlab_format.h>
 
 
 //This file implements the deformation algorithm described in:
@@ -35,13 +36,13 @@ namespace hedra
     struct AffineData{
         Eigen::SparseMatrix<double> AFull, A;  //energy matrices (full and substituted)
         Eigen::SparseMatrix<double> CFull, C;  //constraint matrices
-        Eigen::MatrixXd toB, toD;  //constant additions to right-hand sides due to handles
-        Eigen::SparseLU<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::COLAMDOrdering<int> >  solver;
+        Eigen::SparseQR<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::COLAMDOrdering<int> >  solver;
         AffineEnergyTypes aet;
         double bendFactor;
         Eigen::VectorXi h;  //handle indices
         Eigen::VectorXi x2f;  //variables to free variables
         int FSize, VSize;
+        Eigen::MatrixXi D;
     };
     
     
@@ -68,7 +69,6 @@ namespace hedra
                                            const Eigen::MatrixXi& EF,
                                            const Eigen::MatrixXi& EFi,
                                            const Eigen::MatrixXi& FE,
-                                           const Eigen::MatrixXi& EV,
                                            const Eigen::VectorXi& h,
                                            struct AffineData& adata)
     
@@ -88,11 +88,11 @@ namespace hedra
         for (int i=0;i<D.rows();i++){
             RowVector3d FaceNormal; FaceNormal<<0.0,0.0,0.0;
             for (int j=0;j<D(i);j++){
-                RowVectorXd vn=V.row(F(i,(j+D(i)-1)%D(i)));
-                RowVectorXd v0=V.row(F(i,j));
-                RowVectorXd v1=V.row(F(i,(j+1)%D(i)));
+                RowVector3d vn=V.row(F(i,(j+D(i)-1)%D(i)));
+                RowVector3d v0=V.row(F(i,j));
+                RowVector3d v1=V.row(F(i,(j+1)%D(i)));
                 
-                FaceNormal=FaceNormal+((v1-v0).cross(v0-vn)).normalized();
+                FaceNormal=FaceNormal+((v1-v0).cross(vn-v0)).normalized();
             }
             
             OrigNormals.row(i)=FaceNormal.normalized();
@@ -110,25 +110,25 @@ namespace hedra
                 Matrix3d Coeffs1; Coeffs1<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(i);
                 Matrix3d Coeffs2; Coeffs2<<V.row(vi[3])-V.row(vi[2]),V.row(vi[2])-V.row(vi[1]), OrigNormals.row(i);
                 
-                Coeffs1=Coeffs1.inverse();
-                Coeffs2=Coeffs2.inverse();
+                Matrix3d iCoeffs1=Coeffs1.inverse();
+                Matrix3d iCoeffs2=Coeffs2.inverse();
                 
                 for (int k=0;k<3;k++){
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], Coeffs1(k,0)));
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], -Coeffs1(k,0)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], iCoeffs1(k,0)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], -iCoeffs1(k,0)));
                     
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], Coeffs1(k,1)));
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[0], -Coeffs1(k,1)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], iCoeffs1(k,1)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[0], -iCoeffs1(k,1)));
                     
-                    CTriplets.push_back(Triplet<double>(CRows+k, V.rows()+i, Coeffs1(k,2)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, V.rows()+i, iCoeffs1(k,2)));
                     
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[3], -Coeffs2(k,0)));
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], Coeffs2(k,0)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[3], -iCoeffs2(k,0)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], iCoeffs2(k,0)));
                     
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], -Coeffs2(k,1)));
-                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], Coeffs2(k,1)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[2], -iCoeffs2(k,1)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, vi[1], iCoeffs2(k,1)));
                     
-                    CTriplets.push_back(Triplet<double>(CRows+k, V.rows()+i, -Coeffs2(k,2)));
+                    CTriplets.push_back(Triplet<double>(CRows+k, V.rows()+i, -iCoeffs2(k,2)));
                 }
                 
                 CRows+=3;
@@ -150,16 +150,18 @@ namespace hedra
                 
                 Matrix3d Coeffs; Coeffs<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(i);
                
-                Coeffs1=Coeffs1.inverse();
+                Matrix3d iCoeffs=Coeffs.inverse();
+                
+                //cout<<"iCoeff  "<<i<<":"<<iCoeffs<<endl;
   
                 for (int k=0;k<3;k++){
-                    ATriplets.push_back(Triplet<double>(ARows+k, vi[2], Coeffs1(k,0)));
-                    ATriplets.push_back(Triplet<double>(ARows+k, vi[1], -Coeffs1(k,0)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[2], iCoeffs(k,0)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[1], -iCoeffs(k,0)));
                     
-                    ATriplets.push_back(Triplet<double>(ARows+k, vi[1], Coeffs1(k,1)));
-                    ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -Coeffs1(k,1)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[1], iCoeffs(k,1)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -iCoeffs(k,1)));
                     
-                    ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+i, Coeffs1(k,2)));
+                    ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+i, iCoeffs(k,2)));
                 }
                 
                 ARows+=3;
@@ -178,52 +180,77 @@ namespace hedra
             int vi[3], vj[3];
             for (int k=0;k<3;k++){
                 vi[k]=F(EF(i,0),(EFi(i,0)+k)%D(EF(i,0)));
-                vi[k]=F(EF(i,1),(EFi(i,1)+k)%D(EF(i,1)));
+                vj[k]=F(EF(i,1),(EFi(i,1)+k)%D(EF(i,1)));
             }
             
+            //std::cout<<"vi: "<<vi[0]<<","<<vi[1]<<","<<vi[2]<<std::endl;
+            //std::cout<<"vj: "<<vj[0]<<","<<vj[1]<<","<<vj[2]<<std::endl;
             Matrix3d Coeffsi; Coeffsi<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(EF(i,0));
             Matrix3d Coeffsj; Coeffsj<<V.row(vj[2])-V.row(vj[1]),V.row(vj[1])-V.row(vj[0]), OrigNormals.row(EF(i,1));
             
-            Coeffsi=Coeffsi.inverse();
-            Coeffsj=Coeffsj.inverse();
+            Matrix3d iCoeffsi=Coeffsi.inverse();
+            Matrix3d iCoeffsj=Coeffsj.inverse();
+            
+            //cout<<"iCoeffi  "<<i<<":"<<iCoeffsi<<endl;
+            //cout<<"iCoeffj  "<<i<<":"<<iCoeffsj<<endl;
             
             for (int k=0;k<3;k++){
-                ATriplets.push_back(Triplet<double>(ARows+k, vi[2], Coeffsi(k,0)));
-                ATriplets.push_back(Triplet<double>(ARows+k, vi[1], -Coeffsi(k,0)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[2], iCoeffsi(k,0)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[1], -iCoeffsi(k,0)));
                 
-                ATriplets.push_back(Triplet<double>(ARows+k, vi[1], Coeffsi(k,1)));
-                ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -Coeffsi(k,1)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[1], iCoeffsi(k,1)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -iCoeffsi(k,1)));
                 
-                ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,0), Coeffsi(k,2)));
+                ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,0), iCoeffsi(k,2)));
                 
-                ATriplets.push_back(Triplet<double>(ARows+k, vj[2], Coeffsj(k,0)));
-                ATriplets.push_back(Triplet<double>(ARows+k, vj[1], -Coeffsj(k,0)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[2], -iCoeffsj(k,0)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[1], iCoeffsj(k,0)));
                 
-                ATriplets.push_back(Triplet<double>(ARows+k, vj[1], Coeffsj(k,1)));
-                ATriplets.push_back(Triplet<double>(ARows+k, vj[0], -Coeffsj(k,1)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[1], -iCoeffsj(k,1)));
+                ATriplets.push_back(Triplet<double>(ARows+k, vj[0], iCoeffsj(k,1)));
                 
-                ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,1), Coeffsj(k,2)));
+                ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,1), -iCoeffsj(k,2)));
             }
             
             ARows+=3;
         }
-        
-        Eigen::MatrixXd xconst=Eigen::MatrixXd::Zero(NumFullVars,3);
         
         //constructing Ax-b
         adata.AFull.resize(ARows,NumFullVars);
         adata.AFull.setFromTriplets(ATriplets.begin(), ATriplets.end());
         
         adata.CFull.resize(CRows,NumFullVars);
-        adata.CFull.setFromTriplets(CTriplets.begin(), CTripletsend());
+        adata.CFull.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
         adata.FSize=F.rows();
         adata.VSize=V.rows();
+        adata.D=D;
+        adata.h=h;
+        
+        //sanity checks for the full matrices
+        MatrixXd T=MatrixXd::Random(4,3);
+        Eigen::MatrixXd B(adata.AFull.rows(),3);
+        int CurrIndex=0;
+        for (int i=0;i<F.rows();i++)
+            for (int j=0;j<D(i);j++)
+                B.block(3*(CurrIndex++),0,3,3)=T.block(0,0,3,3);
+        
+        Eigen::MatrixXd x(adata.AFull.cols(),3);
+        
+        for (int i=0;i<V.rows();i++)
+            x.row(i)=V.row(i)*T.block(0,0,3,3)+T.row(3);
+        
+        for (int i=0;i<F.rows();i++)
+            x.row(V.rows()+i)=OrigNormals.row(i)*T.block(0,0,3,3);
+        
+        cout<<"A*x-b"<<adata.AFull*x-B<<endl;
+        cout<<"C*x"<<adata.CFull*x<<endl;
+        exit(0);
         
         //removing the columns of the matrices by filtering the triplets (cheaper than the slice function)
-        adata.x2f=Eigen::VectorXi::Zero(V.rows()+F.rows, 1);  //vertex index to free vertex index
+        adata.x2f=Eigen::VectorXi::Zero(V.rows()+F.rows(), 1);  //vertex index to free vertex index
 
-        int CurrIndex=0;
+        CurrIndex=0;
         for (int i=0;i<h.size();i++)
             adata.x2f(h(i))=-1;
         
@@ -232,47 +259,46 @@ namespace hedra
                 adata.x2f(i)=CurrIndex++;
         
         for (int i=0;i<F.rows();i++)
-            adata(V.rows()+i)=CurrIndex++;
+            adata.x2f(V.rows()+i)=CurrIndex++;
         
-        std::cout<<"CurrIndex: "<<CurrIndex<<std::endl;
+        //std::cout<<"CurrIndex: "<<CurrIndex<<std::endl;
         //std::cout<<"adata.x2f: "<<adata.x2f<<std::endl;
         
-        std::vector<Eigen::Triplet<double> > temp=ATripletList;
-        ATripletList.clear();
+        std::vector<Eigen::Triplet<double> > temp=ATriplets;
+        ATriplets.clear();
         for (int i=0;i<temp.size();i++)
             if (adata.x2f(temp[i].col())!=-1)
-                ATripletList.push_back(Eigen::Triplet<double>(temp[i].row(), adata.x2f(temp[i].col()), temp[i].value()));
+                ATriplets.push_back(Eigen::Triplet<double>(temp[i].row(), adata.x2f(temp[i].col()), temp[i].value()));
         
-        temp=CTripletList;
-        CTripletList.clear();
+        temp=CTriplets;
+        CTriplets.clear();
         for (int i=0;i<temp.size();i++)
             if (adata.x2f(temp[i].col())!=-1){
-                CTripletList.push_back(Eigen::Triplet<double>(temp[i].row(), adata.x2f(temp[i].col()), temp[i].value()));
-                std::cout<<CTripletList[i].row()<<","<<CTripletList[i].col()<<std::endl;
+                CTriplets.push_back(Eigen::Triplet<double>(temp[i].row(), adata.x2f(temp[i].col()), temp[i].value()));
+                //std::cout<<temp[i].row()<<","<<temp[i].col()<<std::endl;
             }
         
         adata.A.resize(ARows,NumVars);
-        adata.A.setFromTriplets(ATripletList.begin(), ATripletList.end());
+        adata.A.setFromTriplets(ATriplets.begin(), ATriplets.end());
         
-        std::cout<<"NumVars: "<<NumVars<<std::endl;
+        //std::cout<<igl::matlab_format(adata.A,"A")<<std::endl;
+        
+        //std::cout<<"NumVars: "<<NumVars<<std::endl;
         adata.C.resize(CRows,NumVars);
-        adata.C.setFromTriplets(CTripletList.begin(), CTripletList.end());
-        
-
-        
-        //igl::min_quad_with_fixed_precompute<double>(adata.E.transpose()*adata.E, h,adata.C,true,adata.mqwfd);
-        
-        //constructing the Lagrangian Matrix
-        
+        adata.C.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
         Eigen::SparseMatrix<double, Eigen::ColMajor> BigMat(CRows+NumVars, CRows+NumVars);
         std::vector<Eigen::Triplet<double> > BigMatTris;
         Eigen::SparseMatrix<double> AtA=adata.A.transpose()*adata.A;
         
-        //block EtE (there is no better way to do this?)
-        for (int k=0; k < adata.A.outerSize(); ++k)
-            for (Eigen::SparseMatrix<double>::InnerIterator it(adata.A,k); it; ++it)
+        //block AtA (there is no better way to do this?)
+        for (int k=0; k < AtA.outerSize(); ++k)
+            for (Eigen::SparseMatrix<double>::InnerIterator it(AtA,k); it; ++it)
                 BigMatTris.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
+        
+        
+        //std::cout<<igl::matlab_format(AtA,"AtA")<<std::endl;
+        //std::cout<<igl::matlab_format(AtA,"C")<<std::endl;
         
 
         
@@ -284,7 +310,9 @@ namespace hedra
                 BigMatTris.push_back(Eigen::Triplet<double>(it.col(), it.row()+NumVars, it.value()));
             }
         
+       
         BigMat.setFromTriplets(BigMatTris.begin(), BigMatTris.end());
+         //std::cout<<igl::matlab_format(BigMat,"BigMat")<<std::endl;
         adata.solver.analyzePattern(BigMat);
         adata.solver.factorize(BigMat);
     }
@@ -306,34 +334,47 @@ namespace hedra
     
     //currently: solving only one global system (thus, initial solution is not used).
     IGL_INLINE void affine_maps_prescribe(struct AffineData& adata,
-                                          const Eigen::MatrixXd& q0,
+                                          const Eigen::MatrixXd& qh,
                                           const Eigen::MatrixXd& A,
                                           Eigen::MatrixXd& q)
     {
     
         
-        Eigen::MatrixXd Brhs(adata.A.rows(),3);
-        for (int i=0;i<adata.FSize;i++)
-            Brhs.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
+        Eigen::MatrixXd Brhs=Eigen::MatrixXd::Zero(adata.A.rows(),3);
+        int ARows=0;
+        for(int i=0;i<adata.FSize;i++){
+            for (int j=0;j<adata.D(i);j++){
+                Brhs.block(ARows,0,3,3)=A.block(3*i,0,3,3);
+                ARows+=3;
+            }
+        }
         
-        Eigen::MatrixXd B=adata.A.transpose()*(Brhs+adata.toB);
+        Eigen::MatrixXd xconst=Eigen::MatrixXd::Zero(adata.AFull.cols(),3);
+        for (int i=0;i<qh.rows();i++)
+            xconst.row(adata.h(i))=qh.row(i);
         
-        Eigen::MatrixXd D=adata.toD;
+        Eigen::MatrixXd toB=-adata.AFull*xconst;
+        Eigen::MatrixXd toD=-adata.CFull*xconst;
+
+
+        Eigen::MatrixXd B=adata.A.transpose()*(Brhs+toB);
+        
+        Eigen::MatrixXd D=toD;
         
         Eigen::MatrixXd rhs(B.rows()+D.rows(),3); rhs<<B,D;
         Eigen::MatrixXd RawResult = adata.solver.solve(rhs);
         
-        Eigen::MatrixXd RawFullResult(3*adata.FSize+adata.VSize,3);
+        Eigen::MatrixXd RawFullResult(adata.VSize+adata.FSize,3);
         
         for (int i=0;i<adata.x2f.size();i++)
             RawFullResult.row(i)=RawResult.row(adata.x2f(i));
         
         for (int i=0;i<adata.h.size();i++)
             RawFullResult.row(adata.h(i))=qh.row(i);
-            
         
-        A=RawFullResult.block(0,0,3*adata.FSize,3);
-        q=RawFullResult.block(3*adata.FSize,0,adata.VSize,3);
+        q=RawFullResult.block(0,0,adata.VSize,3);
+        std::cout<<"q"<<q<<std::endl;
+        exit(0);
     }
 }
 
