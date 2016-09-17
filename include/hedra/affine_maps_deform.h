@@ -41,9 +41,32 @@ namespace hedra
         double bendFactor;
         Eigen::VectorXi h;  //handle indices
         Eigen::VectorXi x2f;  //variables to free variables
-        int FSize, VSize;
-        Eigen::MatrixXi D;
+        Eigen::MatrixXd VOrig;
+        Eigen::VectorXi D;
+        Eigen::MatrixXi F;
+        Eigen::MatrixXd OrigNormals;
     };
+    
+    
+    //currently only ARAP. Also, assuming A is allocated properly
+    void getIdealAffineTransformation(const struct AffineData& adata,
+                                      const Eigen::MatrixXd& q,
+                                      Eigen::MatrixXd& A)
+    {
+        
+        for(int i=0;i<adata.F.rows();i++){
+            Eigen::MatrixXd P(adata.D(i),3);
+            Eigen::MatrixXd Q(adata.D(i),3);
+            for (int j=0;j<adata.D(i);j++){
+                P.row(j)=adata.VOrig.row(adata.F(i,(j+1)%adata.D(i)))-adata.VOrig.row(adata.F(i,j));
+                Q.row(j)=q.row(adata.F(i,(j+1)%adata.D(i)))-q.row(adata.F(i,j));
+            }
+            
+            Eigen::Matrix3d S=P.transpose()*Q;
+            Eigen::JacobiSVD<Eigen::Matrix3d> svd(S, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            A.block(3*i,0,3,3)=svd.matrixU()*svd.matrixV().transpose();
+        }
+    }
     
     
     //precomputation of the necessary matrices
@@ -83,7 +106,7 @@ namespace hedra
         int CRows=0;
         int NumFullVars=V.rows()+F.rows();  //every dimension is seperable.
         int NumVars=NumFullVars-h.size();
-        MatrixXd OrigNormals(D.rows(),3);
+        adata.OrigNormals.resize(D.rows(),3);
         
         for (int i=0;i<D.rows();i++){
             RowVector3d FaceNormal; FaceNormal<<0.0,0.0,0.0;
@@ -95,7 +118,7 @@ namespace hedra
                 FaceNormal=FaceNormal+((v1-v0).cross(vn-v0)).normalized();
             }
             
-            OrigNormals.row(i)=FaceNormal.normalized();
+            adata.OrigNormals.row(i)=FaceNormal.normalized();
         }
         
         
@@ -107,8 +130,8 @@ namespace hedra
                 for (int k=0;k<4;k++)
                     vi[k]=F(i,(j+k)%D(i));
                 
-                Matrix3d Coeffs1; Coeffs1<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(i);
-                Matrix3d Coeffs2; Coeffs2<<V.row(vi[3])-V.row(vi[2]),V.row(vi[2])-V.row(vi[1]), OrigNormals.row(i);
+                Matrix3d Coeffs1; Coeffs1<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), adata.OrigNormals.row(i);
+                Matrix3d Coeffs2; Coeffs2<<V.row(vi[3])-V.row(vi[2]),V.row(vi[2])-V.row(vi[1]), adata.OrigNormals.row(i);
                 
                 Matrix3d iCoeffs1=Coeffs1.inverse();
                 Matrix3d iCoeffs2=Coeffs2.inverse();
@@ -148,7 +171,7 @@ namespace hedra
                 for (int k=0;k<3;k++)
                     vi[k]=F(i,(j+k)%D(i));
                 
-                Matrix3d Coeffs; Coeffs<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(i);
+                Matrix3d Coeffs; Coeffs<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), adata.OrigNormals.row(i);
                
                 Matrix3d iCoeffs=Coeffs.inverse();
                 
@@ -185,8 +208,8 @@ namespace hedra
             
             //std::cout<<"vi: "<<vi[0]<<","<<vi[1]<<","<<vi[2]<<std::endl;
             //std::cout<<"vj: "<<vj[0]<<","<<vj[1]<<","<<vj[2]<<std::endl;
-            Matrix3d Coeffsi; Coeffsi<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), OrigNormals.row(EF(i,0));
-            Matrix3d Coeffsj; Coeffsj<<V.row(vj[2])-V.row(vj[1]),V.row(vj[1])-V.row(vj[0]), OrigNormals.row(EF(i,1));
+            Matrix3d Coeffsi; Coeffsi<<V.row(vi[2])-V.row(vi[1]),V.row(vi[1])-V.row(vi[0]), adata.OrigNormals.row(EF(i,0));
+            Matrix3d Coeffsj; Coeffsj<<V.row(vj[2])-V.row(vj[1]),V.row(vj[1])-V.row(vj[0]), adata.OrigNormals.row(EF(i,1));
             
             Matrix3d iCoeffsi=Coeffsi.inverse();
             Matrix3d iCoeffsj=Coeffsj.inverse();
@@ -222,8 +245,8 @@ namespace hedra
         adata.CFull.resize(CRows,NumFullVars);
         adata.CFull.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
-        adata.FSize=F.rows();
-        adata.VSize=V.rows();
+        adata.F=F;
+        adata.VOrig=V;
         adata.D=D;
         adata.h=h;
         
@@ -241,7 +264,7 @@ namespace hedra
             x.row(i)=V.row(i)*T.block(0,0,3,3)+T.row(3);
         
         for (int i=0;i<F.rows();i++)
-            x.row(V.rows()+i)=OrigNormals.row(i)*T.block(0,0,3,3);
+            x.row(V.rows()+i)=adata.OrigNormals.row(i)*T.block(0,0,3,3);
         
         //cout<<"A*x-b"<<adata.AFull*x-B<<endl;
         //cout<<"C*x"<<adata.CFull*x<<endl;
@@ -331,8 +354,7 @@ namespace hedra
     // A eigen double matrix            prescribed 3*F by 3 affine maps (stacked 3x3 per face)
     // q eigen double matrix            V by 3 new vertex positions (note: include handles)
     
-    
-    //currently: solving only one global system (thus, initial solution is not used).
+
     IGL_INLINE void affine_maps_prescribe(struct AffineData& adata,
                                           const Eigen::MatrixXd& qh,
                                           const Eigen::MatrixXd& A,
@@ -342,7 +364,7 @@ namespace hedra
         
         Eigen::MatrixXd Brhs=Eigen::MatrixXd::Zero(adata.A.rows(),3);
         int ARows=0;
-        for(int i=0;i<adata.FSize;i++){
+        for(int i=0;i<adata.F.rows();i++){
             for (int j=0;j<adata.D(i);j++){
                 Brhs.block(ARows,0,3,3)=A.block(3*i,0,3,3);
                 ARows+=3;
@@ -364,7 +386,7 @@ namespace hedra
         Eigen::MatrixXd rhs(B.rows()+D.rows(),3); rhs<<B,D;
         Eigen::MatrixXd RawResult = adata.solver.solve(rhs);
         
-        Eigen::MatrixXd RawFullResult(adata.VSize+adata.FSize,3);
+        Eigen::MatrixXd RawFullResult(adata.VOrig.rows()+adata.F.rows(),3);
         
         for (int i=0;i<adata.x2f.size();i++)
             if (adata.x2f(i)!=-1)
@@ -373,9 +395,31 @@ namespace hedra
         for (int i=0;i<adata.h.size();i++)
             RawFullResult.row(adata.h(i))=qh.row(i);
         
-        q=RawFullResult.block(0,0,adata.VSize,3);
-        //std::cout<<"q"<<q<<std::endl;
-        //exit(0);
+        q=RawFullResult.block(0,0,adata.VOrig.rows(),3);
+
+    }
+    
+    
+    //Computing an ARAP/ASAP deformation within the affine-map space.
+    
+    //input:
+    // adata struct AffineData          the data necessary to solve the linear system.
+    // qh eigen double matrix           h by 3 new handle positions
+    // numIterations                    of one local-global cycle
+    
+    //output:
+    // q eigen double matrix            V by 3 new vertex positions (note: include handles)
+    IGL_INLINE void affine_maps_deform(struct AffineData& adata,
+                                       const Eigen::MatrixXd& qh,
+                                       const int numIterations,
+                                       Eigen::MatrixXd& q)
+    {
+        q.resize(adata.VOrig.rows(), adata.VOrig.cols());
+        Eigen::MatrixXd A(3*adata.F.rows(),3);
+        for (int i=0;i<numIterations;i++){
+            getIdealAffineTransformation(adata, q, A);
+            affine_maps_prescribe(adata,qh,A, q);
+        }
     }
 }
 
