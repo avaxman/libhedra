@@ -1,26 +1,29 @@
 #include <igl/unproject_onto_mesh.h>
 #include <igl/viewer/Viewer.h>
 #include <igl/readDMAT.h>
+#include <igl/jet.h>
 #include <hedra/hedra_read_OFF.h>
 #include <hedra/triangulate_mesh.h>
 #include <hedra/hedra_edge_topology.h>
 #include <hedra/affine_maps_deform.h>
+#include <hedra/point_spheres.h>
+#include <hedra/planarity.h>
+#include <hedra/scalar2RGB.h>
 
 
-
-bool LeftButtonDown=false;
 std::vector<int> Handles;
 std::vector<Eigen::RowVector3d> HandlePoses;
 int CurrentHandle;
-
-const Eigen::RowVector3d sea_green(70./255.,252./255.,167./255.);
-Eigen::MatrixXd V,U;
+Eigen::MatrixXd VOrig, V;
 Eigen::MatrixXi F, T;
-Eigen::VectorXi S,b, D;
-Eigen::MatrixXi EV, EF, FE;
-Eigen::RowVector3d mid;
-double anim_t = 0.0;
-double anim_t_dir = 0.03;
+Eigen::VectorXi D, TF;
+Eigen::MatrixXi EV, EF, FE, EFi;
+Eigen::MatrixXd FEs;
+Eigen::VectorXi innerEdges;
+Eigen::Vector3d spans;
+bool Editing=false;
+bool ChoosingHandleMode=false;
+double CurrWinZ;
 hedra::AffineData affine_data;
 
 
@@ -28,55 +31,162 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
 {
     using namespace Eigen;
     using namespace std;
-    MatrixXd bc(b.size(),V.cols());
-    for(int i = 0;i<b.size();i++)
-    {
-        bc.row(i) = V.row(b(i));
-        switch(S(b(i)))
-        {
-            case 0:
-            {
-                const double r = mid(0)*0.25;
-                bc(i,0) += r*sin(0.5*anim_t*2.*igl::PI);
-                bc(i,1) -= r+r*cos(igl::PI+0.5*anim_t*2.*igl::PI);
-                break;
-            }
-            case 1:
-            {
-                const double r = mid(1)*0.15;
-                bc(i,1) += r+r*cos(igl::PI+0.15*anim_t*2.*igl::PI);
-                bc(i,2) -= r*sin(0.15*anim_t*2.*igl::PI);
-                break;
-            }
-            case 2:
-            {
-                const double r = mid(1)*0.15;
-                bc(i,2) += r+r*cos(igl::PI+0.35*anim_t*2.*igl::PI);
-                bc(i,0) += r*sin(0.35*anim_t*2.*igl::PI);
-                break;
-            }
-            default:
-                break;
-        }
+    
+    MatrixXd sphereV;
+    MatrixXi sphereT;
+    MatrixXd sphereTC;
+    Eigen::MatrixXd bc(Handles.size(),V.cols());
+    for (int i=0;i<Handles.size();i++)
+        bc.row(i)=HandlePoses[i].transpose();
+    
+    VectorXd planarity;
+    hedra::planarity(V,D,F,planarity);
+    
+    Eigen::MatrixXd C, TC;
+    hedra::scalar2RGB(planarity, 0.0,1.0, C);
+    TC.resize(T.rows(),3);
+    for (int i=0;i<T.rows();i++)
+        TC.row(i)=C.row(TF(i));
+    
+    double sphereRadius=spans.sum()/200.0;
+    MatrixXd sphereGreens(Handles.size(),3);
+    sphereGreens.col(0).setZero();
+    sphereGreens.col(1).setOnes();
+    sphereGreens.col(2).setZero();
+
+    hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, sphereV, sphereT, sphereTC);
+    
+    Eigen::MatrixXd bigV(V.rows()+sphereV.rows(),3);
+    Eigen::MatrixXi bigT(T.rows()+sphereT.rows(),3);
+    Eigen::MatrixXd bigTC(TC.rows()+sphereTC.rows(),3);
+    if (sphereV.rows()!=0){
+        bigV<<V, sphereV;
+        bigT<<T, sphereT+Eigen::MatrixXi::Constant(sphereT.rows(), sphereT.cols(), V.rows());
+        bigTC<<TC, sphereTC;
+    } else{
+        bigV<<V;
+        bigT<<T;
+        bigTC<<TC;
     }
-    Eigen::MatrixXd A;
-    hedra::affine_maps_deform(affine_data,bc, U,U,A);
-    viewer.data.set_vertices(U);
+    
+    viewer.core.show_lines=false;
+    Eigen::MatrixXd OrigEdgeColors(EV.rows(),3);
+    OrigEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
+    OrigEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
+    OrigEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
+    
+    viewer.data.clear();
+    viewer.data.set_mesh(bigV,bigT);
+    viewer.data.set_colors(bigTC);
     viewer.data.compute_normals();
-    if(viewer.core.is_animating)
+    viewer.data.set_edges(V,EV,OrigEdgeColors);
+    return true;
+}
+
+bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
+{
+    if (!Editing)
+        return false;
+    
+    double x = viewer.current_mouse_x;
+    double y = viewer.core.viewport(3) - viewer.current_mouse_y;
+    Eigen::RowVector3f NewPos=igl::unproject<float>(Eigen::Vector3f(x,y,CurrWinZ),
+                                                    viewer.core.view * viewer.core.model,
+                                                    viewer.core.proj,
+                                                    viewer.core.viewport);
+    
+    HandlePoses[HandlePoses.size()-1]=NewPos.cast<double>();
+    
+    Eigen::MatrixXd A(3*F.rows(),3);
+    for (int i=0;i<F.rows();i++)
+        A.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
+    
+    Eigen::MatrixXd bc(Handles.size(),V.cols());
+    for (int i=0;i<Handles.size();i++)
+        bc.row(i)=HandlePoses[i].transpose();
+    hedra::affine_maps_deform(affine_data,bc,5, V);
+    UpdateCurrentView(viewer);
+    return true;
+
+}
+
+
+bool mouse_up(igl::viewer::Viewer& viewer, int button, int modifier)
+{
+    if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
+        return false;
+    
+    Editing=false;
+ 
+    return true;
+}
+
+bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
+{
+    if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
+        return false;
+    int vid, fid;
+    Eigen::Vector3f bc;
+    double x = viewer.current_mouse_x;
+    double y = viewer.core.viewport(3) - viewer.current_mouse_y;
+    if (!ChoosingHandleMode){
+        Editing=true;
+        return false;
+    }
+    if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view * viewer.core.model,
+                                viewer.core.proj, viewer.core.viewport, V, F, fid, bc))
     {
-        anim_t += anim_t_dir;
+        //add the closest vertex to the handles
+        Eigen::MatrixXf::Index maxRow, maxCol;
+        bc.maxCoeff(&maxRow);
+        int CurrVertex=F(fid, maxRow);
+        bool Found=false;
+        for (int i=0;i<Handles.size();i++)
+            if (Handles[i]==CurrVertex){
+                CurrVertex=Handles[i];
+                Found=true;
+            }
+        
+        if (!Found){
+            Handles.push_back(CurrVertex);
+            HandlePoses.push_back(V.row(CurrVertex));
+        }
+    
+        Eigen::Vector3f WinCoords=igl::project<float>(V.row(CurrVertex).cast<float>(),
+                                               viewer.core.view * viewer.core.model,
+                                               viewer.core.proj,
+                                               viewer.core.viewport);
+
+        CurrWinZ=WinCoords(2);
+        std::cout<<"Choosing Vertex :"<<CurrVertex<<std::endl;
+
+        Eigen::VectorXi b(Handles.size());
+        for (int i=0;i<Handles.size();i++)
+            b(i)=Handles[i];
+        hedra::affine_maps_precompute(V,D,F,EV,EF,EFi, FE, b, 3, affine_data);
+    
+        UpdateCurrentView(viewer);
+    }
+    return true;
+}
+
+bool key_up(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
+{
+    switch(key)
+    {
+            
+        case '1': ChoosingHandleMode=false;
+            break;
     }
     return false;
 }
 
-bool key_down(igl::viewer::Viewer &viewer, unsigned char key, int mods)
+bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
 {
     switch(key)
     {
-        case ' ':
-            viewer.core.is_animating = !viewer.core.is_animating;
-            return true;
+        case '1': ChoosingHandleMode=true;
+            break;
     }
     return false;
 }
@@ -90,43 +200,19 @@ int main(int argc, char *argv[])
     using namespace Eigen;
     
     hedra::hedra_read_OFF(DATA_PATH "/six.off", V, D, F);
-    igl::readDMAT(DATA_PATH "/six-selection.dmat",S);
+    hedra::hedra_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
+    hedra::triangulate_mesh(D, F, T, TF);
+    spans=V.colwise().maxCoeff()-V.colwise().minCoeff();
     
-    // vertices in selection
-    igl::colon<int>(0,V.rows()-1,b);
-    b.conservativeResize(stable_partition( b.data(), b.data()+b.size(),
-                                          [](int i)->bool{return S(i)>=0;})-b.data());
-    // Centroid
-    mid = 0.5*(V.colwise().maxCoeff() + V.colwise().minCoeff());
-    // Precomputation
-    hedra::hedra_edge_topology(D, F, EV, FE, EF);
-    hedra::affine_maps_precompute(V,D,F,EF,EV, b,affine_data);
-    
-    // Set color based on selection
-    //TODO: replace with spheres and planarity plotting
-    MatrixXd C(F.rows(),3);
-    RowVector3d purple(80.0/255.0,64.0/255.0,255.0/255.0);
-    RowVector3d gold(255.0/255.0,228.0/255.0,58.0/255.0);
-    for(int f = 0;f<F.rows();f++)
-    {
-        if( S(F(f,0))>=0 && S(F(f,1))>=0 && S(F(f,2))>=0)
-        {
-            C.row(f) = purple;
-        }else
-        {
-            C.row(f) = gold;
-        }
-    }
-    
-    // Plot the mesh with pseudocolors
+    VOrig=V;
     igl::viewer::Viewer viewer;
-    viewer.data.set_mesh(U, F);
-    viewer.data.set_colors(C);
-    viewer.callback_pre_draw = &UpdateCurrentView;
-    viewer.callback_key_down = &key_down;
-    viewer.core.is_animating = false;
-    viewer.core.animation_max_fps = 30.;
-    cout<<
-    "Press [space] to toggle animation"<<endl;
+    viewer.callback_mouse_down = &mouse_down;
+    viewer.callback_mouse_move = &mouse_move;
+    viewer.callback_mouse_up=&mouse_up;
+    viewer.callback_key_down=&key_down;
+    viewer.callback_key_up=&key_up;
+    viewer.core.background_color<<0.75,0.75,0.75,1.0;
+    UpdateCurrentView(viewer);
     viewer.launch();
+    
 }

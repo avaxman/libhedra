@@ -9,7 +9,6 @@
 #define HEDRA_PLANARITY_H
 #include <igl/igl_inline.h>
 #include <Eigen/Core>
-#include <string>
 #include <vector>
 #include <cmath> 
 
@@ -49,9 +48,6 @@ namespace hedra
             }
             planarity(i)=quadPlanarities.norm();
         }
-        
-        std::cout<<"planarity: "<<planarity<<std::endl;
-    
         return true;
     }
 }
