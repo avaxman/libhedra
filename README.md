@@ -20,7 +20,7 @@ mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../
 make
-```bash
+```
 
 Using the library then amounts to including the relevant header files in the `include` directory.
 
@@ -59,6 +59,8 @@ TBD
 ##Modelling with Affine Maps
 
 TBD
+
+
 
 
 
