@@ -36,9 +36,10 @@ namespace hedra
     struct AffineData{
         Eigen::SparseMatrix<double> AFull, A;  //energy matrices (full and substituted)
         Eigen::SparseMatrix<double> CFull, C;  //constraint matrices
+        Eigen::SparseMatrix<double> W;          //weight matrix for energy
         Eigen::SparseQR<Eigen::SparseMatrix<double, Eigen::ColMajor>, Eigen::COLAMDOrdering<int> >  solver;
         AffineEnergyTypes aet;
-        double bendFactor;
+        double sqrtBendFactor;
         Eigen::VectorXi h;  //handle indices
         Eigen::VectorXi x2f;  //variables to free variables
         Eigen::MatrixXd VOrig;
@@ -93,6 +94,7 @@ namespace hedra
                                            const Eigen::MatrixXi& EFi,
                                            const Eigen::MatrixXi& FE,
                                            const Eigen::VectorXi& h,
+                                           const double bendFactor,
                                            struct AffineData& adata)
     
     {
@@ -165,6 +167,7 @@ namespace hedra
     
         int ARows=0;
         vector<Triplet<double> > ATriplets;
+        vector<Triplet<double> > WTriplets;
         for(int i=0;i<F.rows();i++){
             for (int j=0;j<D(i);j++){
                 int vi[3];
@@ -185,6 +188,8 @@ namespace hedra
                     ATriplets.push_back(Triplet<double>(ARows+k, vi[0], -iCoeffs(k,1)));
                     
                     ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+i, iCoeffs(k,2)));
+                    
+                    WTriplets.push_back(Triplet<double>(ARows+k, ARows+k, 1.0));
                 }
                 
                 ARows+=3;
@@ -194,6 +199,7 @@ namespace hedra
         
         //"bending" energy to difference of adjacent matrices
     
+        adata.sqrtBendFactor=sqrt(bendFactor);
         for(int i=0;i<EF.rows();i++)
         {
             if ((EF(i,0)==-1)||(EF(i,1)==-1))  //boundary edge
@@ -233,6 +239,8 @@ namespace hedra
                 ATriplets.push_back(Triplet<double>(ARows+k, vj[0], iCoeffsj(k,1)));
                 
                 ATriplets.push_back(Triplet<double>(ARows+k, V.rows()+EF(i,1), -iCoeffsj(k,2)));
+                
+                WTriplets.push_back(Triplet<double>(ARows+k, ARows+k, adata.sqrtBendFactor));
             }
             
             ARows+=3;
@@ -245,13 +253,16 @@ namespace hedra
         adata.CFull.resize(CRows,NumFullVars);
         adata.CFull.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
+        adata.W.resize(ARows, ARows);
+        adata.W.setFromTriplets(WTriplets.begin(), WTriplets.end());
+        
         adata.F=F;
         adata.VOrig=V;
         adata.D=D;
         adata.h=h;
         
         //sanity checks for the full matrices
-        MatrixXd T=MatrixXd::Random(4,3);
+        /*MatrixXd T=MatrixXd::Random(4,3);
         Eigen::MatrixXd B(adata.AFull.rows(),3);
         int CurrIndex=0;
         for (int i=0;i<F.rows();i++)
@@ -266,14 +277,14 @@ namespace hedra
         for (int i=0;i<F.rows();i++)
             x.row(V.rows()+i)=adata.OrigNormals.row(i)*T.block(0,0,3,3);
         
-        //cout<<"A*x-b"<<adata.AFull*x-B<<endl;
-        //cout<<"C*x"<<adata.CFull*x<<endl;
-        //exit(0);
+        cout<<"A*x-b"<<adata.W*(adata.AFull*x-B)<<endl;
+        cout<<"C*x"<<adata.CFull*x<<endl;
+        exit(0);*/
         
         //removing the columns of the matrices by filtering the triplets (cheaper than the slice function)
         adata.x2f=Eigen::VectorXi::Zero(V.rows()+F.rows(), 1);  //vertex index to free vertex index
 
-        CurrIndex=0;
+        int CurrIndex=0;
         for (int i=0;i<h.size();i++)
             adata.x2f(h(i))=-1;
         
@@ -312,11 +323,11 @@ namespace hedra
         
         Eigen::SparseMatrix<double, Eigen::ColMajor> BigMat(CRows+NumVars, CRows+NumVars);
         std::vector<Eigen::Triplet<double> > BigMatTris;
-        Eigen::SparseMatrix<double> AtA=adata.A.transpose()*adata.A;
+        Eigen::SparseMatrix<double> AtWA=adata.A.transpose()*adata.W*adata.A;
         
-        //block AtA (there is no better way to do this?)
-        for (int k=0; k < AtA.outerSize(); ++k)
-            for (Eigen::SparseMatrix<double>::InnerIterator it(AtA,k); it; ++it)
+        //block At*W*A (there is no better way to do this?)
+        for (int k=0; k < AtWA.outerSize(); ++k)
+            for (Eigen::SparseMatrix<double>::InnerIterator it(AtWA,k); it; ++it)
                 BigMatTris.push_back(Eigen::Triplet<double>(it.row(), it.col(), it.value()));
         
         
@@ -379,7 +390,7 @@ namespace hedra
         Eigen::MatrixXd toD=-adata.CFull*xconst;
 
 
-        Eigen::MatrixXd B=adata.A.transpose()*(Brhs+toB);
+        Eigen::MatrixXd B=adata.A.transpose()*adata.W*(Brhs+toB);
         
         Eigen::MatrixXd D=toD;
         
