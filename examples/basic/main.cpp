@@ -3,9 +3,9 @@
 #include <hedra/hedra_read_OFF.h>
 #include <hedra/hedra_edge_topology.h>
 
-Eigen::MatrixXd V;
-Eigen::MatrixXi F,EV, EF, FE,T;
-Eigen::VectorXi D,TF;
+Eigen::MatrixXd V, FEs;
+Eigen::MatrixXi F,EV, EF, FE,T, EFi;
+Eigen::VectorXi D,TF, innerEdges;
 
 void ShowPolygonalEdges(igl::viewer::Viewer& viewer){
     viewer.core.show_lines=false;
@@ -32,8 +32,8 @@ void ShowTriangulatedEdges(igl::viewer::Viewer& viewer){
 bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifier)
 {
     switch(key){
-            case '1': ShowPolygonalEdges(viewer);
-            case '2': ShowTriangulatedEdges(viewer);
+		case '1': ShowPolygonalEdges(viewer); break;
+		case '2': ShowTriangulatedEdges(viewer); break;
     }
     
     viewer.data.set_face_based(true);
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     )";
 
     hedra::triangulate_mesh(D, F,T,TF);
-    hedra::hedra_edge_topology(D,F,EV,FE,EF);
+    hedra::hedra_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
     
     // Plot the mesh
     igl::viewer::Viewer viewer;
