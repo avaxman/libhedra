@@ -15,7 +15,6 @@ git clone --recursive https://github.com/avaxman/libhedra.git
 to compile the examples, go into the respective library (e.g., "examples/basic") and enter:
 
 ```bash
-cd tutorial
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../
