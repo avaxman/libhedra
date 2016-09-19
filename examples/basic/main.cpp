@@ -31,14 +31,9 @@ void ShowTriangulatedEdges(igl::viewer::Viewer& viewer){
 // This function is called every time a keyboard button is pressed
 bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifier)
 {
-    
-    if (key == '1')
-    {
-        ShowPolygonalEdges(viewer);
-    }
-    else if (key == '2')
-    {
-        ShowTriangulatedEdges(viewer);
+    switch(key){
+            case '1': ShowPolygonalEdges(viewer);
+            case '2': ShowTriangulatedEdges(viewer);
     }
     
     viewer.data.set_face_based(true);

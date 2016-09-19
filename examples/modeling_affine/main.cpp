@@ -215,4 +215,6 @@ int main(int argc, char *argv[])
     UpdateCurrentView(viewer);
     viewer.launch();
     
+    cout<<"press 1+right button to select new handles"<<endl;
+    cout<<"press the right button and drag the edit the mesh"<<endl;
 }
