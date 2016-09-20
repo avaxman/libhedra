@@ -98,9 +98,9 @@ Nevertheless, the default edges in the overlay of libigl will show the triangula
 
 ```cpp
 Eigen::MatrixXd origEdgeColors(EV.rows(),3);
-    origEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
-    origEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
-    origEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
+origEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
+origEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
+origEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
 viewer.data.clear();
 viewer.data.set_mesh(V, T);
 viewer.data.set_edges(V,EV,OrigEdgeColors);
@@ -110,9 +110,8 @@ libhedra adds some extra functionality to the libigl viewer with the following f
 
 | Function   | Description       |
 | :----------------------- | :---------------------------------------------------------------------------------- |
-| `Scalar2RGB`            | Converts a value within $\left[0,1\right]$ into the cool/warm color map [#moreland_2009][], which can be fed to `igl::set_colors`.                                        
+| `Scalar2RGB`            | Converts a value within $\left[0,1\right]$ into the cool/warm color map [#moreland_2009][], which can be fed to `igl::set_colors`. |               
 | `point_spheres`               | creates spheres with configurable radius, resolution, and color that can be used, e.g., for visualizing deformation handles.|
-
 | `line_cylinders`               | creates cylinders that can be used to visualize vectors and lines. |
 
 `line_cylinders` and `point_spheres` create new meshes, and these need to be concatenated to a given mesh in order to be visualized, as the following code (from "basic"):
