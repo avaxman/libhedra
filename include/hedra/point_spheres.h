@@ -64,8 +64,8 @@ namespace hedra
                     int v2=(res*res)*i+(j+1)*res+k;
                     int v3=(res*res)*i+(j+1)*res+(k+1)%res;
                     int v4=(res*res)*i+j*res+(k+1)%res;
-                    T.row(2*(((res-1)*res)*i+res*j+k))<<v1,v3,v2;
-                    T.row(2*(((res-1)*res)*i+res*j+k)+1)<<v4,v3,v1;
+                    T.row(2*(((res-1)*res)*i+res*j+k))<<v1,v2,v3;
+                    T.row(2*(((res-1)*res)*i+res*j+k)+1)<<v4,v1,v3;
                     if (!colorPerVertex){
                         TC.row(2*(((res-1)*res)*i+res*j+k))<<colors.row(i);
                         TC.row(2*(((res-1)*res)*i+res*j+k)+1)<<colors.row(i);
