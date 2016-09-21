@@ -177,7 +177,7 @@ $$
 cr_{1234}=(q_2-q_1)(q_3-q_2)^{-1}(q_4-q_3)(q_1-q_4)^{-1}.
 $$
 
-The quaternionic cross-ratio encode two interesting geometric properties, that are also M\"{o}bius invariant:
+The quaternionic cross-ratio encode two interesting geometric properties, that are also M&ouml;bius invariant:
 
 1. The length cross-ratio $\left|cr_{1234}\right|$, which is the cross ratio of the respective edge lengths.
 2. The phase cross ratio $arg(cr_{1234})$, that is in fact the circle intersection angle as discussed above.
@@ -195,15 +195,64 @@ where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|
 
 
 
+##Modeling with Affine Maps
+
+Modelling polyhedral meshes with affine maps was done in [#vaxman_2012] for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf). The algorithm is demonstrated in `examples\modeling_affine`.
+
+The algorithm operates in two stages: a precompute stage that takes into account the original geometry and the handles, and a deformation stage, that takes into account the user prescription of handle positions. The precompute stage is the most computationally-expensive, as it factorizes the involved matrices, but it only has to be called once per choice of deformation handles.
+
+The functions are then:
 
 
+```cpp
+#include <hedra/affine_maps_deform.h>
 
-##Modelling with Affine Maps
+affine_maps_precompute(V,D, F,EV,EF,EFi, FE,h,alpha, beta, adata)
+affine_maps_deform(adata, qh, numIterations, q)
 
-TBD
+```
+
+where (parameters (e.g., `EF`) that have been discussed before with the same name have the same description):
+
+| parameter                     | Description                                                                         |
+| :----------------------- | :---------------------------------------------------------------------------------- |
+| `h`            | A list of handle indices into `V`                                             |
+| `alpha, beta`               | Parameters controlling face map presctiption vs. map smoothness (see the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf)) |
+| `adata`              | A struct of type hedra::affine_data computed by `affine_maps_precompute` and passed to `affine_maps_deform`. Not supposed to be edited by the user.|
+| `qh`            | A list of size $\left|h\right| \times 3$ of new handles positions correponding to $h$.
+| `numIterations`             |Of the algorithm. Generally refereing to the as-rigid-as-possible part of the map prescription. |
+| `q`             | The full result in $\left|V\right| \times 3$ vertices (including the handles).|
+
+
+##Future Plans
+
+The following functionality will soon be available in libhedra:
+
+* Parallel and offset meshes, including evaluation of the Steiner formula for discrete curvature.
+* Local-global iterations for shape projection.
+* Gauss-Newton based optimization, and constrained optimization using augmented Lagrangians.
+* Conformal Mesh Deformations with M&ouml;bius Transformations.
+* Polyhedral patterns parametrization and optimization.
+
+If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman] (avaxman@gmail.com) (or open an issue in the repository)
+
+##Acknowledge libhedra
+
+If you use libhedra in your academic projects, please cite the implemented papers appropriately. To cite the library in general, you could use this BibTeX entry:
+
+```bibtex
+@misc{libhedra,
+  title = {{libhedra}: geometric processing and optimization of polygonal meshes,
+  author = {Amir Vaxman and others},
+  note = {https://github.com/avaxman/libhedra},
+  year = {2016},
+}
+```
+
+
 
 [#moreland_2009]: Kenneth Moreland. [Diverging Color Maps for Scientific Visualization](http://www.kennethmoreland.com/color-maps).
-
+[#vaxman_2012]: Amir Vaxman. [Modeling Polyhedral Meshes with Affine Maps](http://dl.acm.org/citation.cfm?id=2346801) , 2012
 
 
 
