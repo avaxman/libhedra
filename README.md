@@ -12,7 +12,7 @@ To get the library, use:
 git clone --recursive https://github.com/avaxman/libhedra.git
 ```
 
-to compile the examples, go into the respective library (e.g., "examples/basic") and enter:
+to compile the examples, go into the respective library (e.g., `examples/visualization`) and enter:
 
 ```bash
 mkdir build
@@ -22,6 +22,14 @@ make
 ```
 
 Using the library then amounts to including the relevant header files in the `include` directory.
+
+##Design Principles
+
+libhedra is a header-only library; that means that no building is required to set it up. Functions are usually in single eponymous header file, but they are sometimes aggregated under one header if they strongly depend on each other. Some functions (none of the currently implemented) depend on the existence of external dependencies, and will not work otherwise; the rest of the library is not affected.
+
+There are no classes or difficult data structures; much like [libigl](http://libigl.github.io/libigl/), simplicity is key. The library then mostly works with [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code. 
+
+
 
 ##Mesh representation
 
@@ -81,7 +89,7 @@ Meshes can be loaded from OFF files, which have a similar data structure, with t
 hedra_read_OFF(filename, V, D, F);
 ```
 
-libhedra builds upon libigl viewer for visualization and interaction. libigl viewer currently only supports triangle meshes, and therefore we visualize our meshes by triangulating the faces using `hedra::triangulate_mesh`. Visualization can be worked out through the following code snippet from example "basic":
+libhedra builds upon libigl viewer for visualization and interaction. libigl viewer currently only supports triangle meshes, and therefore we visualize our meshes by triangulating the faces using `hedra::triangulate_mesh`. Visualization can be worked out through the following code snippet from `examples\visualization`:
 
 ```cpp
 hedra::hedra_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
@@ -94,7 +102,7 @@ viewer.data.set_mesh(V, T);
 
 ``T`` is the resulting triangle mesh, and `TF` is a vector relating every triangle to the face it tesselates. In this manner, one can easily adress the set of triangles belonging to a single face for purposes of visualization (say, a uniform color).
 
-Nevertheless, the default edges in the overlay of libigl will show the triangulated edges. To see the polygonal edges and nothing else, the following code from "basic" can be used:
+Nevertheless, the default edges in the overlay of libigl will show the triangulated edges. To see the polygonal edges and nothing else, the following code from `examples\visualization` can be used:
 
 ```cpp
 Eigen::MatrixXd origEdgeColors(EV.rows(),3);
@@ -110,11 +118,12 @@ libhedra adds some extra functionality to the libigl viewer with the following f
 
 | Function   | Description       |
 | :----------------------- | :---------------------------------------------------------------------------------- |
-| `Scalar2RGB`            | Converts a value within $\left[0,1\right]$ into the cool/warm color map [#moreland_2009][], which can be fed to `igl::set_colors`. |               
-| `point_spheres`               | creates spheres with configurable radius, resolution, and color that can be used, e.g., for visualizing deformation handles.|
-| `line_cylinders`               | creates cylinders that can be used to visualize vectors and lines. |
+| `Scalar2RGB`            | Converts a value within $\left[0,1\right]$ into the cool/warm color map [#moreland_2009][], which can be fed to `igl::set_colors`. Values above or below this range are clamped. |               
+| `point_spheres`               | Creates spheres with configurable radius, resolution, and color that can be used, e.g., for visualizing deformation handles.|
+| `line_cylinders`               | Creates cylinders that can be used to visualize vectors and lines. |
+| `edge_mesh`                 | Tesselates a mesh by inserting a center point within each face, and creating triangle with each edge. The purpose is to be able to visualize edge-based functions. |
 
-`line_cylinders` and `point_spheres` create new meshes, and these need to be concatenated to a given mesh in order to be visualized, as the following code (from "basic"):
+`line_cylinders` and `point_spheres` create new meshes, and these need to be concatenated to a given mesh in order to be visualized, as the following code (from `examples\visualization'):
 
 ```cpp
 hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, sphereV, sphereT, sphereTC);
@@ -143,7 +152,51 @@ Example: TBD
     
 ##Evaluation
 
-TBD
+`libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
+
+###Planarity
+
+The planarity of a quadrilateral with vertex positions $q_1,q_2,q_3,q_4$ is often measured by the percentage of the distance between the diagonals $q_3-q_1$ and $q_4-q_2$ to the average diagonal length. Planarity of higher-degree faces is measured as the root-mean-square error of all consecutive quadrilaterlas within the face. That is, for a polygonal face $f=q_1,\cdots,q_d$, we get:
+
+$$
+Planarity(f)=\frac{\sqrt{Planarity(q_1,\cdots,q_4)^2+\cdots+Planarity(q_{d-2},\cdots,q_1)^2}}{d}
+$$
+The usual reasonable tolerance is 1%. The libhedra function is `planarity(V,D, F,p)`.
+
+
+
+###Concyclity
+
+The concyclity of a quadrilateral with vertex positions $q_1,q_2,q_3,q_4$ measures how much the quad deviates from being concyclic, or \emph{circular}. Consider the two triangles $T_1=q_1,q_2,q_3$ and $T_2=q_3, q_4, q_1$, and their circumcircles. Then, the concyclity of the quad can be measured as the intersection angle between the (tangents to the) circles at the intersection points $q_1$ and $q_3$. A rule-of-thumb tolerance is under $5^{\circ}$. The libhedra function is `concyclity(V,D, F,c)`.
+
+###Quaternionic cross-ratios
+
+We treat coorrdinates in $\mathbb{R}^3$ as imaginary quaternions in $Im\mathbb{H}$. That is, with zero real part. Given four coordinates $q_1,q_2,q_3,q_4$ as imaginary quaternions, the quaternionic cross-ratio can be defined in several isomorphic ways. A standard one is:
+
+$$
+cr_{1234}=(q_2-q_1)(q_3-q_2)^{-1}(q_4-q_3)(q_1-q_4)^{-1}.
+$$
+
+The quaternionic cross-ratio encode two interesting geometric properties, that are also M\"{o}bius invariant:
+
+1. The length cross-ratio $\left|cr_{1234}\right|$, which is the cross ratio of the respective edge lengths.
+2. The phase cross ratio $arg(cr_{1234})$, that is in fact the circle intersection angle as discussed above.
+
+
+libhedra provides the following function to compute the cross ratio:
+
+```cpp
+#include <hedra/quat_cross_ratio.h>
+
+hedra::quad_cross_ratio(V, Q, cr)
+```
+
+where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$ 
+
+
+
+
+
 
 ##Modelling with Affine Maps
 
