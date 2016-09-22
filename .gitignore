@@ -641,3 +641,12 @@ examples/visualization/build/libigl/glfw/src/glfw3ConfigVersion.cmake
 examples/visualization/build/libigl/glfw/src/glfw_config.h
 examples/visualization/build/libigl/glfw/src/libglfw3.a
 examples/visualization/build/visualization_bin
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CMakeCCompiler.cmake
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CMakeCXXCompiler.cmake
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CMakeDetermineCompilerABI_C.bin
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CMakeDetermineCompilerABI_CXX.bin
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CMakeSystem.cmake
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CompilerIdC/a.out
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CompilerIdC/CMakeCCompilerId.c
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CompilerIdCXX/a.out
+examples/visualization/build/CMakeFiles/3.4.0-rc3/CompilerIdCXX/CMakeCXXCompilerId.cpp

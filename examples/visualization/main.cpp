@@ -1,14 +1,18 @@
 #include <igl/viewer/Viewer.h>
 #include <hedra/triangulate_mesh.h>
-#include <hedra/hedra_read_OFF.h>
-#include <hedra/hedra_edge_topology.h>
+#include <hedra/polygonal_read_OFF.h>
+#include <hedra/polygonal_edge_topology.h>
+#include <hedra/polyhedral_face_normals.h>
+#include <hedra/polygonal_face_centers.h>
 #include <hedra/point_spheres.h>
+#include <hedra/line_cylinders.h>
 
 Eigen::MatrixXd V, FEs;
 Eigen::MatrixXi F,EV, EF, FE,T, EFi;
 Eigen::VectorXi D,TF, innerEdges;
 Eigen::MatrixXd TC;
-Eigen::MatrixXd sphereColors;
+Eigen::MatrixXd sphereColors, lineColors;
+Eigen::MatrixXd faceCenters, faceNormals;
 
 bool ShowPolygonalEdges=false;
 bool ShowVertexSpheres=false;
@@ -19,24 +23,32 @@ void UpdateCurrentView(igl::viewer::Viewer& viewer)
     viewer.data.clear();
     viewer.data.set_face_based(true);
     
-    Eigen::MatrixXd sphereV,sphereTC;
-    Eigen::MatrixXi sphereT;
+    Eigen::MatrixXd sphereV,lineV, sphereTC, lineTC;
+    Eigen::MatrixXi sphereT, lineT;
     if (ShowVertexSpheres)
         hedra::point_spheres(V, 0.05, sphereColors, 10, false, sphereV, sphereT, sphereTC);
     
-    Eigen::MatrixXd bigV(V.rows()+sphereV.rows(),3);
-    Eigen::MatrixXi bigT(T.rows()+sphereT.rows(),3);
-    Eigen::MatrixXd bigTC(TC.rows()+sphereTC.rows(),3);
+    if (ShowFaceNormals)
+        hedra::line_cylinders(faceCenters, faceCenters+faceNormals, 0.05, lineColors, 10, false, lineV, lineT, lineTC);
+    
+    Eigen::MatrixXd bigV(V.rows()+sphereV.rows()+lineV.rows(),3);
+    Eigen::MatrixXi bigT(T.rows()+sphereT.rows()+lineT.rows(),3);
+    Eigen::MatrixXd bigTC(TC.rows()+sphereTC.rows()+lineTC.rows(),3);
+    
+    bigV.block(0,0,V.rows(),3)=V;
+    bigT.block(0,0,T.rows(),3)=T;
+    bigTC.block(0,0,TC.rows(),3)=TC;
     if (sphereV.rows()!=0){
         std::cout<<"Showing vertex spheres"<<std::endl;
-        bigV<<V, sphereV;
-        bigT<<T, sphereT+Eigen::MatrixXi::Constant(sphereT.rows(), sphereT.cols(), V.rows());
-        bigTC<<TC, sphereTC;
-    } else{
-        //std::cout<<"Here is good"<<std::endl;
-        bigV<<V;
-        bigT<<T;
-        bigTC<<TC;
+        bigV.block(V.rows(),0,sphereV.rows(),3)=sphereV;
+        bigT.block(T.rows(),0,sphereT.rows(),3)=sphereT+Eigen::MatrixXi::Constant(sphereT.rows(), sphereT.cols(), V.rows());
+        bigTC.block(TC.rows(),0,sphereTC.rows(),3)=sphereTC;
+    }
+    if (lineV.rows()!=0){
+        std::cout<<"Showing face normals"<<std::endl;
+        bigV.block(V.rows()+sphereV.rows(),0,lineV.rows(),3)=lineV;
+        bigT.block(T.rows()+sphereT.rows(),0,lineT.rows(),3)=lineT+Eigen::MatrixXi::Constant(lineT.rows(), lineT.cols(), V.rows()+sphereV.rows());
+        bigTC.block(TC.rows()+sphereTC.rows(),0,lineTC.rows(),3)=lineTC;
     }
     
     viewer.data.clear();
@@ -52,9 +64,7 @@ void UpdateCurrentView(igl::viewer::Viewer& viewer)
         viewer.core.show_lines=true;
     }
     
-    //std::cout<<"bigT.size()"<<bigT.size()<<std::endl;
     viewer.data.set_mesh(bigV,bigT);
-    //std::cout<<"bigTC.size()"<<bigTC.size()<<std::endl;
     viewer.data.set_colors(bigTC);
 }
 
@@ -77,7 +87,7 @@ int main(int argc, char *argv[])
 {
     using namespace std;
 
-    hedra::hedra_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
+    hedra::polygonal_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
     
     std::cout<<R"(
     1 Switch polygonal edges/triangulated edges
@@ -89,9 +99,16 @@ int main(int argc, char *argv[])
     for (int i=0;i<V.rows();i++)
         sphereColors.row(i)<<(double)i/(double)V.rows(), 1.0-(double)i/(double)V.rows(), 0.0;
     
+    lineColors.resize(F.rows(),3);
+    lineColors.col(0)=Eigen::VectorXd::Constant(T.rows(),0.5);
+    lineColors.col(1)=Eigen::VectorXd::Constant(T.rows(),0.5);
+    lineColors.col(2)=Eigen::VectorXd::Constant(T.rows(),1.0);
+    
    
     hedra::triangulate_mesh(D, F,T,TF);
-    hedra::hedra_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
+    hedra::polygonal_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
+    hedra::polygonal_face_centers(V,D, F,faceCenters);
+    hedra::polyhedral_face_normals(V,D, F,faceNormals);
     
     TC.resize(T.rows(),3);
     TC.col(0)=Eigen::VectorXd::Constant(T.rows(),1.0);

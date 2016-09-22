@@ -1,12 +1,12 @@
 // This file is part of libhedra, a library for polyhedral mesh processing
 //
-// Copyright (C) 2015 Amir Vaxman <avaxman@gmail.com>
+// Copyright (C) 2016 Amir Vaxman <avaxman@gmail.com>
 //
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef HEDRA_EDGE_TOPOLOGY_H
-#define HEDRA_EDGE_TOPOLOGY_H
+#ifndef HEDRA_POLYGONAL_EDGE_TOPOLOGY_H
+#define HEDRA_POLYGONAL_EDGE_TOPOLOGY_H
 
 #include <igl/igl_inline.h>
 #include <Eigen/Core>
@@ -29,14 +29,14 @@ namespace hedra
     // EFs: #E by 2: if the edge is oriented positively or negatively in the face (e.g. in the example above we get -1)
     // InnerEdges: indices into EV of which edges are internal (not boundary)
 
-    IGL_INLINE void hedra_edge_topology(const Eigen::VectorXi& D,
-                                        const Eigen::MatrixXi& F,
-                                        Eigen::MatrixXi& EV,
-                                        Eigen::MatrixXi& FE,
-                                        Eigen::MatrixXi& EF,
-                                        Eigen::MatrixXi& EFi,
-                                        Eigen::MatrixXd& FEs,
-                                        Eigen::VectorXi& InnerEdges)
+    IGL_INLINE void polygonal_edge_topology(const Eigen::VectorXi& D,
+                                            const Eigen::MatrixXi& F,
+                                            Eigen::MatrixXi& EV,
+                                            Eigen::MatrixXi& FE,
+                                            Eigen::MatrixXi& EF,
+                                            Eigen::MatrixXi& EFi,
+                                            Eigen::MatrixXd& FEs,
+                                            Eigen::VectorXi& InnerEdges)
     {
         // Only needs to be edge-manifold
         std::vector<std::vector<int> > ETT;

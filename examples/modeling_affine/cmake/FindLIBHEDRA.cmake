@@ -8,7 +8,7 @@
 if(NOT LIBHEDRA_FOUND)
 message("hello")
 
-FIND_PATH(LIBHEDRA_INCLUDE_DIR hedra/hedra_read_OFF.h
+FIND_PATH(LIBHEDRA_INCLUDE_DIR hedra/polygonal_read_OFF.h
    ${PROJECT_SOURCE_DIR}/../../include
    ${PROJECT_SOURCE_DIR}/../include
    ${PROJECT_SOURCE_DIR}/include

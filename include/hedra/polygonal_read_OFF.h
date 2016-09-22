@@ -5,8 +5,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef HEDRA_READOFF_H
-#define HEDRA_READOFF_H
+#ifndef HEDRA_POLYGONAL_READ_OFF_H
+#define HEDRA_POLYGONAL_READ_OFF_H
 #include <igl/igl_inline.h>
 #include <Eigen/Core>
 #include <string>
@@ -22,10 +22,10 @@ namespace hedra
     //  V  eigen double matrix  #V by 3 - vertex coordinates
     //  D  eigen int vector     #F by 1 - face degrees
     //  F  eigen int matrix     #F by max(D) - vertex indices in face
-    IGL_INLINE bool hedra_read_OFF(const std::string str,
-                                     Eigen::MatrixXd& V,
-                                     Eigen::VectorXi& D,
-                                     Eigen::MatrixXi& F)
+    IGL_INLINE bool polygonal_read_OFF(const std::string str,
+                                       Eigen::MatrixXd& V,
+                                       Eigen::VectorXi& D,
+                                       Eigen::MatrixXi& F)
     {
         
         using namespace std;
