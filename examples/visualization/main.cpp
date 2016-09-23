@@ -26,10 +26,11 @@ void UpdateCurrentView(igl::viewer::Viewer& viewer)
     Eigen::MatrixXd sphereV,lineV, sphereTC, lineTC;
     Eigen::MatrixXi sphereT, lineT;
     if (ShowVertexSpheres)
-        hedra::point_spheres(V, 0.05, sphereColors, 10, false, sphereV, sphereT, sphereTC);
+        hedra::point_spheres(V, 0.02, sphereColors, 10, false, sphereV, sphereT, sphereTC);
     
     if (ShowFaceNormals)
-        hedra::line_cylinders(faceCenters, faceCenters+faceNormals, 0.05, lineColors, 10, false, lineV, lineT, lineTC);
+        hedra::line_cylinders(faceCenters, faceCenters+faceNormals, 0.02, lineColors, 10, false, lineV, lineT, lineTC);
+    
     
     Eigen::MatrixXd bigV(V.rows()+sphereV.rows()+lineV.rows(),3);
     Eigen::MatrixXi bigT(T.rows()+sphereT.rows()+lineT.rows(),3);
@@ -99,16 +100,15 @@ int main(int argc, char *argv[])
     for (int i=0;i<V.rows();i++)
         sphereColors.row(i)<<(double)i/(double)V.rows(), 1.0-(double)i/(double)V.rows(), 0.0;
     
-    lineColors.resize(F.rows(),3);
-    lineColors.col(0)=Eigen::VectorXd::Constant(T.rows(),0.5);
-    lineColors.col(1)=Eigen::VectorXd::Constant(T.rows(),0.5);
-    lineColors.col(2)=Eigen::VectorXd::Constant(T.rows(),1.0);
-    
-   
     hedra::triangulate_mesh(D, F,T,TF);
     hedra::polygonal_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
     hedra::polygonal_face_centers(V,D, F,faceCenters);
     hedra::polyhedral_face_normals(V,D, F,faceNormals);
+    
+    lineColors.resize(T.rows(),3);
+    lineColors.col(0)=Eigen::VectorXd::Constant(T.rows(),0.5);
+    lineColors.col(1)=Eigen::VectorXd::Constant(T.rows(),0.5);
+    lineColors.col(2)=Eigen::VectorXd::Constant(T.rows(),1.0);
     
     TC.resize(T.rows(),3);
     TC.col(0)=Eigen::VectorXd::Constant(T.rows(),1.0);

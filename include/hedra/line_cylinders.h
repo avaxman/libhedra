@@ -75,6 +75,7 @@ namespace hedra
                     TC.row(v2)<<C.row(i);
                 }
                 
+                
                 T.row(2*res*i+2*j)<<v3,v2,v1;
                 T.row(2*res*i+2*j+1)<<v4,v2,v3;
                 
