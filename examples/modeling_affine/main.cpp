@@ -2,9 +2,9 @@
 #include <igl/viewer/Viewer.h>
 #include <igl/readDMAT.h>
 #include <igl/jet.h>
-#include <hedra/hedra_read_OFF.h>
+#include <hedra/polygonal_read_OFF.h>
 #include <hedra/triangulate_mesh.h>
-#include <hedra/hedra_edge_topology.h>
+#include <hedra/polygonal_edge_topology.h>
 #include <hedra/affine_maps_deform.h>
 #include <hedra/point_spheres.h>
 #include <hedra/planarity.h>
@@ -199,8 +199,8 @@ int main(int argc, char *argv[])
     using namespace std;
     using namespace Eigen;
     
-    hedra::hedra_read_OFF(DATA_PATH "/six.off", V, D, F);
-    hedra::hedra_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
+    hedra::polygonal_read_OFF(DATA_PATH "/six.off", V, D, F);
+    hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
     hedra::triangulate_mesh(D, F, T, TF);
     spans=V.colwise().maxCoeff()-V.colwise().minCoeff();
     
