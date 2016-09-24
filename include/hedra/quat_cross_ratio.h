@@ -29,7 +29,6 @@ namespace hedra
     {
         using namespace Eigen;
         cr.resize(Q.rows(),4);
-        std::cout<<"Q: "<<Q<<std::endl;
         for (int i=0;i<Q.rows();i++){
             RowVector4d qi; qi<<0.0,V.row(Q(i,0));
             RowVector4d qj; qj<<0.0,V.row(Q(i,1));
@@ -40,7 +39,6 @@ namespace hedra
             
             
         }
-        std::cout<<"cr: "<<cr<<std::endl;
         return true;
     }
 }
