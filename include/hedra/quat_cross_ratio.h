@@ -24,20 +24,23 @@ namespace hedra
     // Outputs:
     //  cr          eigen double matix      #Q by 4 - quaternion (r,vx,vy,vz) cross ratio per quadruplet.
     IGL_INLINE bool quat_cross_ratio(const Eigen::MatrixXd& V,
-                                     const Eigen::VectorXi& Q,
+                                     const Eigen::MatrixXi& Q,
                                      Eigen::MatrixXd& cr)
     {
         using namespace Eigen;
         cr.resize(Q.rows(),4);
+        std::cout<<"Q: "<<Q<<std::endl;
         for (int i=0;i<Q.rows();i++){
             RowVector4d qi; qi<<0.0,V.row(Q(i,0));
             RowVector4d qj; qj<<0.0,V.row(Q(i,1));
             RowVector4d qk; qk<<0.0,V.row(Q(i,2));
             RowVector4d ql; ql<<0.0,V.row(Q(i,3));
             
-            CR.row(i)=QMult(QMult(qj-qi, QInv(qk-qj)),QMult(ql-qk, QInv(qi-ql)));
+            cr.row(i)=QMult(QMult(qj-qi, QInv(qk-qj)),QMult(ql-qk, QInv(qi-ql)));
+            
             
         }
+        std::cout<<"cr: "<<cr<<std::endl;
         return true;
     }
 }

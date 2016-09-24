@@ -44,9 +44,9 @@ namespace hedra
                     //degenerate quad is still planar
                     quadPlanarities(j) = 0;
                 else
-                    quadPlanarities(j) = 100*(diagCross.dot(v2-v1)/denom);  //percentage
+                    quadPlanarities(j) = (diagCross.dot(v2-v1)/denom);  //percentage
             }
-            planarity(i)=quadPlanarities.norm();
+            planarity(i)=100.0*sqrt(quadPlanarities.squaredNorm()/(double)D(i));
         }
         return true;
     }

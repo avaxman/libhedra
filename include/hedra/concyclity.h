@@ -32,24 +32,28 @@ namespace hedra
         using namespace Eigen;
         concyclity.resize(D.size());
         
-        Eigen::MatrixXi quadIndices(D.sum());
+        MatrixXi quadIndices(D.sum(),4);
         int currIndex=0;
         for (int i=0;i<D.size();i++)
-            for (j=0;j<D(i);j++)
-                quadIndices.row(currIndex++)>>F(i,j),F(i,(j+1)%D(i)), F(i,(j+2)%D(i)), F(i,(j+3)%D(i));
+            for (int j=0;j<D(i);j++)
+                quadIndices.row(currIndex++)<<F(i,j),F(i,(j+1)%D(i)), F(i,(j+2)%D(i)), F(i,(j+3)%D(i));
         
         MatrixXd cr;
         quat_cross_ratio(V,quadIndices, cr);
-        
         VectorXd realPart=cr.col(0);
         VectorXd absPart=cr.rowwise().norm();
         VectorXd crAngles=acos(-realPart.cwiseQuotient(absPart).array());
-        
+    
         currIndex=0;
         for (int i=0;i<D.rows();i++){
-            concyclity(i)=crAngles.segment(currIndex, currIndex+D(i));
+            if (D(i)>=4)
+                concyclity(i)=sqrt((crAngles.segment(currIndex, D(i)).squaredNorm()/(double)D(i)));
+            else
+                concyclity(i)=0.0;  //TODO: avoid the computation altogether
             currIndex+=D(i);
         }
+        //converting to degrees
+        concyclity.array()*=180.0/M_PI;
         return true;
     }
 }
