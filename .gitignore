@@ -737,3 +737,12 @@ examples/evaluation/build/libigl/glfw/src/glfw3Config.cmake
 examples/evaluation/build/libigl/glfw/src/glfw3ConfigVersion.cmake
 examples/evaluation/build/libigl/glfw/src/glfw_config.h
 examples/evaluation/build/libigl/glfw/src/libglfw3.a
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CMakeCCompiler.cmake
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CMakeCXXCompiler.cmake
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CMakeDetermineCompilerABI_C.bin
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CMakeDetermineCompilerABI_CXX.bin
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CMakeSystem.cmake
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CompilerIdC/a.out
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CompilerIdC/CMakeCCompilerId.c
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CompilerIdCXX/a.out
+examples/evaluation/build/CMakeFiles/3.4.0-rc3/CompilerIdCXX/CMakeCXXCompilerId.cpp
