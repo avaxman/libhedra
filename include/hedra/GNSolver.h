@@ -18,30 +18,90 @@ namespace hedra::optimization
     
     template<class LinearSolver, class SolverTraits>
     class GNSolver{
-    private:
+    public:
         Eigen::MatrixXd x;      //current solution; always updated
         Eigen::MatrixXd prevx;  //the solution of the previous iteration
         Eigen::MatrixXd x0;     //the initial solution to the system
         VectorXd d;             //the direction taken.
         VectorXd currEnergy;    //the current value of the energy
         VectorXd prevEnergy;    //the previous value of the energy
-        
-        Eigen::VectorXd lambda;  //Lagrange multipliers
-        Eigen::VectorXi Ie, Je;  //(row,col) pairs for energy matrix
-        Eigen::VectorXd Se;      //values for energy matrix
-        
-        Eigen::VectorXi Ic, Jc;  //(row,col) pairs for constraint matrix
-        Eigen::VectorXd Sc;      //values for constraint matrix
     
+        Eigen::VectorXi HRows, HCols;  //(row,col) pairs for H=J^T*J matrix
+        Eigen::VectorXd HVals;      //values for H matrix
+        
         LinearSolver LS;
         SolverTraits ST;
         double penalty;
         int maxIterations;
         
-        VectorXi MatRows, MatCols;
-        VectorXd MatValues;
-        VectorXd Rhs;
-        MatrixXi Single2Double;
+
+        //Input: pattern of matrix M by (iI,iJ) representation
+        //Output: pattern of matrix M^T*M by (oI, oJ) representation
+        //        map between values in the input to values in the output (Single2Double). The map is aggregating values from future iS to oS
+        //prerequisite: iI are sorted by rows (not necessary columns)
+        void MatrixPattern(const Eigen::VectorXi& iI,
+                           const Eigen::VectorXi& iJ,
+                           Eigen::VectorXi& oI,
+                           Eigen::VectorXi& oJ,
+                           Eigen::MatrixXi& S2D)
+        {
+            int CurrTri=0;
+            using namespace Eigen;
+            vector<int> oIlist;
+            vector<int> oJlist;
+            vector<pair<int, int> > S2Dlist;
+            do{
+                int CurrRow=iI(CurrTri);
+                int NumCurrTris=0;
+                while ((CurrTri+NumCurrTris<iI.size())&&(iI(CurrTri+NumCurrTris)==CurrRow))
+                    NumCurrTris++;
+                
+                for (int i=CurrTri;i<CurrTri+NumCurrTris;i++){
+                    for (int j=CurrTri;j<CurrTri+NumCurrTris;j++){
+                        if (iJ(j)>=iJ(i)){
+                            oIlist.push_back(iJ(i));
+                            oJlist.push_back(iJ(j));
+                            S2Dlist.push_back(pair<int,int>(i,j));
+                        }
+                    }
+                }
+                CurrTri+=NumCurrTris;
+            }while (CurrTri!=iI.size());
+            
+            oI.resize(oIlist.size());
+            oJ.resize(oJlist.size());
+            s2d.resize(S2Dlist.size(),2);
+            
+            for (int i=0;i<oIlist.size();i++){
+                oI(i)=oIlist[i];
+                oJ(i)=oJlist[i];
+                S2D.row(i)<<S2Dlist[i].first, S2Dlist[i].second;
+            }
+        }
+        
+        //returns the values of M^T*M by multiplication and aggregating from Single2double list.
+        //prerequisite - oS is allocated
+        void MatrixValues(const Eigen::VectorXi& oI,
+                          const Eigen::VectorXi& oJ,
+                          const Eigen::VectorXd& iS,
+                          const Eigen::MatrixXi& S2D,
+                          Eigen::VectorXd& oS)
+        {
+            for (int i=0;i<s2d.rows();i++)
+                oS(i)=iS(S2D(i,0))*iS(S2D(i,1));
+        }
+        
+        //returns M^t*ivec by (I,J,S) representation
+        void MultiplyAdjointVector(const Eigen::VectorXi& iI,
+                                   const Eigen::VectorXi& iJ,
+                                   const Eigen::VectorXd& iS,
+                                   const Eigen::VectorXd& iVec,
+                                   Eigen::VectorXd& oVec)
+        {
+            oVec.setZero();
+            for (int i=0;i<iI.size();i++)
+                oVec(iJ(i))+=iS(i)*iVec(iI(i));
+        }
         
 
     public:
@@ -52,146 +112,104 @@ namespace hedra::optimization
         void init(){
         
             //analysing pattern
+            LS.init();
+            ST.init();
             
-            MatrixPattern(st->GradRows, st->GradCols,MatRows,MatCols,Single2Double);
-            MatValues.resize(MatRows.size());
+            MatrixPattern(ST->JRows, ST->JCols,HRows,HCols,S2D);
+            HVals.resize(HRows.size());
             
-            lLS
+            LS.analyze(HRows,HCols);
             
-            ps.set_type(2);
-            ps.set_pattern(MatRows,MatCols,VectorXd::Ones(MatRows.size()));
-            ps.analyze_pattern();
+            d.resize(ST->xSize);
+            x.resize(ST->xSize);
+            prevx.resize(ST->solutionSize);
+            currEnergy.resize(ST->EVec.size());
+            prevEnergy.resize(ST->EVec.size());
             
-            Direction.resize(SolverTraits->SolutionSize);
-            CurrSolution.resize(SolverTraits->SolutionSize);
-            PrevSolution.resize(SolverTraits->SolutionSize);
-            CurrEnergy.resize(SolverTraits->TotalVec.size());
-            PrevEnergy.resize(SolverTraits->TotalVec.size());
-            
-            int MaxCol=MatCols.maxCoeff()+1;
-            Rhs.resize(MaxCol);
-            
-            //TestMatrixOperations();
         }
         
         
-        VectorXd Solve(const VectorXd& InitSolution, int MaxIterations){
+        bool Solve(const bool verbose) {
             
-            vector<double> ConvErrorsList;
+            using namespace Eigen;
+            using namespace std;
+            prevx0<<x0;
             
-            PrevSolution<<InitSolution;
             int CurrIter=0;
-            bool isValid;
+          
+            ST.UpdateEnergyJacobian(x0);
             
-            SolverTraits->UpdateConstraints(InitSolution);
-            SolverTraits->Lambda=SolverTraits->mu*SolverTraits->ConstVec;
-            SolverTraits->InitSolution=InitSolution;
+            if (verbose)
+                std::cout<<"Initial Energy: "<<ST->EVec.squaredNorm()<<endl;
             
-            SolverTraits->UpdateEnergy(InitSolution);
-            cout<<"Initial Squared Energy: "<<SolverTraits->TotalVec.squaredNorm()<<endl;
-            //cout<<"SolverTraits->TotalVec"<<SolverTraits->TotalVec<<endl;
-            /*if (SolverTraits->ConstVec.size()!=0)
-             cout<<"Initial Consts: "<<SolverTraits->ConstVec.template lpNorm<Infinity>()<<endl;*/
             
             double CurrEnergyMaxError, PrevEnergyMaxError;
-            
-            bool EnergyStop=false;
-            bool SolutionStop=false;
-            bool GradStop=false;
-            bool Stop=false;
-            
-            double DiagAddition=0; //10e-2;
-            double Inith=1.0;
-            
-            if (GradientDescent)
-                DiagAddition=1;
+            VectorXd rhs(ST.xSize);
             
             do{
-                cout<<"Energy Minimization Iteration"<<endl;
-                cout<<"*****************************"<<endl;
+                ST.UpdateEnergyJacobian(prevx0);
+                MatrixValues(HRows, HCols, ST.JValues, S2D, HValues);
+                MultiplyAdjointVector(ST.JRows, ST.JCols, ST.JVals, -ST.EVec, rhs);
+                
+                //solving to get the direction
+                LS.update_a(MatValues);
+                if(!ps.factorize()) {
+                    // decomposition failed
+                    cout<<"Solver Failed to factorize! "<<endl;
+                    return false;
+                }
+                
+                ps.solve(Rhs,Direction);
+                
+                //doing a line search
+                double h=Inith;
+                PrevEnergy<<SolverTraits->TotalVec;
+                PrevEnergyMaxError=PrevEnergy.squaredNorm();
+                //cout<<"PrevEnergyMaxError: "<<PrevEnergyMaxError<<endl;
+                double CurrEnergyMaxError;
+                double StepSize;
                 do{
-                    SolverTraits->UpdateEnergy(PrevSolution);
-                    SolverTraits->UpdateGradient(PrevSolution);
-                    MatrixValues(MatRows, MatCols, SolverTraits->GradValues, Single2Double, MatValues, DiagAddition);
-                    MultiplyAdjointVector(SolverTraits->GradRows, SolverTraits->GradCols, SolverTraits->GradValues, -SolverTraits->TotalVec, Rhs);
-                    
-                    //cout<<"GradValues: "<<SolverTraits->GradValues<<endl;
-                    //cout<<"TotalVec: "<<SolverTraits->TotalVec<<endl;
-                    //cout<<"Rhs: "<<Rhs<<endl;
-                    
-                    //solving to get the direction
-                    ps.update_a(MatValues);
-                    if(!ps.factorize()) {
-                        // decomposition failed
-                        cout<<"Solver Failed to factorize! "<<endl;
-                    }
-                    
-                    ps.solve(Rhs,Direction);
-                    
-                    //doing a line search
-                    double h=Inith;
-                    PrevEnergy<<SolverTraits->TotalVec;
-                    PrevEnergyMaxError=PrevEnergy.squaredNorm();
-                    //cout<<"PrevEnergyMaxError: "<<PrevEnergyMaxError<<endl;
-                    double CurrEnergyMaxError;
-                    double StepSize;
-                    do{
-                        CurrSolution<<PrevSolution+h*Direction;
-                        SolverTraits->UpdateEnergy(CurrSolution);
-                        CurrEnergy<<SolverTraits->TotalVec;
-                        CurrEnergyMaxError=CurrEnergy.squaredNorm();
-                        //cout<<"CurrEnergySquaredError: "<<CurrEnergyMaxError<<endl;
-                        h*=0.75;
-                        StepSize=h*Direction.squaredNorm();
-                        //cout<<"h:"<<h<<endl;
-                    }while ((CurrEnergyMaxError>PrevEnergyMaxError)&&(h>10e-9));
-                    
-                    cout<<"Step Energy: "<<CurrEnergyMaxError<<endl;
-                    cout<<"StepSize"<<StepSize<<endl;
-                    /*if ((CurrEnergyMaxError>=PrevEnergyMaxError)&&(DiagAddition<10e5)){
-                     cout<<"DiagAddition: "<<DiagAddition<<endl;
-                     DiagAddition*=10.0;
-                     continue;
-                     }
-                     
-                     if (!GradientDescent){
-                     DiagAddition/=10.0;
-                     cout<<"DiagAddition: "<<DiagAddition<<endl;
-                     }*/
-                    
-                    CurrIter++;
-                    ConvErrorsList.push_back(CurrEnergyMaxError);
-                    
-                    EnergyStop=(PrevEnergyMaxError-CurrEnergyMaxError) < SqrtEpsilon*(1+CurrEnergyMaxError);
-                    cout<<"Energy Difference Norm: "<<(PrevEnergyMaxError-CurrEnergyMaxError)<<endl;
-                    SolutionStop=(PrevSolution-CurrSolution).squaredNorm() < SqrtEpsilon*(1+CurrEnergyMaxError);
-                    cout<<"Solution difference norm: "<<(PrevSolution-CurrSolution).squaredNorm()<<endl;
-                    //cout<<"Rhs Error: "<<Rhs.norm()<<endl;
-                    GradStop=Rhs.squaredNorm() < Sqrt3Epsilon*(1+CurrEnergyMaxError);
-                    
-                    cout<<"EnergyStop, SolutionStop, GradStop: "<<EnergyStop<<","<<SolutionStop<<","<<GradStop<<endl;
-                    
-                    Stop=(EnergyStop);// && SolutionStop);
-                    
-                    PrevSolution<<CurrSolution;
-                    SolverTraits->InitSolution=PrevSolution;
-                    
-                }while ((CurrIter<MaxIterations)&&(!Stop));
+                    CurrSolution<<PrevSolution+h*Direction;
+                    SolverTraits->UpdateEnergy(CurrSolution);
+                    CurrEnergy<<SolverTraits->TotalVec;
+                    CurrEnergyMaxError=CurrEnergy.squaredNorm();
+                    //cout<<"CurrEnergySquaredError: "<<CurrEnergyMaxError<<endl;
+                    h*=0.75;
+                    StepSize=h*Direction.squaredNorm();
+                    //cout<<"h:"<<h<<endl;
+                }while ((CurrEnergyMaxError>PrevEnergyMaxError)&&(h>10e-9));
                 
-                cout<<"End of Inner Iteration"<<endl;
-                cout<<"**********************"<<endl;
-                //cout<<"Validity: "<<(SolverTraits->ConstVec).template lpNorm<Infinity>()<<endl;
-                //at this point, a local minimum was reached. If the constraints are well, it is time to terminate
-                if (SolverTraits->isValid())
-                    break;
+                cout<<"Step Energy: "<<CurrEnergyMaxError<<endl;
+                cout<<"StepSize"<<StepSize<<endl;
+                /*if ((CurrEnergyMaxError>=PrevEnergyMaxError)&&(DiagAddition<10e5)){
+                 cout<<"DiagAddition: "<<DiagAddition<<endl;
+                 DiagAddition*=10.0;
+                 continue;
+                 }
+                 
+                 if (!GradientDescent){
+                 DiagAddition/=10.0;
+                 cout<<"DiagAddition: "<<DiagAddition<<endl;
+                 }*/
                 
-                //Otherwise, reformulating and solving anew from that same point
-                if (SolverTraits->ConstVec.size()!=0)
-                    cout<<"Validity of constraints: "<<(SolverTraits->ConstVec).template lpNorm<Infinity>()<<endl;
-                SolverTraits->UpdateEnergy(CurrSolution);
-                SolverTraits->UpdateGradient(CurrSolution);
-                SolverTraits->Reformulate(CurrIter, MaxIterations, CurrSolution);
-            }while((CurrIter<MaxIterations));
+                CurrIter++;
+                ConvErrorsList.push_back(CurrEnergyMaxError);
+                
+                EnergyStop=(PrevEnergyMaxError-CurrEnergyMaxError) < SqrtEpsilon*(1+CurrEnergyMaxError);
+                cout<<"Energy Difference Norm: "<<(PrevEnergyMaxError-CurrEnergyMaxError)<<endl;
+                SolutionStop=(PrevSolution-CurrSolution).squaredNorm() < SqrtEpsilon*(1+CurrEnergyMaxError);
+                cout<<"Solution difference norm: "<<(PrevSolution-CurrSolution).squaredNorm()<<endl;
+                //cout<<"Rhs Error: "<<Rhs.norm()<<endl;
+                GradStop=Rhs.squaredNorm() < Sqrt3Epsilon*(1+CurrEnergyMaxError);
+                
+                cout<<"EnergyStop, SolutionStop, GradStop: "<<EnergyStop<<","<<SolutionStop<<","<<GradStop<<endl;
+                
+                Stop=(EnergyStop);// && SolutionStop);
+                
+                PrevSolution<<CurrSolution;
+                SolverTraits->InitSolution=PrevSolution;
+                
+            }while ((CurrIter<MaxIterations)&&(!Stop));
             
             SolverTraits->UpdateEnergy(CurrSolution);
             double FinalTotalError=(SolverTraits->TotalVec).template lpNorm<Infinity>();
@@ -201,11 +219,6 @@ namespace hedra::optimization
             }
             cout<<"Final Total Error:"<<FinalTotalError<<endl;
             cout<<"Number of Iterations and max iterations:"<<CurrIter<<","<<MaxIterations<<endl;
-            ConvErrors.resize(ConvErrorsList.size());
-            for (int i=0;i<ConvErrorsList.size();i++)
-                ConvErrors(i)=ConvErrorsList[i];
-            
-            return CurrSolution;
             
         }
 
@@ -218,5 +231,3 @@ namespace hedra::optimization
 
 
 #endif
-
-
