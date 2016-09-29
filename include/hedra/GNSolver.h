@@ -5,8 +5,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef HEDRA_OPTIMIZATION_H
-#define HEDRA_OPTIMIZATION_H
+#ifndef HEDRA_GAUSS_NEWTON_SOLVER_H
+#define HEDRA_GAUSS_NEWTON_SOLVER_H
 #include <igl/igl_inline.h>
 #include <Eigen/Core>
 #include <string>
@@ -17,7 +17,7 @@ namespace hedra::optimization
 {
     
     template<class LinearSolver, class SolverTraits>
-    class ALSolver{
+    class GNSolver{
     private:
         Eigen::MatrixXd x;      //current solution; always updated
         Eigen::MatrixXd prevx;  //the solution of the previous iteration
