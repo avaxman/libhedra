@@ -31,10 +31,11 @@ namespace hedra::optimization
         
         LinearSolver LS;
         SolverTraits ST;
-        double penalty;
         int maxIterations;
+        double htolerance;
+        double xTolerance;
+        double fooTolerance;
         
-
         //Input: pattern of matrix M by (iI,iJ) representation
         //Output: pattern of matrix M^T*M by (oI, oJ) representation
         //        map between values in the input to values in the output (Single2Double). The map is aggregating values from future iS to oS
@@ -106,10 +107,9 @@ namespace hedra::optimization
 
     public:
         
-        ALSolver(){};
+        GNSolver(){};
         
-        
-        void init(){
+        void init(double _hTolerance=10e-5, double _xTolerance=10e-7, double _fooTolerance=10e7):hTolerance(_hTolerance), xTolerance(_xTolerance), fooTolerance(_fooTolerance) {
         
             //analysing pattern
             LS.init();
@@ -122,109 +122,66 @@ namespace hedra::optimization
             
             d.resize(ST->xSize);
             x.resize(ST->xSize);
+            x0.resize(ST->xSize);
             prevx.resize(ST->solutionSize);
             currEnergy.resize(ST->EVec.size());
             prevEnergy.resize(ST->EVec.size());
-            
         }
         
         
-        bool Solve(const bool verbose) {
+        bool solve(const bool verbose) {
             
             using namespace Eigen;
             using namespace std;
-            prevx0<<x0;
+            prevx<<x0;
             
-            int CurrIter=0;
-          
-            ST.UpdateEnergyJacobian(x0);
-            
-            if (verbose)
-                std::cout<<"Initial Energy: "<<ST->EVec.squaredNorm()<<endl;
-            
-            
-            double CurrEnergyMaxError, PrevEnergyMaxError;
+            int currIter=0;
+            bool stop=false;
+            double currMaxError, prevMaxError;
             VectorXd rhs(ST.xSize);
             
             do{
-                ST.UpdateEnergyJacobian(prevx0);
+                ST.update_energy_jacobian(prevx);
                 MatrixValues(HRows, HCols, ST.JValues, S2D, HValues);
                 MultiplyAdjointVector(ST.JRows, ST.JCols, ST.JVals, -ST.EVec, rhs);
                 
-                //solving to get the direction
-                LS.update_a(MatValues);
-                if(!ps.factorize()) {
+                //solving to get the GN direction
+                if(!LS.factorize(MatValues)) {
                     // decomposition failed
                     cout<<"Solver Failed to factorize! "<<endl;
                     return false;
                 }
                 
-                ps.solve(Rhs,Direction);
+                LS.solve(rhs,direction);
                 
                 //doing a line search
-                double h=Inith;
-                PrevEnergy<<SolverTraits->TotalVec;
-                PrevEnergyMaxError=PrevEnergy.squaredNorm();
-                //cout<<"PrevEnergyMaxError: "<<PrevEnergyMaxError<<endl;
-                double CurrEnergyMaxError;
-                double StepSize;
+                //doing a "lion in the desert" sampling as a heuristic to find the maximal h that still reduces the energy
+                double hmin=0.0, hmax=10.0;  //TODO: arbitrary values
+                prevEnergy<<ST->EVec;
+                prevMaxError=prevEnergy.lpNorm<Infinity>();
+                double h;
                 do{
-                    CurrSolution<<PrevSolution+h*Direction;
-                    SolverTraits->UpdateEnergy(CurrSolution);
-                    CurrEnergy<<SolverTraits->TotalVec;
-                    CurrEnergyMaxError=CurrEnergy.squaredNorm();
-                    //cout<<"CurrEnergySquaredError: "<<CurrEnergyMaxError<<endl;
-                    h*=0.75;
-                    StepSize=h*Direction.squaredNorm();
-                    //cout<<"h:"<<h<<endl;
-                }while ((CurrEnergyMaxError>PrevEnergyMaxError)&&(h>10e-9));
+                    h=(hmin+hmax)/2.0;
+                    x<<prevx+h*direction;
+                    ST->update_energy_jacobian(x);
+                    currEnergy<<ST->EVec;
+                    currMaxError=currEnergy.lpNorm<Infinity>();
+                    if (currMaxError<prevMaxError)
+                        hmin=h;
+                    else
+                        hmax=h;
+                }while ((hmax-hmin)>htolerance);
                 
-                cout<<"Step Energy: "<<CurrEnergyMaxError<<endl;
-                cout<<"StepSize"<<StepSize<<endl;
-                /*if ((CurrEnergyMaxError>=PrevEnergyMaxError)&&(DiagAddition<10e5)){
-                 cout<<"DiagAddition: "<<DiagAddition<<endl;
-                 DiagAddition*=10.0;
-                 continue;
-                 }
-                 
-                 if (!GradientDescent){
-                 DiagAddition/=10.0;
-                 cout<<"DiagAddition: "<<DiagAddition<<endl;
-                 }*/
-                
-                CurrIter++;
-                ConvErrorsList.push_back(CurrEnergyMaxError);
-                
-                EnergyStop=(PrevEnergyMaxError-CurrEnergyMaxError) < SqrtEpsilon*(1+CurrEnergyMaxError);
-                cout<<"Energy Difference Norm: "<<(PrevEnergyMaxError-CurrEnergyMaxError)<<endl;
-                SolutionStop=(PrevSolution-CurrSolution).squaredNorm() < SqrtEpsilon*(1+CurrEnergyMaxError);
-                cout<<"Solution difference norm: "<<(PrevSolution-CurrSolution).squaredNorm()<<endl;
-                //cout<<"Rhs Error: "<<Rhs.norm()<<endl;
-                GradStop=Rhs.squaredNorm() < Sqrt3Epsilon*(1+CurrEnergyMaxError);
-                
-                cout<<"EnergyStop, SolutionStop, GradStop: "<<EnergyStop<<","<<SolutionStop<<","<<GradStop<<endl;
-                
-                Stop=(EnergyStop);// && SolutionStop);
-                
+                currIter++;
+                bool xDiff=(x-prevx).lpNorm<infinity>();
+                bool firstOrderOptimality=rhs.lpNorm<infinity>();
+                stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
+                prevx<<x;
                 PrevSolution<<CurrSolution;
-                SolverTraits->InitSolution=PrevSolution;
                 
-            }while ((CurrIter<MaxIterations)&&(!Stop));
-            
-            SolverTraits->UpdateEnergy(CurrSolution);
-            double FinalTotalError=(SolverTraits->TotalVec).template lpNorm<Infinity>();
-            if (SolverTraits->ConstVec.size()!=0){
-                double FinalConstError=(SolverTraits->ConstVec).template lpNorm<Infinity>();
-                cout<<"Final Const Error:"<<FinalConstError<<endl;
-            }
-            cout<<"Final Total Error:"<<FinalTotalError<<endl;
-            cout<<"Number of Iterations and max iterations:"<<CurrIter<<","<<MaxIterations<<endl;
-            
+            }while ((CurrIter<=MaxIterations)&&(!stop));
+            return stop;
         }
-
-        
-        
-    
     };
 
 }
