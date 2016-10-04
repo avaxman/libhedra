@@ -141,6 +141,7 @@ namespace hedra::optimization
             VectorXd rhs(ST.xSize);
             
             do{
+                ST.init_iteration(prevx);
                 ST.update_energy_jacobian(prevx);
                 MatrixValues(HRows, HCols, ST.JValues, S2D, HValues);
                 MultiplyAdjointVector(ST.JRows, ST.JCols, ST.JVals, -ST.EVec, rhs);

@@ -21,6 +21,8 @@ namespace hedra::optimization
     
     //prerequisite before operating the optimizer with a pointer to an instance of this calss: filling out V, F, h, b
     
+    //the solution vector is assumed to be arranged as xyzxyzxyz... where each triplet is a coordinate of the free vertices.
+    
     class DiscreteShellsTraits{
         
         Eigen::VectorXi JRows, JCols;  //rows and column indices for the jacobian matrix
@@ -29,73 +31,83 @@ namespace hedra::optimization
         Eigen::VectorXd EVec;          //energy vector
         
         Eigen::VectorXd V, D, F;        //libhedra mesh representation
-        Eigen::MatrixXi quadIndices;  //all quadruplets of vertices that are measured for bending, if form (i,j,k,l) where the bending is of diagonal (i,k) between triangles (i,j,k) and (k,l,i)
-        Eigen::VectorXd EV, EF, EFi, innerEdges;
-        Eigen::VectorXi h;         //
+        Eigen::MatrixXi edgeIndices;  //all pairs of edges for edge preservation
+        Eigen::VectorXd EF, EFi, innerEdges;
+        Eigen::VectorXi h;
+        Eigen::VectorXi a2x;  //from the entire set of variables "a" to the free variables in the optimization "x".
         
-        double lengthCoeff, bendCoeff;  //coefficients the weight bending and length energies
-        Eigen::VectorXd origLengths, origDihedralAngles;  //of the original mesh
+        Eigen::VectorXd origLengths;
         
         void init(const Eigen::VectorXd& x0){
             
             using namespace std;
             using namespace Eigen;
             
-            vector<RowVector4i> quadIndicesList;
+            set<pair<int, int> > edgeIndicesList;
             
-            //for each non-triangular face
-            RowVector4i indices;
-            for (int i=0;i<D.size();i++){
-                for (int j=0;j<D(i)-3;j++){
-                    //both directions of diagonals
-                     indices<<F(i,j), F(i,(j+1)%D(i)), F(i,(j+2)%D(i)), F(i,(j+3)%D(i));
-                    quadIndicesList.push_back(indices);
-                    indices<<F(i,j), F(i,(j+2)%D(i)), F(i,(j+1)%D(i)),  F(i,(j+3)%D(i));
-                    quadIndicesList.push_back(indices);
-                }
-            }
-            //for each edge
+            //inside each face
+            for (int i=0;i<D.size();i++)
+                for (int j=0;j<D(i);j++)
+                    for (int k=j+1;k<D(i);k++)
+                        edgeIndicesList.insert(pair<int, int> (F(i,j)>F(i,k) ? F(i,k) : F(i,j), F(i,j)>F(i,k) ? F(i,j) : F(i,k)));
+            
+            //across edges
             for (int i=0;i<innerEdges.rows();i++){
                 int f=EF(innerEdges(i),0);
                 int g=EF(innerEdges(i),1);
                 
                 //from the side i->k
-                int vis=EV(innerEdges(i),0);
-                int vks=EV(innerEdges(i),1);
                 int vjs=F(g,(EFi(innerEdges(i),1)+2)%D(g));
                 int vls=F(f,(EFi(innerEdges(i),0)+D(f)-1)%D(f));
                 
                 //from the side k->i
-                int vit=EV(innerEdges(i),1);
-                int vkt=EV(innerEdges(i),0);
                 int vjt=F(f,(EFi(innerEdges(i),0)+2)%D(f));
                 int vlt=F(g,(EFi(innerEdges(i),1)+D(g)-1)%D(g));
                 
-                
-                indices<<vis, vjs, vks, vls;
-                quadIndicesList.push_back(indices);
-                indices<<vit, vjt, vkt, vlt;
-                quadIndicesList.push_back(indices);
+                edgeIndicesList.insert(pair<int, int> (vjs>vls ? vls : vjs, vjs>vls ? vjs : vls));
+                edgeIndicesList.insert(pair<int, int> (vjt>vlt ? vlt : vjt, vjt>vlt ? vjt : vlt));
 
             }
-            quadIndices.resize(quadIndicesList.size(),4);
-            for (int i=0;<quadIndicesList.size();i++)
-                quadIndices.row(i)<<quadIndicesList[i];
+            edgeIndices.resize(edgeIndicesList.size(),2);
+            for (set<pair<int, int> >::iterator si=edgeIndicesList.begin(); si!=edgeIndicesList.end();si++)
+                edgeIndices.row(i)<<si->first, si->second;
             
-            EVec.resize(EV.rows()+quadIndices.rows());
+            EVec.resize(edgeIndices.rows());
+            origLengths.resize(edgeIndices.rows());
             
-            for (int i=0;i<EV.rows();i++)
-                origLengths(i)=(x.row(EV(i,0))-x.row(EV(i,1))).norm();
+            for (int i=0;i<edgeIndices.rows();i++)
+                origLengths(i)=(x.row(edgeIndices(i,0))-x.row(edgeIndices(i,1))).norm();
             
-            dihedral_angles(x0, quadIndices,origDihedralAngles);
+            int CurrIndex=0;
+            for (int i=0;i<h.size();i++)
+                a2x(h(i))=-1;
+            
+            for (int i=0;i<V.rows();i++)
+                if (a2x(i)!=-1)
+                    a2x(i)=CurrIndex++;
+            
+            for (int i=0;i<F.rows();i++)
+                a2x(V.rows()+i)=CurrIndex++;
 
         }
         //updating the energy vector and the jacobian values for a given current solution
-        update_energy_jacobian(const Eigen::VectorXd& x){
+        
+        void update_energy_jacobian(const Eigen::VectorXd& x){
             
-            //Energy
-            for (int i=0;i<EV.rows();i++)
-                EVec(i)=lengthCoeff*((x.row(EV(i,0))-x.row(EV(i,1))).norm()-origLengths(i));
+            using namespace std;
+            using namespace Eigen;
+            
+            MatrixXd fullx(xSize+h.size(),3);
+            for (int i=0;i<a2x.size();i++)
+                if (a2x(i)!=-1)
+                    fullx.row(i)<<x0.segment(3*a2x(i),3).transpose();
+            
+            for (int i=0;i<h.size();i++)
+                fullx.row(h(i))=qh.row(i);
+            
+            
+            for (int i=0;i<edgeIndices.rows();i++)
+                EVec(i)=lengthCoeff*((fullx.row(EV(i,0))-fullx.row(EV(i,1))).norm()-origLengths(i));
             
             Eigen::VectorXd currDihedralAngles;
             dihedral_angles(x, quadIndices,currDihedralAngles);
@@ -103,6 +115,9 @@ namespace hedra::optimization
             EVec.segment(EV.rows(),quadIndices.rows())=bendCoeff*(currDihedralAngles-origDihedralAngles);
             
             //Jacobian
+            for (int i=0;i<EV.rows();i++)
+                
+                
         }
         
         DiscreteShellsTraits(){}
