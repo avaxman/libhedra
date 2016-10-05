@@ -112,8 +112,9 @@ namespace hedra {
             
             GNSolver(){};
             
-            void init(double _hTolerance=10e-5, double _xTolerance=10e-7, double _fooTolerance=10e7){
+            void init(double _hTolerance=10e-5, double _xTolerance=10e-7, double _fooTolerance=10e7, int _maxIterations=100){
                 
+                maxIterations=100;
                 hTolerance=_hTolerance;
                 xTolerance=_xTolerance;
                 fooTolerance=_fooTolerance;
@@ -143,10 +144,14 @@ namespace hedra {
                 double currMaxError, prevMaxError;
                 VectorXd rhs(ST->xSize);
                 VectorXd direction;
+                if (verbose)
+                    cout<<"******Beginning Optimization******"<<endl;
                 
                 do{
                     ST->pre_iteration(prevx);
                     ST->update_energy_jacobian(prevx);
+                    if (verbose)
+                        cout<<"Initial Energy for Iteration: "<<ST->EVec.template lpNorm<Infinity>()<<endl;
                     MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
                     MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                     
@@ -177,10 +182,19 @@ namespace hedra {
                             hmax=h;
                     }while ((hmax-hmin)>hTolerance);
                     
+                    if (verbose){
+                        cout<<"prevMaxError: "<<prevMaxError<<endl;
+                        cout<<"currMaxError: "<<prevMaxError<<endl;
+                    }
+                    
                     currIter++;
                     double xDiff=(x-prevx).template lpNorm<Infinity>();
                     double firstOrderOptimality=rhs.lpNorm<Infinity>();
                     stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
+                    if (verbose){
+                        cout<<"xDiff: "<<xDiff<<endl;
+                        cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
+                    }
                     prevx<<x;
                     ST->post_iteration(x);
                 }while ((currIter<=maxIterations)&&(!stop));

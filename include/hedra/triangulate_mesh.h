@@ -40,6 +40,13 @@ namespace hedra
                 RawTF.push_back(i);
                 NewTriangles.push_back(NewFace);
             }
+            if (D(i)==3){
+                Eigen::Vector3i NewFace;
+                NewFace<<F.row(i).transpose();
+                RawTF.push_back(i);
+                NewTriangles.push_back(NewFace);
+            }
+
         }
         
         T.resize(NewTriangles.size(),3);

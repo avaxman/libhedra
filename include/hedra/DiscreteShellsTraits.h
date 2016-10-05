@@ -93,7 +93,7 @@ namespace hedra { namespace optimization {
                 origLengths.resize(edgeIndices.rows());
                 
                 for (int i=0;i<edgeIndices.rows();i++)
-                    origLengths(i)=(VOrig.row(edgeIndices(i,0))-VOrig.row(edgeIndices(i,1))).norm();
+                    origLengths(i)=(VOrig.row(edgeIndices(i,1))-VOrig.row(edgeIndices(i,0))).norm();
                 
                 
                 //creating the Jacobian pattern
@@ -187,10 +187,8 @@ namespace hedra { namespace optimization {
                 //Jacobian
                 for (int i=0;i<edgeIndices.rows();i++){
                     RowVector3d normedEdgeVector=(fullx.row(edgeIndices(i,1))-fullx.row(edgeIndices(i,0))).normalized();
-                    for (int j=0;j<3;j++){
-                        fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()/(origLengths(i)*origLengths(i));
-                        fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()/(origLengths(i)*origLengths(i));
-                    }
+                    fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()/(origLengths(i)*origLengths(i));
+                    fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()/(origLengths(i)*origLengths(i));
                 }
                 
                 int actualGradCounter=0;
