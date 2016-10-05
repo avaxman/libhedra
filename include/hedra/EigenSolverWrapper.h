@@ -14,44 +14,51 @@
 #include <vector>
 #include <cstdio>
 
-namespace hedra::optimization
-{
-    //a templated wrapper to all sparse solvers by Eigen. Not doing much and not entirely efficient since the matrix has to be initialized twice, but not too bad.
-    
-    //TODO: perhaps better to invalidate the analysis stage and do it all in the factorization.
-    template<class EigenSparseSolver>
-    class EigenSolverWrapper{
-    public:
-        EigenSparseSolver solver;
-        Eigen::SparseMatrix<double> A;
-        Eigen::VectorXi rows, cols;
+namespace hedra {
+    namespace optimization
+    {
+        //a templated wrapper to all sparse solvers by Eigen. Not doing much and not entirely efficient since the matrix has to be initialized twice, but not too bad.
         
-        bool analyze(const Eigen::VectorXi& _rows,
-                     const Eigen::VectorXi& _cols):rows(_rows), cols(_cols){
-            A.resize(rows.maxCoeff(), cols.maxCoeff());
-            std::vector<Eigen::Triplets<double> > triplets;
-            for (int i=0;i<rows.size();i++)
-                triplets.push_Back(Triplet<double> (rows(i), cols(i), 1.0)));  //it's just a pattern
-            A.setFromTriplets(triplets);
-            solver.analyzePattern(A);
-        }
-        
-        bool factorize(const Eigen::VectorXd& values){
-            std::vector<Eigen::Triplets<double> > triplets;
-            for (int i=0;i<rows.size();i++)
-                triplets.push_Back(Triplet<double> (rows(i), cols(i), values(i))));
-            A.setFromTriplets(triplets);
-            solver.factorize(A);
+        //TODO: perhaps better to invalidate the analysis stage and do it all in the factorization.
+        template<class EigenSparseSolver>
+        class EigenSolverWrapper{
+        public:
+            EigenSparseSolver solver;
+            Eigen::SparseMatrix<double> A;
+            Eigen::VectorXi rows, cols;
             
-        }
-        
-        bool solve(const Eigen::MatrixXd& rhs,
-                   Eigen::MatrixXd& x){
+            bool analyze(const Eigen::VectorXi& _rows,
+                         const Eigen::VectorXi& _cols){
+                rows=_rows;
+                cols=_cols;
+                A.resize(rows.maxCoeff()+1, cols.maxCoeff()+1);
+                std::vector<Eigen::Triplet<double> > triplets;
+                for (int i=0;i<rows.size();i++)
+                    triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), 1.0));  //it's just a pattern
+                A.setFromTriplets(triplets.begin(), triplets.end());
+                solver.analyzePattern(A);
+                return true;
+            }
             
-            x1 = solver.solve(rhs);
-        }
-    };
-
+            bool factorize(const Eigen::VectorXd& values){
+                std::vector<Eigen::Triplet<double> > triplets;
+                for (int i=0;i<rows.size();i++)
+                    triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), values(i)));
+                A.setFromTriplets(triplets.begin(), triplets.end());
+                solver.factorize(A);
+                return true;  //TODO: to check if factorization went ok.
+                
+            }
+            
+            bool solve(const Eigen::MatrixXd& rhs,
+                       Eigen::VectorXd& x){
+                
+                x = solver.solve(rhs);
+                return true;
+            }
+        };
+        
+    }
 }
 
 
