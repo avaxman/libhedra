@@ -25,26 +25,39 @@ namespace hedra::optimization
     
     class DiscreteShellsTraits{
         
+        
+        //Requisites of the traits class
         Eigen::VectorXi JRows, JCols;  //rows and column indices for the jacobian matrix
         Eigen::VectorXd JVals;         //values for the jacobian matrix.
         double xSize;                  //size of the solution
         Eigen::VectorXd EVec;          //energy vector
         
-        Eigen::VectorXd V, D, F;        //libhedra mesh representation
-        Eigen::MatrixXi edgeIndices;  //all pairs of edges for edge preservation
-        Eigen::VectorXd EF, EFi, innerEdges;
-        Eigen::VectorXi h;
-        Eigen::VectorXi a2x;  //from the entire set of variables "a" to the free variables in the optimization "x".
+        //These are for the the full Jacobian matrix without removing the handles
+        Eigen::VectorXi fullJRows, fullJCols;
+        Eigen::VectorXd fullJVals;
+        Eigen::MatrixXi edgeIndices;    //all pairs of edges for edge preservation
+        Eigen::MatrixXi qh;             //#h by 3 positions
+        Eigen::VectorXi a2x;            //from the entire set of variables "a" to the free variables in the optimization "x".
+        Eigen::VectorXd origLengths;    //the original edge and diagonal lengths.
+        Eigen::MatrixXd VOrig;          //original positions
         
-        Eigen::VectorXd origLengths;
+        Eigen::MatrixXd x0;                 //the initial solution to the optimization
+        Eigen::MatrixXd fullSolution;       //The final solution of the last optimization
         
-        void init(const Eigen::VectorXd& x0){
+        void init(const Eigen::MatrixXd& V,
+                  const Eigen::VectorXi& D,
+                  const Eigen::MatrixXi& F,
+                  const Eigen::VectorXi& h,
+                  const Eigen::MatrixXi& EF,
+                  const Eigen::MatrixXi& EFi,
+                  const Eigen::VectorXi& innerEdges){
             
             using namespace std;
             using namespace Eigen;
             
             set<pair<int, int> > edgeIndicesList;
             
+            VOrig=V;
             //inside each face
             for (int i=0;i<D.size();i++)
                 for (int j=0;j<D(i);j++)
@@ -76,7 +89,7 @@ namespace hedra::optimization
             origLengths.resize(edgeIndices.rows());
             
             for (int i=0;i<edgeIndices.rows();i++)
-                origLengths(i)=(x.row(edgeIndices(i,0))-x.row(edgeIndices(i,1))).norm();
+                origLengths(i)=(origV.row(edgeIndices(i,0))-origV.row(edgeIndices(i,1))).norm();
             
             int CurrIndex=0;
             for (int i=0;i<h.size();i++)
@@ -88,10 +101,49 @@ namespace hedra::optimization
             
             for (int i=0;i<F.rows();i++)
                 a2x(V.rows()+i)=CurrIndex++;
-
+            
+            xSize=3*(origV.rows()-h.size());
+            fullJRows.resize(6*edgreIndices.rows());
+            fullJCols.resize(6*edgreIndices.rows());
+            fullJVals.resize(6*edgreIndices.rows());
+            
+            //setting up the Jacobian rows and columns
+            int actualGradCounter=0;
+            for (int i=0;i<fullJCols.size();i++){
+                if (a2x(fullJCols(i))!=-1)  //not a removed variable
+                    ActualGradCounter++;
+            }
+            
+            JRows.resize(actualGradCounter);
+            JCols.resize(actualGradCounter);
+            JVals.resize(actualGradCounter);
+           
+            actualGradCounter=0;
+            for (int i=0;i<fullJCols.size();i++){
+                if (a2x(fullJCols(i))!=-1){  //not a removed variable
+                    JRows(actualGradCounter)=fullJRows(i);
+                    JCols(actualGradCounter)=a2x(fullJCols(i));
+                }
+            }
+            
+            
+            //the "last found" solution is just the original mesh
+            x0.resize(xSize);
+            for (int i=0;i<a2x.size();i++)
+                if (a2x(i)!=-1)
+                    x0.segment(3*a2x(i),3)<<VOrig.row(i).transpose();
         }
-        //updating the energy vector and the jacobian values for a given current solution
         
+        //provide the initial solution to the solver
+        void initial_solution(Eigen::VectorXd& x0){
+            return x0;
+        }
+        
+        void pre_iteration(const Eigen::VectorXd& prevx){}
+        void post_iteration(const Eigen::VectorXd& x){}
+        
+        
+        //updating the energy vector and the jacobian values for a given current solution
         void update_energy_jacobian(const Eigen::VectorXd& x){
             
             using namespace std;
@@ -100,24 +152,38 @@ namespace hedra::optimization
             MatrixXd fullx(xSize+h.size(),3);
             for (int i=0;i<a2x.size();i++)
                 if (a2x(i)!=-1)
-                    fullx.row(i)<<x0.segment(3*a2x(i),3).transpose();
+                    fullx.row(i)<<x.segment(3*a2x(i),3).transpose();
             
             for (int i=0;i<h.size();i++)
                 fullx.row(h(i))=qh.row(i);
             
-            
             for (int i=0;i<edgeIndices.rows();i++)
-                EVec(i)=lengthCoeff*((fullx.row(EV(i,0))-fullx.row(EV(i,1))).norm()-origLengths(i));
-            
-            Eigen::VectorXd currDihedralAngles;
-            dihedral_angles(x, quadIndices,currDihedralAngles);
-            
-            EVec.segment(EV.rows(),quadIndices.rows())=bendCoeff*(currDihedralAngles-origDihedralAngles);
+                EVec(i)=((fullx.row(edgeIndices(i,1))-fullx.row(edgeIndices(i,0))).norm()-origLengths(i))/(origLengths(i)*origLengths(i));
             
             //Jacobian
-            for (int i=0;i<EV.rows();i++)
-                
-                
+            for (int i=0;i<edgeIndices.rows();i++){
+                RowVector3d normedEdgeVector=(fullx.row(edgeIndices(i,1))-fullx.row(edgeIndices(i,0))).normalized();
+                for (int j=0;j<3;j++){
+                    fullJVals.segment(6*i,3)<<-normedEdgeVector/(origLengths(i)*origLengths(i));
+                    fullJVals.segment(6*i+3,3)<<normedEdgeVector/(origLengths(i)*origLengths(i));
+                }
+            }
+            
+            int actualGradCounter=0;
+            for (int i=0;i<FullJCols.size();i++)
+                if (a2x(FullJCols(i))!=-1)  //not a removed variable
+                    JVals(ActualGradCounter++)=fullJVals(i);
+        }
+        
+        void post_optimization(const Eigen::VectorXd& x){
+            x0=x;  //the last solution will be used in consequent optimizations
+            solution.conservativeResize(xSize+h.size(),3);
+            for (int i=0;i<a2x.size();i++)
+                if (a2x(i)!=-1)
+                    solution.row(i)<<x.segment(3*a2x(i),3).transpose();
+            
+            for (int i=0;i<h.size();i++)
+                solution.row(h(i))=qh.row(i);
         }
         
         DiscreteShellsTraits(){}

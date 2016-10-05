@@ -26,16 +26,6 @@ namespace hedra::optimization
         Eigen::SparseMatrix<double> A;
         Eigen::VectorXi rows, cols;
         
-        solver.analyzePattern(A);   // for this step the numerical values of A are not used
-        solver.factorize(A);
-        x1 = solver.solve(b1);
-        x2 = solver.solve(b2);
-        ...
-        A = ...;                    // modify the values of the nonzeros of A, the nonzeros pattern must stay unchanged
-        solver.factorize(A);
-        x1 = solver.solve(b1);
-        x2 = solver.solve(b2);
-        
         bool analyze(const Eigen::VectorXi& _rows,
                      const Eigen::VectorXi& _cols):rows(_rows), cols(_cols){
             A.resize(rows.maxCoeff(), cols.maxCoeff());

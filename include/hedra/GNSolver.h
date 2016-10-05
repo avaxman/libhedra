@@ -29,8 +29,8 @@ namespace hedra::optimization
         Eigen::VectorXi HRows, HCols;  //(row,col) pairs for H=J^T*J matrix
         Eigen::VectorXd HVals;      //values for H matrix
         
-        LinearSolver LS;
-        SolverTraits ST;
+        LinearSolver* LS;
+        SolverTraits* ST;
         int maxIterations;
         double htolerance;
         double xTolerance;
@@ -112,9 +112,6 @@ namespace hedra::optimization
         void init(double _hTolerance=10e-5, double _xTolerance=10e-7, double _fooTolerance=10e7):hTolerance(_hTolerance), xTolerance(_xTolerance), fooTolerance(_fooTolerance) {
         
             //analysing pattern
-            LS.init();
-            ST.init();
-            
             MatrixPattern(ST->JRows, ST->JCols,HRows,HCols,S2D);
             HVals.resize(HRows.size());
             
@@ -133,16 +130,16 @@ namespace hedra::optimization
             
             using namespace Eigen;
             using namespace std;
+            ST->initial_solution(x0);
             prevx<<x0;
-            
             int currIter=0;
             bool stop=false;
             double currMaxError, prevMaxError;
             VectorXd rhs(ST.xSize);
             
             do{
-                ST.init_iteration(prevx);
-                ST.update_energy_jacobian(prevx);
+                ST->pre_iteration(prevx);
+                ST->update_energy_jacobian(prevx);
                 MatrixValues(HRows, HCols, ST.JValues, S2D, HValues);
                 MultiplyAdjointVector(ST.JRows, ST.JCols, ST.JVals, -ST.EVec, rhs);
                 
@@ -179,8 +176,9 @@ namespace hedra::optimization
                 stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
                 prevx<<x;
                 PrevSolution<<CurrSolution;
-                
+                ST->post_iteration(x);
             }while ((CurrIter<=MaxIterations)&&(!stop));
+            ST->post_optimization(x);
             return stop;
         }
     };
