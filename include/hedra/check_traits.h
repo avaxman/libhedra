@@ -43,12 +43,12 @@ namespace hedra {
             SparseMatrix<double> FEGradient(MaxRow, CurrSolution.size());
             vector<Triplet<double> > FEGradientTris;
             for (int i=0;i<CurrSolution.size();i++){
-                VectorXd vh(CurrSolution.size()); vh.setZero(); vh(i)=10e-6;
+                VectorXd vh(CurrSolution.size()); vh.setZero(); vh(i)=10e-5;
                 Traits.update_energy_jacobian(CurrSolution+vh);
                 VectorXd EnergyPlus=Traits.EVec;
                 Traits.update_energy_jacobian(CurrSolution-vh);
                 VectorXd EnergyMinus=Traits.EVec;
-                VectorXd CurrGradient=(EnergyPlus-EnergyMinus)/(2*10e-6);
+                VectorXd CurrGradient=(EnergyPlus-EnergyMinus)/(2*10e-5);
                 //cout<<CurrGradient<<endl;
                 for (int j=0;j<CurrGradient.size();j++)
                     if (abs(CurrGradient(j))>10e-7)

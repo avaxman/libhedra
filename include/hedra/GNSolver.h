@@ -112,7 +112,7 @@ namespace hedra {
             
             GNSolver(){};
             
-            void init(double _hTolerance=10e-5, double _xTolerance=10e-7, double _fooTolerance=10e7, int _maxIterations=100){
+            void init(double _hTolerance=10e-9, double _xTolerance=10e-5, double _fooTolerance=10e7, int _maxIterations=100){
                 
                 maxIterations=100;
                 hTolerance=_hTolerance;
@@ -151,7 +151,7 @@ namespace hedra {
                     ST->pre_iteration(prevx);
                     ST->update_energy_jacobian(prevx);
                     if (verbose)
-                        cout<<"Initial Energy for Iteration: "<<ST->EVec.template lpNorm<Infinity>()<<endl;
+                        cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template lpNorm<Infinity>()<<endl;
                     MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
                     MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                     
@@ -164,36 +164,35 @@ namespace hedra {
                     
                     LS->solve(rhs,direction);
                     
-                    //doing a line search
-                    //doing a "lion in the desert" sampling as a heuristic to find the maximal h that still reduces the energy
-                    double hmin=0.0, hmax=10.0;  //TODO: arbitrary values
+                    
+                    //doing a line search by decreasing by half until the energy goes down
+                    //TODO: more effective line search
                     prevEnergy<<ST->EVec;
                     prevMaxError=prevEnergy.lpNorm<Infinity>();
-                    double h;
+                    double h=10.0;
                     do{
-                        h=(hmin+hmax)/2.0;
                         x<<prevx+h*direction;
                         ST->update_energy_jacobian(x);
                         currEnergy<<ST->EVec;
                         currMaxError=currEnergy.lpNorm<Infinity>();
                         if (currMaxError<prevMaxError)
-                            hmin=h;
-                        else
-                            hmax=h;
-                    }while ((hmax-hmin)>hTolerance);
+                            break;
+                        
+                        h*=0.5;
+                    }while (h>hTolerance);
                     
                     if (verbose){
-                        cout<<"prevMaxError: "<<prevMaxError<<endl;
-                        cout<<"currMaxError: "<<prevMaxError<<endl;
+                        cout<<"currMaxError: "<<currMaxError<<endl;
                     }
                     
                     currIter++;
                     double xDiff=(x-prevx).template lpNorm<Infinity>();
                     double firstOrderOptimality=rhs.lpNorm<Infinity>();
-                    stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
+                    stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance)&&(h<hTolerance);
                     if (verbose){
                         cout<<"xDiff: "<<xDiff<<endl;
                         cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
+                        cout<<"stop: "<<stop<<endl;
                     }
                     prevx<<x;
                     ST->post_iteration(x);

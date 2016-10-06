@@ -17,12 +17,10 @@
 
 namespace hedra { namespace optimization {
         
-        //this class is a traits class for optimization of discrete shells deformation by given positional constraints. It is an implementation on [Froehlich and Botsch 2012] for general polyhedral meshes, when taking into account all diagonals inside a face
-        
-        //prerequisite before operating the optimizer with a pointer to an instance of this calss: filling out V, F, h, b
-        
+        //this class is a traits class for optimization of discrete shells deformation by given positional constraints. It is an implementation on [Froehlich and Botsch 2012] for general polyhedral meshes, using a triangulation of them
+    
         //the solution vector is assumed to be arranged as xyzxyzxyz... where each triplet is a coordinate of the free vertices.
-        
+    
         class DiscreteShellsTraits{
         public:
             
@@ -35,23 +33,26 @@ namespace hedra { namespace optimization {
             //These are for the the full Jacobian matrix without removing the handles
             Eigen::VectorXi fullJRows, fullJCols;
             Eigen::VectorXd fullJVals;
-            Eigen::MatrixXi edgeIndices;    //all pairs of edges for edge preservation
+            Eigen::MatrixXi flapVertexIndices;  //vertices (i,j,k,l) of a flap on edge e=(k,i) where the triangles are f=(i,j,k) and g=(i,k,l)
+            Eigen::MatrixXi EV;
             Eigen::VectorXi h;              //list of handles
             Eigen::MatrixXd qh;             //#h by 3 positions
             Eigen::VectorXi a2x;            //from the entire set of variables "a" to the free variables in the optimization "x".
             Eigen::VectorXi colMap;         //raw map of a2x into the columns from fullJCols into JCols
-            Eigen::VectorXd origLengths;    //the original edge and diagonal lengths.
+            Eigen::VectorXd origLengths;    //the original edge lengths.
+            Eigen::VectorXd origDihedrals;  //Original dihedral angles
             Eigen::MatrixXd VOrig;          //original positions
+            Eigen::VectorXd Wd, Wl;         //geometric weights for the lengths and the dihedral angles.
             
             Eigen::VectorXd x0;                 //the initial solution to the optimization
             Eigen::MatrixXd fullSolution;       //The final solution of the last optimization
             
-            void init(const Eigen::MatrixXd& V,
-                      const Eigen::VectorXi& D,
-                      const Eigen::MatrixXi& F,
+            void init(const Eigen::MatrixXd& _VOrig,
+                      const Eigen::MatrixXi& T,
                       const Eigen::VectorXi& _h,
-                      const Eigen::MatrixXi& EF,
-                      const Eigen::MatrixXi& EFi,
+                      const Eigen::MatrixXi& _EV,
+                      const Eigen::MatrixXi& ET,
+                      const Eigen::MatrixXi& ETi,
                       const Eigen::VectorXi& innerEdges){
                 
                 using namespace std;
@@ -59,64 +60,84 @@ namespace hedra { namespace optimization {
                 
                 std::set<pair<int, int> > edgeIndicesList;
                 
-                VOrig=V;
+                VOrig=_VOrig;
                 h=_h;
-                //inside each face
-                for (int i=0;i<D.size();i++)
-                    for (int j=0;j<D(i);j++)
-                        for (int k=j+1;k<D(i);k++)
-                            edgeIndicesList.insert(pair<int, int> (F(i,j)>F(i,k) ? F(i,k) : F(i,j), F(i,j)>F(i,k) ? F(i,j) : F(i,k)));
+                EV=_EV;
+                
+                //lengths of edges and diagonals
+                flapVertexIndices.resize(innerEdges.size(),4);
+                
+                //dihedral angles
+                for (int i=0;i<innerEdges.size();i++){
+                    int f=ET(innerEdges(i),0);
+                    int g=ET(innerEdges(i),1);
+                 
+                    int vi=EV(innerEdges(i), 1);
+                    int vj=T(f,(ETi(innerEdges(i),0)+2)%3);
+                    int vk=EV(innerEdges(i),0);
+                    int vl=T(g,(ETi(innerEdges(i),1)+2)%3);
+                    flapVertexIndices.row(i)<<vi,vj,vk,vl;
+                 }
                 
                 //across edges
-                for (int i=0;i<innerEdges.rows();i++){
-                    int f=EF(innerEdges(i),0);
-                    int g=EF(innerEdges(i),1);
-                    
-                    //from the side i->k
-                    int vjs=F(g,(EFi(innerEdges(i),1)+2)%D(g));
-                    int vls=F(f,(EFi(innerEdges(i),0)+D(f)-1)%D(f));
-                    
-                    //from the side k->i
-                    int vjt=F(f,(EFi(innerEdges(i),0)+2)%D(f));
-                    int vlt=F(g,(EFi(innerEdges(i),1)+D(g)-1)%D(g));
-                    
-                    edgeIndicesList.insert(pair<int, int> (vjs>vls ? vls : vjs, vjs>vls ? vjs : vls));
-                    edgeIndicesList.insert(pair<int, int> (vjt>vlt ? vlt : vjt, vjt>vlt ? vjt : vlt));
-                    
+                EVec.resize(EV.rows()+flapVertexIndices.rows());
+                origLengths.resize(EV.rows());
+                origDihedrals.resize(flapVertexIndices.rows());
+                Wl.resize(EV.rows());
+                Wd.resize(flapVertexIndices.rows());
+                
+                
+                for (int i=0;i<EV.rows();i++){
+                    origLengths(i)=(VOrig.row(EV(i,1))-VOrig.row(EV(i,0))).norm();
+                    Wl(i)=0.01/origLengths(i);
                 }
-                edgeIndices.resize(edgeIndicesList.size(),2);
-                int currIndex=0;
-                for (set<pair<int, int> >::iterator si=edgeIndicesList.begin(); si!=edgeIndicesList.end();si++)
-                    edgeIndices.row(currIndex++)<<si->first, si->second;
                 
-                EVec.resize(edgeIndices.rows());
-                origLengths.resize(edgeIndices.rows());
-                
-                for (int i=0;i<edgeIndices.rows();i++)
-                    origLengths(i)=(VOrig.row(edgeIndices(i,1))-VOrig.row(edgeIndices(i,0))).norm();
+                for (int i=0;i<flapVertexIndices.rows();i++){
+                    RowVector3d eji=VOrig.row(flapVertexIndices(i,0))-VOrig.row(flapVertexIndices(i,1));
+                    RowVector3d ejk=VOrig.row(flapVertexIndices(i,2))-VOrig.row(flapVertexIndices(i,1));
+                    RowVector3d eli=VOrig.row(flapVertexIndices(i,0))-VOrig.row(flapVertexIndices(i,3));
+                    RowVector3d elk=VOrig.row(flapVertexIndices(i,2))-VOrig.row(flapVertexIndices(i,3));
+                    RowVector3d eki=VOrig.row(flapVertexIndices(i,0))-VOrig.row(flapVertexIndices(i,2));
+                    
+                    RowVector3d n1 = (ejk.cross(eji));
+                    RowVector3d n2 = (eli.cross(elk));
+                    double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
+                    double sinHalf=sign*sqrt((1.0-n1.normalized().dot(n2.normalized()))/2.0);
+                    cout<<"sinHalf: "<<sinHalf<<endl;
+                    origDihedrals(i)=2.0*asin(sinHalf);
+                    double areaSum=(n1.norm()+n2.norm())/2.0;
+                    Wd(i)=eki.norm()/sqrt(areaSum);
+                }
                 
                 
                 //creating the Jacobian pattern
                 xSize=3*(VOrig.rows()-h.size());
-                fullJRows.resize(6*edgeIndices.rows());
-                fullJCols.resize(6*edgeIndices.rows());
-                fullJVals.resize(6*edgeIndices.rows());
+                fullJRows.resize(6*EV.rows()+12*flapVertexIndices.rows());
+                fullJCols.resize(6*EV.rows()+12*flapVertexIndices.rows());
+                fullJVals.resize(6*EV.rows()+12*flapVertexIndices.rows());
                 
-                for (int i=0;i<edgeIndices.rows();i++){
+                
+                //Jacobian indices for edge lengths
+                for (int i=0;i<EV.rows();i++){
                     fullJRows.segment(6*i,6).setConstant(i);
-                    fullJCols.segment(6*i,3)<<3*edgeIndices(i,0),3*edgeIndices(i,0)+1,3*edgeIndices(i,0)+2;
-                    fullJCols.segment(6*i+3,3)<<3*edgeIndices(i,1),3*edgeIndices(i,1)+1,3*edgeIndices(i,1)+2;
+                    fullJCols.segment(6*i,3)<<3*EV(i,0),3*EV(i,0)+1,3*EV(i,0)+2;
+                    fullJCols.segment(6*i+3,3)<<3*EV(i,1),3*EV(i,1)+1,3*EV(i,1)+2;
                 }
                 
-                //cout<<"fullJRows: "<<fullJRows<<endl;
-                //cout<<"fullJCols: "<<fullJCols<<endl;
+                //Jacobian indices for dihedral angles
+                for (int i=0;i<flapVertexIndices.rows();i++){
+                    fullJRows.segment(6*EV.rows()+12*i,12).setConstant(EV.rows()+i);
+                    for (int k=0;k<4;k++)
+                        fullJCols.segment(6*EV.rows()+12*i+3*k,3)<<3*flapVertexIndices(i,k),3*flapVertexIndices(i,k)+1,3*flapVertexIndices(i,k)+2;
+                }
+                
                 
                 a2x.resize(VOrig.rows());
                 int CurrIndex=0;
                 for (int i=0;i<h.size();i++)
                     a2x(h(i))=-1;
                 
-                for (int i=0;i<V.rows();i++)
+                for (int i=0;i<VOrig.rows();i++)
                     if (a2x(i)!=-1)
                         a2x(i)=CurrIndex++;
                 
@@ -145,11 +166,6 @@ namespace hedra { namespace optimization {
                         JCols(actualGradCounter++)=colMap(fullJCols(i));
                     }
                 }
-                
-                cout<<"JRows maxCoeff: "<<JRows.maxCoeff()<<endl;
-                cout<<"JCols.maxCoeff(): "<<JCols.maxCoeff()<<endl;
-                cout<<"xSize: "<<xSize<<endl;
-                
                 
                 //the "last found" solution is just the original mesh
                 x0.resize(xSize);
@@ -181,16 +197,35 @@ namespace hedra { namespace optimization {
                 for (int i=0;i<h.size();i++)
                     fullx.row(h(i))=qh.row(i);
                 
-                for (int i=0;i<edgeIndices.rows();i++)
-                    EVec(i)=((fullx.row(edgeIndices(i,1))-fullx.row(edgeIndices(i,0))).norm()-origLengths(i))/(origLengths(i)*origLengths(i));
-                
-                //Jacobian
-                for (int i=0;i<edgeIndices.rows();i++){
-                    RowVector3d normedEdgeVector=(fullx.row(edgeIndices(i,1))-fullx.row(edgeIndices(i,0))).normalized();
-                    fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()/(origLengths(i)*origLengths(i));
-                    fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()/(origLengths(i)*origLengths(i));
+                fullJVals.setZero();
+                for (int i=0;i<EV.rows();i++){
+                    EVec(i)=((fullx.row(EV(i,1))-fullx.row(EV(i,0))).norm()-origLengths(i))*Wl(i);
+                    
+                    RowVector3d normedEdgeVector=(fullx.row(EV(i,1))-fullx.row(EV(i,0))).normalized();
+                    fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()*Wl(i);
+                    fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()*Wl(i);
                 }
                 
+                for (int i=0;i<flapVertexIndices.rows();i++){
+                    RowVector3d eji=fullx.row(flapVertexIndices(i,0))-fullx.row(flapVertexIndices(i,1));
+                    RowVector3d ejk=fullx.row(flapVertexIndices(i,2))-fullx.row(flapVertexIndices(i,1));
+                    RowVector3d eli=fullx.row(flapVertexIndices(i,0))-fullx.row(flapVertexIndices(i,3));
+                    RowVector3d elk=fullx.row(flapVertexIndices(i,2))-fullx.row(flapVertexIndices(i,3));
+                    RowVector3d eki=fullx.row(flapVertexIndices(i,0))-fullx.row(flapVertexIndices(i,2));
+                    
+                    RowVector3d n1 = (ejk.cross(eji));
+                    RowVector3d n2 = (eli.cross(elk));
+                    double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
+                    double sinHalf=sign*sqrt((1.0-n1.normalized().dot(n2.normalized()))/2.0);
+                    EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i);
+                    
+                    fullJVals.segment(6*EV.rows()+12*i,3)<<(Wd(i)*((ejk.dot(-eki)/(n1.squaredNorm()*eki.norm()))*n1+(elk.dot(-eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose();
+                    fullJVals.segment(6*EV.rows()+12*i+3,3)<<(Wd(i)*(-eki.norm()/n1.squaredNorm())*n1).transpose();
+                    fullJVals.segment(6*EV.rows()+12*i+6,3)<<(Wd(i)*((eji.dot(eki)/(n1.squaredNorm()*eki.norm()))*n1+(eli.dot(eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose();
+                    fullJVals.segment(6*EV.rows()+12*i+9,3)<<(Wd(i)*(-eki.norm()/n2.squaredNorm())*n2).transpose();
+
+                }
+
                 int actualGradCounter=0;
                 for (int i=0;i<fullJCols.size();i++)
                     if (colMap(fullJCols(i))!=-1)  //not a removed variable
