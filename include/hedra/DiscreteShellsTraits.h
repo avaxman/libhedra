@@ -43,6 +43,7 @@ namespace hedra { namespace optimization {
             Eigen::VectorXd origDihedrals;  //Original dihedral angles
             Eigen::MatrixXd VOrig;          //original positions
             Eigen::VectorXd Wd, Wl;         //geometric weights for the lengths and the dihedral angles.
+            double bendCoeff, lengthCoeff;  //coefficients for the different terms
             
             Eigen::VectorXd x0;                 //the initial solution to the optimization
             Eigen::MatrixXd fullSolution;       //The final solution of the last optimization
@@ -63,6 +64,8 @@ namespace hedra { namespace optimization {
                 VOrig=_VOrig;
                 h=_h;
                 EV=_EV;
+                lengthCoeff=10.0;
+                bendCoeff=1.0;
                 
                 //lengths of edges and diagonals
                 flapVertexIndices.resize(innerEdges.size(),4);
@@ -89,7 +92,7 @@ namespace hedra { namespace optimization {
                 
                 for (int i=0;i<EV.rows();i++){
                     origLengths(i)=(VOrig.row(EV(i,1))-VOrig.row(EV(i,0))).norm();
-                    Wl(i)=0.01/origLengths(i);
+                    Wl(i)=1.0/origLengths(i);
                 }
                 
                 for (int i=0;i<flapVertexIndices.rows();i++){
@@ -103,7 +106,7 @@ namespace hedra { namespace optimization {
                     RowVector3d n2 = (eli.cross(elk));
                     double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
                     double sinHalf=sign*sqrt((1.0-n1.normalized().dot(n2.normalized()))/2.0);
-                    cout<<"sinHalf: "<<sinHalf<<endl;
+                    //cout<<"sinHalf: "<<sinHalf<<endl;
                     origDihedrals(i)=2.0*asin(sinHalf);
                     double areaSum=(n1.norm()+n2.norm())/2.0;
                     Wd(i)=eki.norm()/sqrt(areaSum);
@@ -132,7 +135,7 @@ namespace hedra { namespace optimization {
                 }
                 
                 
-                a2x.resize(VOrig.rows());
+                a2x=Eigen::VectorXi::Zero(VOrig.rows());
                 int CurrIndex=0;
                 for (int i=0;i<h.size();i++)
                     a2x(h(i))=-1;
@@ -158,6 +161,7 @@ namespace hedra { namespace optimization {
                 JRows.resize(actualGradCounter);
                 JCols.resize(actualGradCounter);
                 JVals.resize(actualGradCounter);
+                
                 
                 actualGradCounter=0;
                 for (int i=0;i<fullJCols.size();i++){
@@ -199,11 +203,11 @@ namespace hedra { namespace optimization {
                 
                 fullJVals.setZero();
                 for (int i=0;i<EV.rows();i++){
-                    EVec(i)=((fullx.row(EV(i,1))-fullx.row(EV(i,0))).norm()-origLengths(i))*Wl(i);
+                    EVec(i)=((fullx.row(EV(i,1))-fullx.row(EV(i,0))).norm()-origLengths(i))*Wl(i)*lengthCoeff;
                     
                     RowVector3d normedEdgeVector=(fullx.row(EV(i,1))-fullx.row(EV(i,0))).normalized();
-                    fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()*Wl(i);
-                    fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()*Wl(i);
+                    fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()*Wl(i)*lengthCoeff;
+                    fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()*Wl(i)*lengthCoeff;
                 }
                 
                 for (int i=0;i<flapVertexIndices.rows();i++){
@@ -217,12 +221,12 @@ namespace hedra { namespace optimization {
                     RowVector3d n2 = (eli.cross(elk));
                     double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
                     double sinHalf=sign*sqrt((1.0-n1.normalized().dot(n2.normalized()))/2.0);
-                    EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i);
+                    EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i)*bendCoeff;
                     
-                    fullJVals.segment(6*EV.rows()+12*i,3)<<(Wd(i)*((ejk.dot(-eki)/(n1.squaredNorm()*eki.norm()))*n1+(elk.dot(-eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose();
-                    fullJVals.segment(6*EV.rows()+12*i+3,3)<<(Wd(i)*(-eki.norm()/n1.squaredNorm())*n1).transpose();
-                    fullJVals.segment(6*EV.rows()+12*i+6,3)<<(Wd(i)*((eji.dot(eki)/(n1.squaredNorm()*eki.norm()))*n1+(eli.dot(eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose();
-                    fullJVals.segment(6*EV.rows()+12*i+9,3)<<(Wd(i)*(-eki.norm()/n2.squaredNorm())*n2).transpose();
+                    fullJVals.segment(6*EV.rows()+12*i,3)<<(Wd(i)*((ejk.dot(-eki)/(n1.squaredNorm()*eki.norm()))*n1+(elk.dot(-eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
+                    fullJVals.segment(6*EV.rows()+12*i+3,3)<<(Wd(i)*(-eki.norm()/n1.squaredNorm())*n1).transpose()*bendCoeff;
+                    fullJVals.segment(6*EV.rows()+12*i+6,3)<<(Wd(i)*((eji.dot(eki)/(n1.squaredNorm()*eki.norm()))*n1+(eli.dot(eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
+                    fullJVals.segment(6*EV.rows()+12*i+9,3)<<(Wd(i)*(-eki.norm()/n2.squaredNorm())*n2).transpose()*bendCoeff;
 
                 }
 
