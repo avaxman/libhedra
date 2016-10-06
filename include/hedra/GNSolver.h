@@ -175,6 +175,9 @@ namespace hedra {
                         ST->update_energy_jacobian(x);
                         currEnergy<<ST->EVec;
                         currMaxError=currEnergy.lpNorm<Infinity>();
+                        if (verbose){
+                            cout<<"h, currMaxError: "<<h<<","<<currMaxError<<endl;
+                        }
                         if (currMaxError<prevMaxError)
                             break;
                         
@@ -188,7 +191,7 @@ namespace hedra {
                     currIter++;
                     double xDiff=(x-prevx).template lpNorm<Infinity>();
                     double firstOrderOptimality=rhs.lpNorm<Infinity>();
-                    stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance)&&(h<hTolerance);
+                    stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
                     if (verbose){
                         cout<<"xDiff: "<<xDiff<<endl;
                         cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;

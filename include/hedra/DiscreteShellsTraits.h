@@ -64,7 +64,7 @@ namespace hedra { namespace optimization {
                 VOrig=_VOrig;
                 h=_h;
                 EV=_EV;
-                lengthCoeff=10.0;
+                lengthCoeff=3.0;
                 bendCoeff=1.0;
                 
                 //lengths of edges and diagonals
@@ -220,9 +220,11 @@ namespace hedra { namespace optimization {
                     RowVector3d n1 = (ejk.cross(eji));
                     RowVector3d n2 = (eli.cross(elk));
                     double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
-                    double sinHalf=sign*sqrt((1.0-n1.normalized().dot(n2.normalized()))/2.0);
+                    double dotn1n2=1.0-n1.normalized().dot(n2.normalized());
+                    if (dotn1n2>1.0) dotn1n2=1.0; if (dotn1n2<0.0) dotn1n2=0.0;  //sanitizing
+                    double sinHalf=sign*sqrt(dotn1n2/2.0);
                     EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i)*bendCoeff;
-                    
+                   
                     fullJVals.segment(6*EV.rows()+12*i,3)<<(Wd(i)*((ejk.dot(-eki)/(n1.squaredNorm()*eki.norm()))*n1+(elk.dot(-eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
                     fullJVals.segment(6*EV.rows()+12*i+3,3)<<(Wd(i)*(-eki.norm()/n1.squaredNorm())*n1).transpose()*bendCoeff;
                     fullJVals.segment(6*EV.rows()+12*i+6,3)<<(Wd(i)*((eji.dot(eki)/(n1.squaredNorm()*eki.norm()))*n1+(eli.dot(eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
