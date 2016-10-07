@@ -10,6 +10,8 @@
 #include <hedra/GNSolver.h>
 #include <hedra/EigenSolverWrapper.h>
 #include <hedra/DiscreteShellsTraits.h>
+#include <Eigen/SparseCholesky>
+#include <hedra/check_traits.h>
 
 
 std::vector<int> Handles;
@@ -25,9 +27,11 @@ Eigen::Vector3d spans;
 bool Editing=false;
 bool ChoosingHandleMode=false;
 double CurrWinZ;
+typedef hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > > LinearSolver;
 hedra::optimization::DiscreteShellsTraits dst;
-hedra::optimization::GNSolver gnSolver;
-hedra::optimization::EigenSolverWrapper esw;
+LinearSolver esw;
+hedra::optimization::GNSolver<LinearSolver, hedra::optimization::DiscreteShellsTraits> gnSolver;
+
 
 
 bool UpdateCurrentView(igl::viewer::Viewer & viewer)
@@ -42,14 +46,6 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
     for (int i=0;i<Handles.size();i++)
         bc.row(i)=HandlePoses[i].transpose();
     
-    VectorXd planarity;
-    hedra::planarity(V,D,F,planarity);
-    
-    Eigen::MatrixXd C, TC;
-    hedra::scalar2RGB(planarity, 0.0,1.0, C);
-    TC.resize(T.rows(),3);
-    for (int i=0;i<T.rows();i++)
-        TC.row(i)=C.row(TF(i));
     
     double sphereRadius=spans.sum()/200.0;
     MatrixXd sphereGreens(Handles.size(),3);
@@ -61,15 +57,12 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
     
     Eigen::MatrixXd bigV(V.rows()+sphereV.rows(),3);
     Eigen::MatrixXi bigT(T.rows()+sphereT.rows(),3);
-    Eigen::MatrixXd bigTC(TC.rows()+sphereTC.rows(),3);
     if (sphereV.rows()!=0){
         bigV<<V, sphereV;
         bigT<<T, sphereT+Eigen::MatrixXi::Constant(sphereT.rows(), sphereT.cols(), V.rows());
-        bigTC<<TC, sphereTC;
     } else{
         bigV<<V;
         bigT<<T;
-        bigTC<<TC;
     }
     
     viewer.core.show_lines=false;
@@ -80,7 +73,6 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
     
     viewer.data.clear();
     viewer.data.set_mesh(bigV,bigT);
-    viewer.data.set_colors(bigTC);
     viewer.data.compute_normals();
     viewer.data.set_edges(V,EV,OrigEdgeColors);
     return true;
@@ -99,18 +91,15 @@ bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
                                                     viewer.core.viewport);
     
     HandlePoses[HandlePoses.size()-1]=NewPos.cast<double>();
-    
-    Eigen::MatrixXd A(3*F.rows(),3);
-    for (int i=0;i<F.rows();i++)
-        A.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
+    Eigen::RowVector3d Diff=HandlePoses[HandlePoses.size()-1]-VOrig.row(Handles[HandlePoses.size()-1]);
     
     Eigen::MatrixXd bc(Handles.size(),V.cols());
     for (int i=0;i<Handles.size();i++)
         bc.row(i)=HandlePoses[i].transpose();
     
     dst.qh=bc;
-    gn.solve(true);
-    V=dst.solution;
+    gnSolver.solve(true);
+    V=dst.fullSolution;
     UpdateCurrentView(viewer);
     return true;
 
@@ -170,7 +159,9 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
         for (int i=0;i<Handles.size();i++)
             b(i)=Handles[i];
         
-        dst.init(Vorig,D, F,b,EF,EFi,innerEdges);
+        dst.init(VOrig, T, b, EV, EF, EFi,innerEdges);
+        gnSolver.init();
+        gnSolver.xTolerance=10e-2;
         UpdateCurrentView(viewer);
     }
     return true;
@@ -205,9 +196,11 @@ int main(int argc, char *argv[])
     using namespace std;
     using namespace Eigen;
     
-    hedra::polygonal_read_OFF(DATA_PATH "/six.off", V, D, F);
-    hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
+    hedra::polygonal_read_OFF(DATA_PATH "/moomoo.off", V, D, F);
     hedra::triangulate_mesh(D, F, T, TF);
+    VectorXi DT=VectorXi::Constant(T.rows(),3);
+    hedra::polygonal_edge_topology(DT, T, EV, FE, EF,EFi,FEs,innerEdges);
+    
     spans=V.colwise().maxCoeff()-V.colwise().minCoeff();
 
     gnSolver.ST=&dst;
