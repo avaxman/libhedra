@@ -27,7 +27,7 @@ Using the library then amounts to including the relevant header files in the `in
 
 libhedra is a header-only library; that means that no building is required to set it up. Functions are usually in single eponymous header file, but they are sometimes aggregated under one header if they strongly depend on each other. Some functions (none of the currently implemented) depend on the existence of external dependencies, and will not work otherwise; the rest of the library is not affected.
 
-There are no classes or difficult data structures; much like [libigl](http://libigl.github.io/libigl/), simplicity is key. The library then mostly works with [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code. 
+There are not many classes, and no difficult data structures; much like [libigl](http://libigl.github.io/libigl/), simplicity is key. The library then mostly works with [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code. 
 
 
 
@@ -224,6 +224,80 @@ where (parameters (e.g., `EF`) that have been discussed before with the same nam
 | `q`             | The full result in $\left|V\right| \times 3$ vertices (including the handles).|
 
 
+#Optimization
+
+Optimization is done in libhedra by classes instantiating traits classes. While this is a more complicated pattern than flat functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily. For each category of supported optimization, there are already provided classes for popular use, so that it is only necessary to endure writing several traits if there is a need for a lot of configuration.
+
+##Nonlinear Least Squares
+
+libhedra support nonlinear least squares optimization by Gauss-Newton iterations through the class `GNSolver<LinearSolver, SolverTraits>` in the respective header file. This class accepts two traits classes: for linear solving, and for the least-squares objectives. 
+
+The optimizer solves problems of the form:
+
+$$
+x = argmin\sum ^m _{i=0}{(E_i(x))^2},
+$$
+by taking iterations, each solving the following linear problem:
+
+$$J^TJd = -J^tE$$.
+$E=\left( E_1(x), E_2(x), \cdots E_m(x)\right)^T$ is a column vector of size $m$ decribing the energy at iteration $k$, and $J=\left(\nabla E_m, \cdots, \nabla E_m\right)^T$ is the (sparse) $m \times n$ Jacobian matrix at that iteration, where $n$ is the size of the solution $x$. Then, the variable $x^{k+1}$ is updated as follows:
+
+$$x^{k+1}=x^k+hd$$.
+
+The step size $h$ is determined to be such that does not increase the energy. For this, we begin with a value of $h=1$, and reduce it by half until it reaches a tolerance value. 
+
+The initial solution $x_0$ is acquired from the `SolverTraits` instance (see below).
+
+Any `LinearSolver` class must include the following functionality:
+
+```cpp
+class LinearSolver{
+...
+bool analyze(const Eigen::VectorXi& _rows,
+                         const Eigen::VectorXi& _cols){...}
+bool factorize(const Eigen::VectorXd& values){...}
+bool solve(const Eigen::MatrixXd& rhs,Eigen::VectorXd& x){...}
+...
+};
+
+```
+
+This functionality pertains to symbolic analysis, factorization, and solution of the system. The class should be able to handle the positive semi-definite system of $J^TJ$ that is solved in each iteration of the Gauss-Newton solver, and the analysis function is then only called once per optimization, since the structure of the Jacobian is not supposed to change.
+
+For comfort, a class `EigenSolverWrapper<class EigenSparseSolver>` is provided, that wraps the sparse linear solvers in Eigen. For instance, `Eigen::SimplicialLDLt`. 
+
+Any `SolverTraits` class must include the following functionality:
+
+```cpp
+class SolverTraits{
+...
+    Eigen::VectorXi JRows, JCols;  
+    Eigen::VectorXd JVals;         
+    int xSize;                      
+    Eigen::VectorXd EVec;         
+...
+    void initial_solution(Eigen::VectorXd& x0){...}
+    void pre_iteration(const Eigen::VectorXd& prevx){...}
+    void post_iteration(const Eigen::VectorXd& x){...}
+    void update_energy_jacobian(const Eigen::VectorXd& x){...}
+    post_optimization(const Eigen::VectorXd& x){...}
+...
+
+```
+
+The functions are callbacks that will be triggered by the optimizer `GNSolver`, where: 
+
+| Class Member                    | Description                                                                         |
+| :----------------------- | :---------------------------------------------------------------------------------- |
+| `JRows, JCols, JVals`            | (row, column, value) triplets in the Jacobian. the (row, column) pairs are expected to stay constant throughout the optimization.                                             |
+| `xSize`               | The size of the solution vector `x`. |
+| `EVec`              | The vector $E$ of summands in the least squares.|
+| `initial_solution()`            | Called before the beginning of the iterations, and needs to provide an initial solution $x_0$ to the solver.
+| `pre_iteration()`             |Called before an iteration with the previous solution. |
+| `post_iteration()`             |Called after an iteration with the acquired solution. |
+| `update_energy_jacobian()`    |Called to update the energy vector `EVec` and the values of the Jacobian `JVals`. It is a staple function that is called quite often, so it should be efficient. |
+| `post_optimization()` | Called with the final result after the optimization ended. |
+
 ##Future Plans
 
 The following functionality will soon be available in libhedra:
@@ -248,6 +322,8 @@ If you use libhedra in your academic projects, please cite the implemented paper
   year = {2016},
 }
 ```
+
+
 
 
 
