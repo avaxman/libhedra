@@ -67,6 +67,7 @@ namespace hedra { namespace optimization {
                 //updating the lagrangian function
                 CT->update_constraints();
                 lambda=lambda-penalty*CT->CVec;
+                cout<<"Constraint Error: "<<CT->CVec.template lpNorm<Infinity>();
              
                 //TODO: maybe update penalty
             }
@@ -74,7 +75,11 @@ namespace hedra { namespace optimization {
             
             //updating the energy vector and the jacobian values for a given current solution
             void update_energy_jacobian(const Eigen::VectorXd& x){
-                //TODO
+                
+                CT->update_energy_jacobian();
+                CT->update_constraints();
+                EVEC<<CT->EVec, sqrt(penalty/2.0)*(CT->CVec-lambda/penalty);
+                JVals<<CT->JEVals, sqrt(penalty/2.0)*CT->JCVals;
                 
             }
             
