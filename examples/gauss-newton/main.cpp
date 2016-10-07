@@ -160,8 +160,7 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
             b(i)=Handles[i];
         
         dst.init(VOrig, T, b, EV, EF, EFi,innerEdges);
-        gnSolver.init();
-        gnSolver.xTolerance=10e-2;
+        gnSolver.init(&esw, &dst, 50, 10e-2);
         UpdateCurrentView(viewer);
     }
     return true;
@@ -202,9 +201,6 @@ int main(int argc, char *argv[])
     hedra::polygonal_edge_topology(DT, T, EV, FE, EF,EFi,FEs,innerEdges);
     
     spans=V.colwise().maxCoeff()-V.colwise().minCoeff();
-
-    gnSolver.ST=&dst;
-    gnSolver.LS=&esw;
     
     VOrig=V;
     igl::viewer::Viewer viewer;

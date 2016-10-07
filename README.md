@@ -146,10 +146,7 @@ viewer.data.set_mesh(bigV,bigT);
 
 **Note**: `sphereT` indices are relative to `sphereV`, and therefore need to be adjusted to indices in `bigV` before concatenation.
 
-Example: TBD
-
-
-    
+ 
 ##Evaluation
 
 `libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
@@ -224,11 +221,11 @@ where (parameters (e.g., `EF`) that have been discussed before with the same nam
 | `q`             | The full result in $\left|V\right| \times 3$ vertices (including the handles).|
 
 
-#Optimization
+##Optimization
 
-Optimization is done in libhedra by classes instantiating traits classes. While this is a more complicated pattern than flat functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily. For each category of supported optimization, there are already provided classes for popular use, so that it is only necessary to endure writing several traits if there is a need for a lot of configuration.
+Optimization is done in libhedra by generic classes, taking templated trait classes as input. While this is a more complicated design pattern than simple functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily. 
 
-##Nonlinear Least Squares
+###Nonlinear Least Squares
 
 libhedra support nonlinear least squares optimization by Gauss-Newton iterations through the class `GNSolver<LinearSolver, SolverTraits>` in the respective header file. This class accepts two traits classes: for linear solving, and for the least-squares objectives. 
 
@@ -239,14 +236,39 @@ x = argmin\sum ^m _{i=0}{(E_i(x))^2},
 $$
 by taking iterations, each solving the following linear problem:
 
-$$J^TJd = -J^tE$$.
+$$J^TJd = -J^tE.$$
+
 $E=\left( E_1(x), E_2(x), \cdots E_m(x)\right)^T$ is a column vector of size $m$ decribing the energy at iteration $k$, and $J=\left(\nabla E_m, \cdots, \nabla E_m\right)^T$ is the (sparse) $m \times n$ Jacobian matrix at that iteration, where $n$ is the size of the solution $x$. Then, the variable $x^{k+1}$ is updated as follows:
 
-$$x^{k+1}=x^k+hd$$.
+$$x^{k+1}=x^k+hd.$$
 
-The step size $h$ is determined to be such that does not increase the energy. For this, we begin with a value of $h=1$, and reduce it by half until it reaches a tolerance value. 
+The step size $h$ is determined to be such that does not increase the energy. For this, we begin with a value of $h=1$, and reduce it by half until it reaches a tolerance value `hTolerance`.
 
 The initial solution $x_0$ is acquired from the `SolverTraits` instance (see below).
+
+The algorithm stops when:
+
+1. $max(|x^{k+1}-x^{k}|) < xTolerance$ (step size) **and**
+2. $max(|J^T E|) < fooTolerance$ (first-order optimality)
+or
+3. $h < hTolerance$.
+
+Initializing the solver is done by calling the `GNSolver::init()` function *once* per problem setting. That means whenever the energy computation and Jacobian structures remain the same.
+
+```cpp
+void init(LinearSolver* _LS,
+          SolverTraits* _ST,
+          int _maxIterations=100,
+          double _xTolerance=10e-6,
+          double _hTolerance=10e-9,
+          double _fooTolerance=10e7).
+```
+
+Solving is done by simply calling `GNSOLver::solver(bool verbose)`. The initial solution will be taken from `SolverTraits` (see below). `verbose` indicates a printout of the process of the optimization.
+
+Note that the first-order optimality condition is by default pretty relaxed (or rather mostly disabled).
+
+####The trait classes
 
 Any `LinearSolver` class must include the following functionality:
 
@@ -264,7 +286,7 @@ bool solve(const Eigen::MatrixXd& rhs,Eigen::VectorXd& x){...}
 
 This functionality pertains to symbolic analysis, factorization, and solution of the system. The class should be able to handle the positive semi-definite system of $J^TJ$ that is solved in each iteration of the Gauss-Newton solver, and the analysis function is then only called once per optimization, since the structure of the Jacobian is not supposed to change.
 
-For comfort, a class `EigenSolverWrapper<class EigenSparseSolver>` is provided, that wraps the sparse linear solvers in Eigen. For instance, `Eigen::SimplicialLDLt`. 
+For comfort, a class `EigenSolverWrapper<class EigenSparseSolver>` that wraps the sparse linear solvers in Eigen is provided. For instance, `EigenSolverWrapper<Eigen::SimplicialLDLt>` is a good choice.
 
 Any `SolverTraits` class must include the following functionality:
 
@@ -298,13 +320,18 @@ The functions are callbacks that will be triggered by the optimizer `GNSolver`, 
 | `update_energy_jacobian()`    |Called to update the energy vector `EVec` and the values of the Jacobian `JVals`. It is a staple function that is called quite often, so it should be efficient. |
 | `post_optimization()` | Called with the final result after the optimization ended. |
 
+An example of Nonlinear least-squares is done in `examples/gauss-newton`, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [#Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in [libigl](http://libigl.github.io/libigl/).
+
+
+          
+
 ##Future Plans
 
 The following functionality will soon be available in libhedra:
 
 * Parallel and offset meshes, including evaluation of the Steiner formula for discrete curvature.
 * Local-global iterations for shape projection.
-* Gauss-Newton based optimization, and constrained optimization using augmented Lagrangians.
+* Constrained optimization using augmented Lagrangians.
 * Conformal Mesh Deformations with M&ouml;bius Transformations.
 * Polyhedral patterns parametrization and optimization.
 
@@ -323,12 +350,11 @@ If you use libhedra in your academic projects, please cite the implemented paper
 }
 ```
 
-
-
-
-
 [#moreland_2009]: Kenneth Moreland. [Diverging Color Maps for Scientific Visualization](http://www.kennethmoreland.com/color-maps).
 [#vaxman_2012]: Amir Vaxman. [Modeling Polyhedral Meshes with Affine Maps](http://dl.acm.org/citation.cfm?id=2346801) , 2012
+[#Froehlich_2011]: Fr&ouml;hlich, Stefan and Botsch, Mario, [Example-Driven Deformations Based on Discrete Shells](http://graphics.uni-bielefeld.de/publications/cgf11.pdf), 2011.
+
+
 
 
 

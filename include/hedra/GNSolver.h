@@ -112,8 +112,15 @@ namespace hedra {
             
             GNSolver(){};
             
-            void init(double _hTolerance=10e-9, double _xTolerance=10e-6, double _fooTolerance=10e7, int _maxIterations=100){
+            void init(LinearSolver* _LS,
+                      SolverTraits* _ST,
+                      int _maxIterations=100,
+                      double _xTolerance=10e-6,
+                      double _hTolerance=10e-9,
+                      double _fooTolerance=10e7){
                 
+                LS=_LS;
+                ST=_ST;
                 maxIterations=_maxIterations;
                 hTolerance=_hTolerance;
                 xTolerance=_xTolerance;
