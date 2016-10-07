@@ -8,6 +8,7 @@
 #ifndef HEDRA_DISCRETE_SHELLS_TRAITS_H
 #define HEDRA_DISCRETE_SHELLS_TRAITS_H
 #include <igl/igl_inline.h>
+#include <igl/harmonic.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -42,14 +43,15 @@ namespace hedra { namespace optimization {
             Eigen::VectorXd origLengths;    //the original edge lengths.
             Eigen::VectorXd origDihedrals;  //Original dihedral angles
             Eigen::MatrixXd VOrig;          //original positions
+            Eigen::MatrixXi T;              //triangles
             Eigen::VectorXd Wd, Wl;         //geometric weights for the lengths and the dihedral angles.
             double bendCoeff, lengthCoeff;  //coefficients for the different terms
             
-            Eigen::VectorXd x0;                 //the initial solution to the optimization
+            //Eigen::VectorXd x0;                 //the initial solution to the optimization
             Eigen::MatrixXd fullSolution;       //The final solution of the last optimization
             
             void init(const Eigen::MatrixXd& _VOrig,
-                      const Eigen::MatrixXi& T,
+                      const Eigen::MatrixXi& _T,
                       const Eigen::VectorXi& _h,
                       const Eigen::MatrixXi& _EV,
                       const Eigen::MatrixXi& ET,
@@ -62,9 +64,10 @@ namespace hedra { namespace optimization {
                 std::set<pair<int, int> > edgeIndicesList;
                 
                 VOrig=_VOrig;
+                T=_T;
                 h=_h;
                 EV=_EV;
-                lengthCoeff=3.0;
+                lengthCoeff=10.0;
                 bendCoeff=1.0;
                 
                 //lengths of edges and diagonals
@@ -106,7 +109,6 @@ namespace hedra { namespace optimization {
                     RowVector3d n2 = (eli.cross(elk));
                     double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
                     double sinHalf=sign*sqrt((1.0-n1.normalized().dot(n2.normalized()))/2.0);
-                    //cout<<"sinHalf: "<<sinHalf<<endl;
                     origDihedrals(i)=2.0*asin(sinHalf);
                     double areaSum=(n1.norm()+n2.norm())/2.0;
                     Wd(i)=eki.norm()/sqrt(areaSum);
@@ -170,17 +172,22 @@ namespace hedra { namespace optimization {
                         JCols(actualGradCounter++)=colMap(fullJCols(i));
                     }
                 }
-                
-                //the "last found" solution is just the original mesh
-                x0.resize(xSize);
-                for (int i=0;i<VOrig.rows();i++)
-                    if (a2x(i)!=-1)
-                        x0.segment(3*a2x(i),3)<<VOrig.row(i).transpose();
             }
             
             //provide the initial solution to the solver
-            void initial_solution(Eigen::VectorXd& _x0){
-                _x0=x0;
+            void initial_solution(Eigen::VectorXd& x0){
+                //using biharmonic deformation fields
+                Eigen::MatrixXd origHandlePoses(qh.rows(),3);
+                for (int i=0;i<qh.rows();i++)
+                    origHandlePoses.row(i)=VOrig.row(h(i));
+                Eigen::MatrixXd D;
+                Eigen::MatrixXd D_bc = qh - origHandlePoses;
+                igl::harmonic(VOrig,T,h,D_bc,2,D);
+                Eigen::MatrixXd V0 = VOrig+D;
+                for (int i=0;i<VOrig.rows();i++)
+                    if (a2x(i)!=-1)
+                        x0.segment(3*a2x(i),3)<<V0.row(i).transpose();
+                
             }
             
             void pre_iteration(const Eigen::VectorXd& prevx){}
@@ -221,8 +228,9 @@ namespace hedra { namespace optimization {
                     RowVector3d n2 = (eli.cross(elk));
                     double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
                     double dotn1n2=1.0-n1.normalized().dot(n2.normalized());
-                    if (dotn1n2>1.0) dotn1n2=1.0; if (dotn1n2<0.0) dotn1n2=0.0;  //sanitizing
+                    if (dotn1n2<0.0) dotn1n2=0.0;  //sanitizing
                     double sinHalf=sign*sqrt(dotn1n2/2.0);
+                    if (sinHalf>1.0) sinHalf=1.0; if (sinHalf<-1.0) sinHalf=-1.0;
                     EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i)*bendCoeff;
                    
                     fullJVals.segment(6*EV.rows()+12*i,3)<<(Wd(i)*((ejk.dot(-eki)/(n1.squaredNorm()*eki.norm()))*n1+(elk.dot(-eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
@@ -231,6 +239,10 @@ namespace hedra { namespace optimization {
                     fullJVals.segment(6*EV.rows()+12*i+9,3)<<(Wd(i)*(-eki.norm()/n2.squaredNorm())*n2).transpose()*bendCoeff;
 
                 }
+                
+                for (int i=0;i<EVec.size();i++)
+                    if (isnan(EVec(i)))
+                        cout<<"nan in EVec("<<i<<")"<<endl;
 
                 int actualGradCounter=0;
                 for (int i=0;i<fullJCols.size();i++)
@@ -239,8 +251,7 @@ namespace hedra { namespace optimization {
             }
             
             void post_optimization(const Eigen::VectorXd& x){
-                x0=x;  //the last solution will be used in consequent optimizations
-                fullSolution.conservativeResize(xSize+h.size(),3);
+                fullSolution.conservativeResize(a2x.size(),3);
                 for (int i=0;i<a2x.size();i++)
                     if (a2x(i)!=-1)
                         fullSolution.row(i)<<x.segment(3*a2x(i),3).transpose();

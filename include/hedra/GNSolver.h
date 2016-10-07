@@ -112,9 +112,9 @@ namespace hedra {
             
             GNSolver(){};
             
-            void init(double _hTolerance=10e-9, double _xTolerance=10e-5, double _fooTolerance=10e7, int _maxIterations=100){
+            void init(double _hTolerance=10e-9, double _xTolerance=10e-6, double _fooTolerance=10e7, int _maxIterations=100){
                 
-                maxIterations=100;
+                maxIterations=_maxIterations;
                 hTolerance=_hTolerance;
                 xTolerance=_xTolerance;
                 fooTolerance=_fooTolerance;
@@ -141,7 +141,7 @@ namespace hedra {
                 prevx<<x0;
                 int currIter=0;
                 bool stop=false;
-                double currMaxError, prevMaxError;
+                double currError, prevError;
                 VectorXd rhs(ST->xSize);
                 VectorXd direction;
                 if (verbose)
@@ -151,7 +151,7 @@ namespace hedra {
                     ST->pre_iteration(prevx);
                     ST->update_energy_jacobian(prevx);
                     if (verbose)
-                        cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template lpNorm<Infinity>()<<endl;
+                        cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
                     MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
                     MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                     
@@ -168,24 +168,21 @@ namespace hedra {
                     //doing a line search by decreasing by half until the energy goes down
                     //TODO: more effective line search
                     prevEnergy<<ST->EVec;
-                    prevMaxError=prevEnergy.lpNorm<Infinity>();
-                    double h=10.0;
+                    prevError=prevEnergy.squaredNorm();
+                    double h=1.0;
                     do{
                         x<<prevx+h*direction;
                         ST->update_energy_jacobian(x);
                         currEnergy<<ST->EVec;
-                        currMaxError=currEnergy.lpNorm<Infinity>();
-                        if (verbose){
-                            cout<<"h, currMaxError: "<<h<<","<<currMaxError<<endl;
-                        }
-                        if (currMaxError<prevMaxError)
+                        currError=currEnergy.squaredNorm();
+                        if (currError<prevError)
                             break;
                         
                         h*=0.5;
                     }while (h>hTolerance);
                     
                     if (verbose){
-                        cout<<"currMaxError: "<<currMaxError<<endl;
+                        cout<<"currError: "<<currError<<endl;
                     }
                     
                     currIter++;
