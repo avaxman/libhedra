@@ -171,7 +171,6 @@ namespace hedra {
                     
                     LS->solve(rhs,direction);
                     
-                    
                     //doing a line search by decreasing by half until the energy goes down
                     //TODO: more effective line search
                     prevEnergy<<ST->EVec;
@@ -182,7 +181,9 @@ namespace hedra {
                         ST->update_energy_jacobian(x);
                         currEnergy<<ST->EVec;
                         currError=currEnergy.squaredNorm();
-                        if (currError<prevError)
+                        double t=10e-4*direction.dot(rhs);
+                        cout<<"t:"<<t<<endl;
+                        if (prevError-currError>=h*t)
                             break;
                         
                         h*=0.5;

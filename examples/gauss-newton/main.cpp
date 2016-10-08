@@ -27,7 +27,7 @@ Eigen::Vector3d spans;
 bool Editing=false;
 bool ChoosingHandleMode=false;
 double CurrWinZ;
-typedef hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLDLT<Eigen::SparseMatrix<double> > > LinearSolver;
+typedef hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > LinearSolver;
 hedra::optimization::DiscreteShellsTraits dst;
 LinearSolver esw;
 hedra::optimization::GNSolver<LinearSolver, hedra::optimization::DiscreteShellsTraits> gnSolver;
@@ -160,7 +160,7 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
             b(i)=Handles[i];
         
         dst.init(VOrig, T, b, EV, EF, EFi,innerEdges);
-        gnSolver.init(&esw, &dst, 50, 10e-2);
+        gnSolver.init(&esw, &dst, 250, 10e-6);
         UpdateCurrentView(viewer);
     }
     return true;

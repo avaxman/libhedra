@@ -833,3 +833,12 @@ examples/gauss-newton/build/libigl/glfw/src/glfw3Config.cmake
 examples/gauss-newton/build/libigl/glfw/src/glfw3ConfigVersion.cmake
 examples/gauss-newton/build/libigl/glfw/src/glfw_config.h
 examples/gauss-newton/build/libigl/glfw/src/libglfw3.a
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CMakeCCompiler.cmake
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CMakeCXXCompiler.cmake
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CMakeDetermineCompilerABI_C.bin
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CMakeDetermineCompilerABI_CXX.bin
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CMakeSystem.cmake
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CompilerIdC/a.out
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CompilerIdC/CMakeCCompilerId.c
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CompilerIdCXX/a.out
+examples/gauss-newton/build/CMakeFiles/3.4.0-rc3/CompilerIdCXX/CMakeCXXCompilerId.cpp
