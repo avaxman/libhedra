@@ -156,7 +156,8 @@ namespace hedra {
                 
                 do{
                     ST->pre_iteration(prevx);
-                    ST->update_energy_jacobian(prevx);
+                    ST->update_energy(prevx);
+                    ST->update_jacobian(prevx);
                     if (verbose)
                         cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
                     MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
@@ -178,7 +179,7 @@ namespace hedra {
                     double h=1.0;
                     do{
                         x<<prevx+h*direction;
-                        ST->update_energy_jacobian(x);
+                        ST->update_energy(x);
                         currEnergy<<ST->EVec;
                         currError=currEnergy.squaredNorm();
                         double t=10e-4*direction.dot(rhs);

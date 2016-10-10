@@ -194,8 +194,8 @@ namespace hedra { namespace optimization {
             void post_iteration(const Eigen::VectorXd& x){}
             
             
-            //updating the energy vector and the jacobian values for a given current solution
-            void update_energy_jacobian(const Eigen::VectorXd& x){
+            //updating the energy vector for a given current solution
+            void update_energy(const Eigen::VectorXd& x){
                 
                 using namespace std;
                 using namespace Eigen;
@@ -209,9 +209,49 @@ namespace hedra { namespace optimization {
                     fullx.row(h(i))=qh.row(i);
                 
                 fullJVals.setZero();
-                for (int i=0;i<EV.rows();i++){
+                for (int i=0;i<EV.rows();i++)
                     EVec(i)=((fullx.row(EV(i,1))-fullx.row(EV(i,0))).norm()-origLengths(i))*Wl(i)*lengthCoeff;
+                
+                
+                for (int i=0;i<flapVertexIndices.rows();i++){
+                    RowVector3d eji=fullx.row(flapVertexIndices(i,0))-fullx.row(flapVertexIndices(i,1));
+                    RowVector3d ejk=fullx.row(flapVertexIndices(i,2))-fullx.row(flapVertexIndices(i,1));
+                    RowVector3d eli=fullx.row(flapVertexIndices(i,0))-fullx.row(flapVertexIndices(i,3));
+                    RowVector3d elk=fullx.row(flapVertexIndices(i,2))-fullx.row(flapVertexIndices(i,3));
+                    RowVector3d eki=fullx.row(flapVertexIndices(i,0))-fullx.row(flapVertexIndices(i,2));
                     
+                    RowVector3d n1 = (ejk.cross(eji));
+                    RowVector3d n2 = (eli.cross(elk));
+                    double sign=((n1.cross(n2)).dot(eki) >= 0 ? 1.0 : -1.0);
+                    double dotn1n2=1.0-n1.normalized().dot(n2.normalized());
+                    if (dotn1n2<0.0) dotn1n2=0.0;  //sanitizing
+                    double sinHalf=sign*sqrt(dotn1n2/2.0);
+                    if (sinHalf>1.0) sinHalf=1.0; if (sinHalf<-1.0) sinHalf=-1.0;
+                    EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i)*bendCoeff;
+                }
+                
+                for (int i=0;i<EVec.size();i++)
+                    if (isnan(EVec(i)))
+                        cout<<"nan in EVec("<<i<<")"<<endl;
+            }
+            
+            
+            //update the jacobian values for a given current solution
+            void update_jacobian(const Eigen::VectorXd& x){
+                using namespace std;
+                using namespace Eigen;
+                
+                MatrixXd fullx(xSize+h.size(),3);
+                for (int i=0;i<a2x.size();i++)
+                    if (a2x(i)!=-1)
+                        fullx.row(i)<<x.segment(3*a2x(i),3).transpose();
+                
+                for (int i=0;i<h.size();i++)
+                    fullx.row(h(i))=qh.row(i);
+                
+                fullJVals.setZero();
+                for (int i=0;i<EV.rows();i++){
+                   
                     RowVector3d normedEdgeVector=(fullx.row(EV(i,1))-fullx.row(EV(i,0))).normalized();
                     fullJVals.segment(6*i,3)<<-normedEdgeVector.transpose()*Wl(i)*lengthCoeff;
                     fullJVals.segment(6*i+3,3)<<normedEdgeVector.transpose()*Wl(i)*lengthCoeff;
@@ -231,24 +271,26 @@ namespace hedra { namespace optimization {
                     if (dotn1n2<0.0) dotn1n2=0.0;  //sanitizing
                     double sinHalf=sign*sqrt(dotn1n2/2.0);
                     if (sinHalf>1.0) sinHalf=1.0; if (sinHalf<-1.0) sinHalf=-1.0;
-                    EVec(EV.rows()+i)=(2.0*asin(sinHalf)-origDihedrals(i))*Wd(i)*bendCoeff;
-                   
+                    
                     fullJVals.segment(6*EV.rows()+12*i,3)<<(Wd(i)*((ejk.dot(-eki)/(n1.squaredNorm()*eki.norm()))*n1+(elk.dot(-eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
                     fullJVals.segment(6*EV.rows()+12*i+3,3)<<(Wd(i)*(-eki.norm()/n1.squaredNorm())*n1).transpose()*bendCoeff;
                     fullJVals.segment(6*EV.rows()+12*i+6,3)<<(Wd(i)*((eji.dot(eki)/(n1.squaredNorm()*eki.norm()))*n1+(eli.dot(eki)/(n2.squaredNorm()*eki.norm()))*n2)).transpose()*bendCoeff;
                     fullJVals.segment(6*EV.rows()+12*i+9,3)<<(Wd(i)*(-eki.norm()/n2.squaredNorm())*n2).transpose()*bendCoeff;
-
+                    
                 }
                 
-                for (int i=0;i<EVec.size();i++)
-                    if (isnan(EVec(i)))
-                        cout<<"nan in EVec("<<i<<")"<<endl;
 
                 int actualGradCounter=0;
                 for (int i=0;i<fullJCols.size();i++)
                     if (colMap(fullJCols(i))!=-1)  //not a removed variable
                         JVals(actualGradCounter++)=fullJVals(i);
+                
+                for (int i=0;i<JVals.size();i++)
+                    if (isnan(JVals(i)))
+                        cout<<"nan in JVals("<<i<<")"<<endl;
             }
+
+            
             
             void post_optimization(const Eigen::VectorXd& x){
                 fullSolution.conservativeResize(a2x.size(),3);

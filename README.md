@@ -301,7 +301,8 @@ class SolverTraits{
     void initial_solution(Eigen::VectorXd& x0){...}
     void pre_iteration(const Eigen::VectorXd& prevx){...}
     void post_iteration(const Eigen::VectorXd& x){...}
-    void update_energy_jacobian(const Eigen::VectorXd& x){...}
+    void update_energy(const Eigen::VectorXd& x){...}
+    void update_jacobian(const Eigen::VectorXd& x){...}
     post_optimization(const Eigen::VectorXd& x){...}
 ...
 
@@ -317,7 +318,8 @@ The functions are callbacks that will be triggered by the optimizer `GNSolver`, 
 | `initial_solution()`            | Called before the beginning of the iterations, and needs to provide an initial solution $x_0$ to the solver.
 | `pre_iteration()`             |Called before an iteration with the previous solution. |
 | `post_iteration()`             |Called after an iteration with the acquired solution. |
-| `update_energy_jacobian()`    |Called to update the energy vector `EVec` and the values of the Jacobian `JVals`. It is a staple function that is called quite often, so it should be efficient. |
+| `update_energy()`    |Called to update the energy vector `EVec`. It is a staple function that is called quite often, so it should be efficient. |
+`update_jacobian()`    |Called to update the Jacobian values vector `JVals`. It is called at least once per iteration. |
 | `post_optimization()` | Called with the final result after the optimization ended. |
 
 An example of Nonlinear least-squares is done in `examples/gauss-newton`, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [#Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in [libigl](http://libigl.github.io/libigl/).
