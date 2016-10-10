@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <cstdio>
+#include <iostream>
 
 namespace hedra {
     namespace optimization
@@ -180,12 +181,12 @@ namespace hedra {
                         prevEnergy<<ST->EVec;
                         prevError=prevEnergy.squaredNorm();
                         double h=1.0;
+                        double t=10e-4*direction.dot(rhs);
                         do{
                             x<<prevx+h*direction;
                             ST->update_energy(x);
                             currEnergy<<ST->EVec;
                             currError=currEnergy.squaredNorm();
-                            double t=10e-4*direction.dot(rhs);
                             if (prevError-currError>=h*t)
                                 break;
                             
