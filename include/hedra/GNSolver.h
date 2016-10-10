@@ -155,58 +155,65 @@ namespace hedra {
                     cout<<"******Beginning Optimization******"<<endl;
                 
                 do{
-                    ST->pre_iteration(prevx);
-                    ST->update_energy(prevx);
-                    ST->update_jacobian(prevx);
-                    if (verbose)
-                        cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
-                    MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
-                    MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
-                    
-                    //solving to get the GN direction
-                    if(!LS->factorize(HVals)) {
-                        // decomposition failed
-                        cout<<"Solver Failed to factorize! "<<endl;
-                        return false;
-                    }
-                    
-                    LS->solve(rhs,direction);
-                    
-                    //doing a line search by decreasing by half until the energy goes down
-                    //TODO: more effective line search
-                    prevEnergy<<ST->EVec;
-                    prevError=prevEnergy.squaredNorm();
-                    double h=1.0;
+                    currIter=0;
+                    stop=false;
                     do{
-                        x<<prevx+h*direction;
-                        ST->update_energy(x);
-                        currEnergy<<ST->EVec;
-                        currError=currEnergy.squaredNorm();
-                        double t=10e-4*direction.dot(rhs);
-                        cout<<"t:"<<t<<endl;
-                        if (prevError-currError>=h*t)
-                            break;
+                        ST->pre_iteration(prevx);
+                        ST->update_energy(prevx);
+                        ST->update_jacobian(prevx);
+                        if (verbose)
+                            cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
+                        MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
+                        MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                         
-                        h*=0.5;
-                    }while (h>hTolerance);
-                    
-                    if (verbose){
-                        cout<<"currError: "<<currError<<endl;
-                    }
-                    
-                    currIter++;
-                    double xDiff=(x-prevx).template lpNorm<Infinity>();
-                    double firstOrderOptimality=rhs.lpNorm<Infinity>();
-                    stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
-                    if (verbose){
-                        cout<<"xDiff: "<<xDiff<<endl;
-                        cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
-                        cout<<"stop: "<<stop<<endl;
-                    }
-                    prevx<<x;
-                    ST->post_iteration(x);
-                }while ((currIter<=maxIterations)&&(!stop));
-                ST->post_optimization(x);
+                        //solving to get the GN direction
+                        if(!LS->factorize(HVals)) {
+                            // decomposition failed
+                            cout<<"Solver Failed to factorize! "<<endl;
+                            return false;
+                        }
+                        
+                        LS->solve(rhs,direction);
+                        
+                        //doing a line search by decreasing by half until the energy goes down
+                        //TODO: more effective line search
+                        prevEnergy<<ST->EVec;
+                        prevError=prevEnergy.squaredNorm();
+                        double h=1.0;
+                        do{
+                            x<<prevx+h*direction;
+                            ST->update_energy(x);
+                            currEnergy<<ST->EVec;
+                            currError=currEnergy.squaredNorm();
+                            double t=10e-4*direction.dot(rhs);
+                            cout<<"t:"<<t<<endl;
+                            if (prevError-currError>=h*t)
+                                break;
+                            
+                            h*=0.5;
+                        }while (h>hTolerance);
+                        
+                        if (verbose){
+                            cout<<"currError: "<<currError<<endl;
+                        }
+                        
+                        currIter++;
+                        double xDiff=(x-prevx).template lpNorm<Infinity>();
+                        double firstOrderOptimality=rhs.lpNorm<Infinity>();
+                        stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
+                        if (verbose){
+                            cout<<"xDiff: "<<xDiff<<endl;
+                            cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
+                            cout<<"stop: "<<stop<<endl;
+                        }
+                        prevx<<x;
+                        //The SolverTraits can order the optimization to stop by giving "true" of to continue by giving "false"
+                        bool stopFromTraits=ST->post_iteration(x);
+                        stop = stop || stopFromTraits;
+                        if (stopFromTraits)
+                            cout<<"ST->Post_iteration() gave a stop"<<endl;
+                    }while ((currIter<=maxIterations)&&(!stop));
+                }while (!ST->post_optimization(x));
                 return stop;
             }
         };

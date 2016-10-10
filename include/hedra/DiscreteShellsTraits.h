@@ -191,7 +191,7 @@ namespace hedra { namespace optimization {
             }
             
             void pre_iteration(const Eigen::VectorXd& prevx){}
-            void post_iteration(const Eigen::VectorXd& x){}
+            bool post_iteration(const Eigen::VectorXd& x){return false;  /*never stop after an iteration*/}
             
             
             //updating the energy vector for a given current solution
@@ -292,7 +292,7 @@ namespace hedra { namespace optimization {
 
             
             
-            void post_optimization(const Eigen::VectorXd& x){
+            bool post_optimization(const Eigen::VectorXd& x){
                 fullSolution.conservativeResize(a2x.size(),3);
                 for (int i=0;i<a2x.size();i++)
                     if (a2x(i)!=-1)
@@ -300,6 +300,8 @@ namespace hedra { namespace optimization {
                 
                 for (int i=0;i<h.size();i++)
                     fullSolution.row(h(i))=qh.row(i);
+                
+                return true;  //stop optimization after this
             }
             
             DiscreteShellsTraits(){}

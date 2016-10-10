@@ -300,10 +300,10 @@ class SolverTraits{
 ...
     void initial_solution(Eigen::VectorXd& x0){...}
     void pre_iteration(const Eigen::VectorXd& prevx){...}
-    void post_iteration(const Eigen::VectorXd& x){...}
+    bool post_iteration(const Eigen::VectorXd& x){...}
     void update_energy(const Eigen::VectorXd& x){...}
     void update_jacobian(const Eigen::VectorXd& x){...}
-    post_optimization(const Eigen::VectorXd& x){...}
+    bool post_optimization(const Eigen::VectorXd& x){...}
 ...
 
 ```
@@ -317,10 +317,10 @@ The functions are callbacks that will be triggered by the optimizer `GNSolver`, 
 | `EVec`              | The vector $E$ of summands in the least squares.|
 | `initial_solution()`            | Called before the beginning of the iterations, and needs to provide an initial solution $x_0$ to the solver.
 | `pre_iteration()`             |Called before an iteration with the previous solution. |
-| `post_iteration()`             |Called after an iteration with the acquired solution. |
+| `post_iteration()`             |Called after an iteration with the acquired solution. If it returns `true`, the optimization stops after this iteration. As such, returning `false` wuold allow the solver to convergence "naturally". |
 | `update_energy()`    |Called to update the energy vector `EVec`. It is a staple function that is called quite often, so it should be efficient. |
 `update_jacobian()`    |Called to update the Jacobian values vector `JVals`. It is called at least once per iteration. |
-| `post_optimization()` | Called with the final result after the optimization ended. |
+| `post_optimization()` | Called with the final result after the optimization ended. `post_optimization()` should return `true` if the optimization should cease. Otherwise, it would begin again. This callback possibility is good for when the optimization process requires several consequent full unconstrained optimization processes, for instance, in the Augmented Lagrangian method. |
 
 An example of Nonlinear least-squares is done in `examples/gauss-newton`, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [#Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in [libigl](http://libigl.github.io/libigl/).
 
