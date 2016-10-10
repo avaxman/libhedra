@@ -28,7 +28,8 @@ namespace hedra {
             
             cout<<"Solution Size: "<<SolutionSize<<endl;
             
-            Traits.update_energy_jacobian(CurrSolution);
+            Traits.update_energy(CurrSolution);
+            Traits.update_jacobian(CurrSolution);
          
             int MaxRow=Traits.JRows.maxCoeff()+1;
             vector<Triplet<double> > GradTris;
@@ -44,9 +45,11 @@ namespace hedra {
             vector<Triplet<double> > FEGradientTris;
             for (int i=0;i<CurrSolution.size();i++){
                 VectorXd vh(CurrSolution.size()); vh.setZero(); vh(i)=10e-5;
-                Traits.update_energy_jacobian(CurrSolution+vh);
+                Traits.update_energy(CurrSolution+vh);
+                Traits.update_jacobian(CurrSolution+vh);
                 VectorXd EnergyPlus=Traits.EVec;
-                Traits.update_energy_jacobian(CurrSolution-vh);
+                Traits.update_energy(CurrSolution-vh);
+                Traits.update_jacobian(CurrSolution-vh);
                 VectorXd EnergyMinus=Traits.EVec;
                 VectorXd CurrGradient=(EnergyPlus-EnergyMinus)/(2*10e-5);
                 //cout<<CurrGradient<<endl;

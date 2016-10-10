@@ -19,36 +19,27 @@ SolverTraits slTraits;
 LinearSolver lSolver;
 hedra::optimization::GNSolver<LinearSolver,SolverTraits> gnSolver;
 
+enum ViewingMode{ORIGINAL, OFFSET, GAUSS_MAP} ViewingMode=ORIGINAL;
+
+Eigen::MatrixXd VOrig, VOffset, VGauss;
+Eigen::MatrixXi F, T;
+Eigen::VectorXi D, TF;
+Eigen::MatrixXi EV, EF, FE, EFi;
+Eigen::MatrixXd FEs;
+Eigen::VectorXi innerEdges;
+Eigen::Vector3d spans;
 
 bool UpdateCurrentView(igl::viewer::Viewer & viewer)
 {
     using namespace Eigen;
     using namespace std;
     
-    MatrixXd sphereV;
-    MatrixXi sphereT;
-    MatrixXd sphereTC;
-    Eigen::MatrixXd bc(Handles.size(),V.cols());
-    for (int i=0;i<Handles.size();i++)
-        bc.row(i)=HandlePoses[i].transpose();
+    Eigen::MatrixXd V;
     
-    
-    double sphereRadius=spans.sum()/200.0;
-    MatrixXd sphereGreens(Handles.size(),3);
-    sphereGreens.col(0).setZero();
-    sphereGreens.col(1).setOnes();
-    sphereGreens.col(2).setZero();
-
-    hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, sphereV, sphereT, sphereTC);
-    
-    Eigen::MatrixXd bigV(V.rows()+sphereV.rows(),3);
-    Eigen::MatrixXi bigT(T.rows()+sphereT.rows(),3);
-    if (sphereV.rows()!=0){
-        bigV<<V, sphereV;
-        bigT<<T, sphereT+Eigen::MatrixXi::Constant(sphereT.rows(), sphereT.cols(), V.rows());
-    } else{
-        bigV<<V;
-        bigT<<T;
+    switch(ViewingMode){
+        case ORIGINAL: V=VOrig; break;
+        case OFFSET:    V=VOffset; break;
+        case GAUSS_MAP: V=VGauss; break;
     }
     
     viewer.core.show_lines=false;
@@ -58,118 +49,23 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
     OrigEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
     
     viewer.data.clear();
-    viewer.data.set_mesh(bigV,bigT);
+    viewer.core.align_camera_center(V);
+    viewer.data.set_mesh(V,T);
     viewer.data.compute_normals();
     viewer.data.set_edges(V,EV,OrigEdgeColors);
     return true;
 }
 
-bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
-{
-    if (!Editing)
-        return false;
-    
-    double x = viewer.current_mouse_x;
-    double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-    Eigen::RowVector3f NewPos=igl::unproject<float>(Eigen::Vector3f(x,y,CurrWinZ),
-                                                    viewer.core.view * viewer.core.model,
-                                                    viewer.core.proj,
-                                                    viewer.core.viewport);
-    
-    HandlePoses[HandlePoses.size()-1]=NewPos.cast<double>();
-    Eigen::RowVector3d Diff=HandlePoses[HandlePoses.size()-1]-VOrig.row(Handles[HandlePoses.size()-1]);
-    
-    Eigen::MatrixXd bc(Handles.size(),V.cols());
-    for (int i=0;i<Handles.size();i++)
-        bc.row(i)=HandlePoses[i].transpose();
-    
-    dst.qh=bc;
-    gnSolver.solve(true);
-    V=dst.fullSolution;
-    UpdateCurrentView(viewer);
-    return true;
-
-}
-
-
-bool mouse_up(igl::viewer::Viewer& viewer, int button, int modifier)
-{
-    if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
-        return false;
-    
-    Editing=false;
- 
-    return true;
-}
-
-bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
-{
-    if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
-        return false;
-    int vid, fid;
-    Eigen::Vector3f bc;
-    double x = viewer.current_mouse_x;
-    double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-    if (!ChoosingHandleMode){
-        Editing=true;
-        return false;
-    }
-    if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view * viewer.core.model,
-                                viewer.core.proj, viewer.core.viewport, V, F, fid, bc))
-    {
-        //add the closest vertex to the handles
-        Eigen::MatrixXf::Index maxRow, maxCol;
-        bc.maxCoeff(&maxRow);
-        int CurrVertex=F(fid, maxRow);
-        bool Found=false;
-        for (int i=0;i<Handles.size();i++)
-            if (Handles[i]==CurrVertex){
-                CurrVertex=Handles[i];
-                Found=true;
-            }
-        
-        if (!Found){
-            Handles.push_back(CurrVertex);
-            HandlePoses.push_back(V.row(CurrVertex));
-        }
-    
-        Eigen::Vector3f WinCoords=igl::project<float>(V.row(CurrVertex).cast<float>(),
-                                               viewer.core.view * viewer.core.model,
-                                               viewer.core.proj,
-                                               viewer.core.viewport);
-
-        CurrWinZ=WinCoords(2);
-        std::cout<<"Choosing Vertex :"<<CurrVertex<<std::endl;
-
-        Eigen::VectorXi b(Handles.size());
-        for (int i=0;i<Handles.size();i++)
-            b(i)=Handles[i];
-        
-        dst.init(VOrig, T, b, EV, EF, EFi,innerEdges);
-        gnSolver.init(&esw, &dst, 250, 10e-6);
-        UpdateCurrentView(viewer);
-    }
-    return true;
-}
-
-bool key_up(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
-{
-    switch(key)
-    {
-            
-        case '1': ChoosingHandleMode=false;
-            break;
-    }
-    return false;
-}
 
 bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
 {
     switch(key)
     {
-        case '1': ChoosingHandleMode=true;
-            break;
+        case '1': ViewingMode=ORIGINAL; break;
+        case '2': ViewingMode=OFFSET; break;
+        case '3': ViewingMode=GAUSS_MAP; break;
     }
+    UpdateCurrentView(viewer);
     return false;
 }
 
@@ -181,24 +77,34 @@ int main(int argc, char *argv[])
     using namespace std;
     using namespace Eigen;
     
-    hedra::polygonal_read_OFF(DATA_PATH "/moomoo.off", V, D, F);
+    hedra::polygonal_read_OFF(DATA_PATH "/eyeye_circular.off", VOrig, D, F);
+    F.array()-=1;  //this is unfortunately a 1-indexed file.
     hedra::triangulate_mesh(D, F, T, TF);
-    VectorXi DT=VectorXi::Constant(T.rows(),3);
-    hedra::polygonal_edge_topology(DT, T, EV, FE, EF,EFi,FEs,innerEdges);
+    hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
+    spans=VOrig.colwise().maxCoeff()-VOrig.colwise().minCoeff();
     
-    spans=V.colwise().maxCoeff()-V.colwise().minCoeff();
+    //solving for offset 1.0
+    double d=0.05;
+    osTraits.init(VOrig, D, F,  EV,hedra::optimization::OffsetMeshTraits::VERTEX_OFFSET, d);
+    slTraits.init(&osTraits, 10);
+    gnSolver.init(&lSolver, &slTraits, 150, 10e-6);
+    //hedra::optimization::check_traits(slTraits, slTraits.xSize);
+    //exit(0);
+    gnSolver.solve(true);
     
-    VOrig=V;
+    VOffset=osTraits.fullSolution;
+    VGauss=VOffset-VOrig;
+        
     igl::viewer::Viewer viewer;
-    viewer.callback_mouse_down = &mouse_down;
-    viewer.callback_mouse_move = &mouse_move;
-    viewer.callback_mouse_up=&mouse_up;
     viewer.callback_key_down=&key_down;
-    viewer.callback_key_up=&key_up;
     viewer.core.background_color<<0.75,0.75,0.75,1.0;
     UpdateCurrentView(viewer);
     viewer.launch();
     
-    cout<<"press 1+right button to select new handles"<<endl;
-    cout<<"press the right button and drag the edit the mesh"<<endl;
+    cout<<"press 1 for original surface"<<endl;
+    cout<<"press 2 for offset surface"<<endl;
+    cout<<"press 3 for Gauss map (difference between the surfaces)"<<endl;
+    
+
+    
 }

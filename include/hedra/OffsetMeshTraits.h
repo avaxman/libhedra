@@ -165,7 +165,7 @@ namespace hedra { namespace optimization {
                 if (oType==VERTEX_OFFSET) {
                     for (int i=0;i<VOrig.rows();i++){
                         for (int j=0;j<3;j++){
-                            JEVals(3*i+j)=2*VOrig(i,j);
+                            JEVals(3*i+j)=-2*(VOrig(i,j)-currV(i,j));
                         }
                     }
                 }
@@ -179,6 +179,7 @@ namespace hedra { namespace optimization {
             
             void update_constraints(const Eigen::VectorXd& x){
                 CVec<<offsetConstMat*x;
+                //std::cout<<"Constraint maximum is"<<CVec.lpNorm<Eigen::Infinity>()<<std::endl;
             }
 
             bool post_optimization(const Eigen::VectorXd& x){

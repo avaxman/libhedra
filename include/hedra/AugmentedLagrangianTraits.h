@@ -53,8 +53,14 @@ namespace hedra { namespace optimization {
                 penalty=1.0;  //TODO: something more sophisticated
                 lambda.setZero();
                 
-                JRows<<CT->JERows, CT->JCRows;
+                JRows<<CT->JERows, CT->JCRows.array()+CT->EVec.size();
                 JCols<<CT->JECols, CT->JCCols;
+                
+                std::cout<<"max JRows: "<<JRows.maxCoeff()<<std::endl;
+                std::cout<<"max JERows: "<<CT->JERows.maxCoeff()<<std::endl;
+                std::cout<<"max JCRows: "<<CT->JCRows.maxCoeff()<<std::endl;
+                
+                std::cout<<"EVec size: "<<EVec.size()<<std::endl;
                 
             }
             
@@ -79,8 +85,6 @@ namespace hedra { namespace optimization {
                 CT->update_energy(x);
                 CT->update_constraints(x);
                 EVec<<CT->EVec, sqrt(penalty/2.0)*(CT->CVec-lambda/penalty);
-                JVals<<CT->JEVals, sqrt(penalty/2.0)*CT->JCVals;
-                
             }
             
             void update_jacobian(const Eigen::VectorXd& x){
