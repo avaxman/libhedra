@@ -186,7 +186,6 @@ namespace hedra {
                             currEnergy<<ST->EVec;
                             currError=currEnergy.squaredNorm();
                             double t=10e-4*direction.dot(rhs);
-                            cout<<"t:"<<t<<endl;
                             if (prevError-currError>=h*t)
                                 break;
                             

@@ -35,10 +35,15 @@ namespace hedra { namespace optimization {
             Eigen::VectorXd lambda;         //Lagrange multiplers
             double penalty;                 //"miu" penalty
             ConstraintTraits* CT;
+            double constTolerance;          //tolerance to max(constraint)
+            int maxBigIterations;            //max iterations of lambda correction + GN solve.
+            int currBigIteration;            //current big iteration
             
-            void init(ConstraintTraits* _CT){
+            void init(ConstraintTraits* _CT, int _maxBigIterations=10, double constTolerance=10e-6){
                 
-                CT=_CT:
+                CT=_CT;
+                xSize=CT->xSize;
+                maxBigIterations=_maxBigIterations;
                 lambda.resize(CT->CVec.size());
                 EVec.resize(CT->EVec.size()+CT->CVec.size());
                 JRows.resize(CT->JERows.size()+CT->JCRows.size());
@@ -55,6 +60,7 @@ namespace hedra { namespace optimization {
             
             void initial_solution(Eigen::VectorXd& x0){
                 CT->initial_solution(x0);
+                currBigIteration=0;
             }
             
             void pre_iteration(const Eigen::VectorXd& prevx){
@@ -62,37 +68,41 @@ namespace hedra { namespace optimization {
                 
             }
             bool post_iteration(const Eigen::VectorXd& x){
-                CT->post_iteration(prevx);
-                
-                //updating the lagrangian function
-                CT->update_constraints();
-                lambda=lambda-penalty*CT->CVec;
-                cout<<"Constraint Error: "<<CT->CVec.template lpNorm<Infinity>();
-                
-                return (CT->stop());
-             
-                //TODO: maybe update penalty
+                CT->post_iteration(x);
+                return false;  //do not stop
             }
             
             
             //updating the energy vector and the jacobian values for a given current solution
             void update_energy(const Eigen::VectorXd& x){
                 
-                CT->update_energy();
-                CT->update_constraints();
-                EVEC<<CT->EVec, sqrt(penalty/2.0)*(CT->CVec-lambda/penalty);
+                CT->update_energy(x);
+                CT->update_constraints(x);
+                EVec<<CT->EVec, sqrt(penalty/2.0)*(CT->CVec-lambda/penalty);
                 JVals<<CT->JEVals, sqrt(penalty/2.0)*CT->JCVals;
                 
             }
             
             void update_jacobian(const Eigen::VectorXd& x){
                 
-                CT->update_jacobian();
+                CT->update_jacobian(x);
                 JVals<<CT->JEVals, sqrt(penalty/2.0)*CT->JCVals;
                 
             }
             
-            void
+            bool post_optimization(const Eigen::VectorXd& x){
+                //updating the lagrangian function
+                currBigIteration++;
+                CT->update_constraints(x);
+                lambda=lambda-penalty*CT->CVec;
+                std::cout<<"Constraint Error: "<<CT->CVec.template lpNorm<Eigen::Infinity>()<<std::endl;
+                
+                if ((CT->CVec.template lpNorm<Eigen::Infinity>()<constTolerance)||(currBigIteration>=maxBigIterations))
+                    return CT->post_optimization(x);  //Only stopping if the ConstraintTraits wants to stop
+                else
+                    return false;  ///do another optimization process, since we have not reached the constraints
+
+            }
             
             AugmentedLagrangianTraits(){}
             ~AugmentedLagrangianTraits(){}
