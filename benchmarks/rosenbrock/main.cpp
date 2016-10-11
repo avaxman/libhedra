@@ -1,4 +1,4 @@
-#include <hedra/GNSolver.h>
+#include <hedra/LMSolver.h>
 #include <hedra/EigenSolverWrapper.h>
 #include <hedra/check_traits.h>
 #include <iostream>
@@ -9,7 +9,7 @@
 
 typedef hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > LinearSolver;
 
-#define VALLEY_COEFF 10.0
+#define VALLEY_COEFF 5.0
 
 class RosenbrockTraits{
 public:
@@ -64,7 +64,7 @@ public:
 
 RosenbrockTraits slTraits;
 LinearSolver lSolver;
-hedra::optimization::GNSolver<LinearSolver,RosenbrockTraits> gnSolver;
+hedra::optimization::LMSolver<LinearSolver,RosenbrockTraits> lmSolver;
 
 
 int main(int argc, char *argv[])
@@ -75,9 +75,9 @@ int main(int argc, char *argv[])
     using namespace Eigen;
     
     slTraits.init();
-    gnSolver.init(&lSolver, &slTraits, 100, 10e-6);
+    lmSolver.init(&lSolver, &slTraits, 1000);
     hedra::optimization::check_traits(slTraits, slTraits.xSize);
-    gnSolver.solve(true);
+    lmSolver.solve(true);
     
     return 0;
 }

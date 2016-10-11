@@ -7,7 +7,7 @@
 #include <hedra/polygonal_edge_topology.h>
 #include <hedra/point_spheres.h>
 #include <hedra/scalar2RGB.h>
-#include <hedra/GNSolver.h>
+#include <hedra/LMSolver.h>
 #include <hedra/EigenSolverWrapper.h>
 #include <hedra/DiscreteShellsTraits.h>
 #include <Eigen/SparseCholesky>
@@ -30,7 +30,7 @@ double CurrWinZ;
 typedef hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > LinearSolver;
 hedra::optimization::DiscreteShellsTraits dst;
 LinearSolver esw;
-hedra::optimization::GNSolver<LinearSolver, hedra::optimization::DiscreteShellsTraits> gnSolver;
+hedra::optimization::LMSolver<LinearSolver, hedra::optimization::DiscreteShellsTraits> lmSolver;
 
 
 
@@ -98,7 +98,7 @@ bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
         bc.row(i)=HandlePoses[i].transpose();
     
     dst.qh=bc;
-    gnSolver.solve(true);
+    lmSolver.solve(true);
     V=dst.fullSolution;
     UpdateCurrentView(viewer);
     return true;
@@ -160,7 +160,7 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
             b(i)=Handles[i];
         
         dst.init(VOrig, T, b, EV, EF, EFi,innerEdges);
-        gnSolver.init(&esw, &dst, 250, 10e-6);
+        lmSolver.init(&esw, &dst, 250, 10e-6);
         UpdateCurrentView(viewer);
     }
     return true;
