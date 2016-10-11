@@ -3,7 +3,7 @@
 #include <hedra/triangulate_mesh.h>
 #include <hedra/polygonal_edge_topology.h>
 #include <hedra/AugmentedLagrangianTraits.h>
-#include <hedra/GNSolver.h>
+#include <hedra/LMSolver.h>
 #include <hedra/EigenSolverWrapper.h>
 #include <hedra/OffsetMeshTraits.h>
 #include <hedra/check_traits.h>
@@ -17,7 +17,7 @@ typedef hedra::optimization::AugmentedLagrangianTraits<hedra::optimization::Offs
 hedra::optimization::OffsetMeshTraits osTraits;
 SolverTraits slTraits;
 LinearSolver lSolver;
-hedra::optimization::GNSolver<LinearSolver,SolverTraits> gnSolver;
+hedra::optimization::LMSolver<LinearSolver,SolverTraits> lmSolver;
 
 enum ViewingMode{ORIGINAL, OFFSET, GAUSS_MAP} ViewingMode=ORIGINAL;
 
@@ -59,11 +59,12 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
 
 bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
 {
+    using namespace std;
     switch(key)
     {
-        case '1': ViewingMode=ORIGINAL; break;
-        case '2': ViewingMode=OFFSET; break;
-        case '3': ViewingMode=GAUSS_MAP; break;
+        case '1': ViewingMode=ORIGINAL; cout<<"Showing original mesh"<<endl; break;
+        case '2': ViewingMode=OFFSET; cout<<"Showing vertex offset mesh"<<endl; break;
+        case '3': ViewingMode=GAUSS_MAP; cout<<"Showing Gauss map"<<endl; break;
     }
     UpdateCurrentView(viewer);
     return false;
@@ -77,34 +78,39 @@ int main(int argc, char *argv[])
     using namespace std;
     using namespace Eigen;
     
-    hedra::polygonal_read_OFF(DATA_PATH "/eyeye_circular.off", VOrig, D, F);
-    F.array()-=1;  //this is unfortunately a 1-indexed file.
+    hedra::polygonal_read_OFF("/users/Amirvaxman/libhedra/examples/data/eyeye_circular.off", VOrig, D, F);
+    //hedra::polygonal_read_OFF(DATA_PATH "/moomoo.off", V, D, F);
+    F.array()-=1;
     hedra::triangulate_mesh(D, F, T, TF);
     hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
     spans=VOrig.colwise().maxCoeff()-VOrig.colwise().minCoeff();
     
     //solving for offset 1.0
-    double d=0.05;
+    double d=0.5;
     osTraits.init(VOrig, D, F,  EV,hedra::optimization::OffsetMeshTraits::VERTEX_OFFSET, d);
-    slTraits.init(&osTraits, 10);
-    gnSolver.init(&lSolver, &slTraits, 150, 10e-6);
+    slTraits.init(&osTraits, 20);
+    lmSolver.init(&lSolver, &slTraits, 100);
     //hedra::optimization::check_traits(slTraits, slTraits.xSize);
     //exit(0);
-    gnSolver.solve(true);
+    lmSolver.solve(true);
     
     VOffset=osTraits.fullSolution;
     VGauss=VOffset-VOrig;
-        
+    cout<<"VGauss.norm().minCoeff(): "<<VGauss.rowwise().norm().minCoeff()<<endl;
+    cout<<"VGauss.norm().maxCoeff(): "<<VGauss.rowwise().norm().maxCoeff()<<endl;
+    
+    cout<<"press 1 for original surface"<<endl;
+    cout<<"press 2 for offset surface"<<endl;
+    cout<<"press 3 for Gauss map (difference between the surfaces)"<<endl;
+    
     igl::viewer::Viewer viewer;
     viewer.callback_key_down=&key_down;
     viewer.core.background_color<<0.75,0.75,0.75,1.0;
     UpdateCurrentView(viewer);
     viewer.launch();
     
-    cout<<"press 1 for original surface"<<endl;
-    cout<<"press 2 for offset surface"<<endl;
-    cout<<"press 3 for Gauss map (difference between the surfaces)"<<endl;
-    
 
+    
+    
     
 }

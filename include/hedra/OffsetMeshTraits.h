@@ -96,9 +96,9 @@ namespace hedra { namespace optimization {
                 
                 //constructing energy jacobian values. It depends on the specific offset
                 if (oType==VERTEX_OFFSET){
-                    
+                    //currently not supported
                     //the energy is of the type \sum_v{(V-VOrig)^2-d^2},
-                    EVec.resize(VOrig.rows());
+                    /*EVec.resize(VOrig.rows());
                     JERows.resize(3*VOrig.rows());
                     JECols.resize(3*VOrig.rows());
                     JEVals.resize(3*VOrig.rows());
@@ -107,24 +107,40 @@ namespace hedra { namespace optimization {
                             JERows(3*i+j)=i;
                             JECols(3*i+j)=3*i+j;
                         }
-                    }
+                    }*/
                 }
                 
                 if (oType==EDGE_OFFSET){
-                    //currently not supporting
+                    //currently not supported
                 }
                 if (oType==FACE_OFFSET){
-                    //currently not supporting
+                    EVec.resize(D.sum());
+                    JERows.resize(3*D.sum());
+                    JECols.resize(3*D.sum());
+                    JEVals.resize(3*D.sum());
+                    int currIndex=0;
+                    for (int i=0;i<D.rows();i++){
+                        for (int j=0;j<D(i);j++){
+                            RowVector3d v12=VOrig.row(F(i,(j+1)%D(i)))-VOrig.row(F(i,j));
+                            RowVector3d v1n=VOrig.row(F(i,(j+D(i)-1)%D(i)))-VOrig.row(F(i,j));
+                            RowVector3d cornerNormal=v12.cross(v1n).normalized();
+                            JERows.segment(3*currIndex,3).setConstant(currIndex);
+                            JECols.segment(3*currIndex,3)<<3*F(i,j), 3*F(i,j)+1, 3*F(i,j)+2;
+                            JEVals.segment(3*currIndex,3)<<d*cornerNormal.transpose();
+                            currIndex++;
+                        }
+                    }
+                    
                 }
             }
             
             //provide the initial solution to the solver
             void initial_solution(Eigen::VectorXd& x0){
-                //using the original mesh
+                //using the original mesh with some offset
                 x0.conservativeResize(3*VOrig.rows()+EV.rows());
                 for (int i=0;i<VOrig.rows();i++)
                     x0.segment(3*i,3)<<VOrig.row(i).transpose();
-                x0.tail(EV.rows()).setZero();
+                x0.tail(EV.rows()).setConstant(1.0);
             }
             
             void pre_iteration(const Eigen::VectorXd& prevx){}
@@ -142,12 +158,28 @@ namespace hedra { namespace optimization {
                     currV.row(i)<<x.segment(3*i,3).transpose();
                 
                 if (oType==VERTEX_OFFSET){
-                    EVec=(VOrig-currV).rowwise().squaredNorm().array()-d*d;
+                    //EVec=(VOrig-currV).rowwise().norm().array()-d;
+                }
+                
+                if (oType==FACE_OFFSET){
+                    int currIndex=0;
+                    for (int i=0;i<D.rows();i++){
+                        for (int j=0;j<D(i);j++){
+                            //TODO: pass this computation to be offline
+                            RowVector3d v12=VOrig.row(F(i,(j+1)%D(i)))-VOrig.row(F(i,j));
+                            RowVector3d v1n=VOrig.row(F(i,(j+D(i)-1)%D(i)))-VOrig.row(F(i,j));
+                            RowVector3d cornerNormal=v12.cross(v1n).normalized();
+                            EVec(currIndex++)=d*(cornerNormal.dot(currV.row(F(i,j))-VOrig.row(F(i,j)))-1.0);
+                        }
+                    }
+                    
                 }
                 
                 for (int i=0;i<EVec.size();i++)
                     if (isnan(EVec(i)))
                         cout<<"nan in EVec("<<i<<")"<<endl;
+                
+                //std::cout<<"Constraint energy is"<<EVec.lpNorm<Eigen::Infinity>()<<std::endl;
             }
             
             
@@ -156,6 +188,8 @@ namespace hedra { namespace optimization {
                 using namespace std;
                 using namespace Eigen;
                 
+                return;  //jacobian is constant
+                
                 MatrixXd currV(VOrig.rows(),3);
                 for (int i=0;i<VOrig.rows();i++)
                     currV.row(i)<<x.segment(3*i,3).transpose();
@@ -163,11 +197,8 @@ namespace hedra { namespace optimization {
                 
                 //Energy Jacobian
                 if (oType==VERTEX_OFFSET) {
-                    for (int i=0;i<VOrig.rows();i++){
-                        for (int j=0;j<3;j++){
-                            JEVals(3*i+j)=-2*(VOrig(i,j)-currV(i,j));
-                        }
-                    }
+                    //for (int i=0;i<VOrig.rows();i++)
+                    //    JEVals.segment(3*i,3)<<-(VOrig.row(i)-currV.row(i)).normalized().transpose();
                 }
                 
                 for (int i=0;i<JEVals.size();i++)

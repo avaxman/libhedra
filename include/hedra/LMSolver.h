@@ -276,6 +276,7 @@ namespace hedra {
                         cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
                         
                         if (firstOrderOptimality<fooTolerance){
+                            x=prevx;
                             if (verbose){
                                 cout<<"First-order optimality has been reached"<<endl;
                                 break;
@@ -292,6 +293,7 @@ namespace hedra {
                         LS->solve(rhs,direction);
                         cout<<"direction magnitude: "<<direction.norm()<<endl;
                         if (direction.norm() < xTolerance * prevx.norm()){
+                            x=prevx;
                             if (verbose)
                                 cout<<"Stopping since direction magnitude small."<<endl;
                             break;
