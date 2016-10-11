@@ -8,6 +8,8 @@
 #ifndef HEDRA_LEVENBERG_MARQUADT_SOLVER_H
 #define HEDRA_LEVENBERG_MARQUADT_SOLVER_H
 #include <igl/igl_inline.h>
+#include <igl/sortrows.h>
+#include <igl/speye.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -31,12 +33,88 @@ namespace hedra {
             Eigen::VectorXi HRows, HCols;  //(row,col) pairs for H=J^T*J matrix
             Eigen::VectorXd HVals;      //values for H matrix
             Eigen::MatrixXi S2D;        //single J to J^J indices
-            
+
             LinearSolver* LS;
             SolverTraits* ST;
             int maxIterations;
             double xTolerance;
             double fooTolerance;
+            
+            /*void TestMatrixOperations(){
+             
+                using namespace Eigen;
+                using namespace std;
+                int RowSize=1000;
+                int ColSize=1000;
+                int TriSize=4000;
+             
+                VectorXi Rows;
+                VectorXi Cols;
+                VectorXd Vals=VectorXd::Random(TriSize);
+             
+                VectorXd dRows=VectorXd::Random(TriSize);
+                VectorXd dCols=VectorXd::Random(TriSize);
+             
+                cout<<"dRows Range: "<<dRows.minCoeff()<<","<<dRows.maxCoeff()<<endl;
+             
+                Rows=((dRows+MatrixXd::Constant(dRows.size(),1,1.0))*500.0).cast<int>();
+                Cols=((dCols+MatrixXd::Constant(dRows.size(),1,1.0))*500.0).cast<int>();
+                VectorXi SortRows, stub;
+                VectorXi MRows, MCols;
+                VectorXd MVals;
+             
+             igl::sortrows(Rows, true, SortRows, stub);
+             
+             MatrixXi S2D;
+                
+            double miu=15.0;
+             
+             MatrixPattern(SortRows, Cols,  MRows, MCols, S2D);
+             MVals.resize(MRows.size());
+             MatrixValues(MRows, MCols, Vals, S2D, miu, MVals);
+ 
+             //testing multiplyadjoint
+             SparseMatrix<double> M(SortRows.maxCoeff()+1,Cols.maxCoeff()+1);
+             
+             //cout<<"Our I"<<I<<endl;
+             //cout<<"Our J"<<J<<endl;
+             //cout<<"Our S"<<S<<endl;
+             
+             
+             vector<Triplet<double> > Tris;
+             
+             for (int i=0;i<SortRows.size();i++)
+             Tris.push_back(Triplet<double>(SortRows(i), Cols(i), Vals(i)));
+             
+             M.setFromTriplets(Tris.begin(), Tris.end());
+             Tris.clear();
+                
+                
+                SparseMatrix<double> I;
+                igl::speye(M.cols(),M.cols(),I);
+             
+             SparseMatrix<double> MtM1=M.transpose()*M+miu*I;
+             SparseMatrix<double> MtM2(MtM1.rows(), MtM1.cols());
+             for (int i=0;i<MRows.size();i++)
+                 Tris.push_back(Triplet<double>(MRows(i), MCols(i), MVals(i)));
+             
+             MtM2.setFromTriplets(Tris.begin(), Tris.end());
+             
+             bool Discrepancy=false;
+             SparseMatrix<double> DiffMat=MtM1-MtM2;
+             for (int k=0; k<DiffMat.outerSize(); ++k){
+             for (SparseMatrix<double>::InnerIterator it(DiffMat,k); it; ++it){
+             if ((abs(it.value())>10e-6)&&(it.row()<=it.col())){
+             cout<<"Discrepancy at ("<<it.row()<<","<<it.col()<<"): "<<it.value()<<endl;
+             cout<<"MtM Our Values:"<<MtM2.coeffRef(it.row(),it.col())<<endl;
+             cout<<"MtM Evaluated:"<<MtM1.coeffRef(it.row(),it.col())<<endl;
+             Discrepancy=true;
+             }
+             }
+             }
+             if (!Discrepancy) cout<<"Matrices are equal!"<<endl;
+             }*/
+
             
             //Input: pattern of matrix M by (iI,iJ) representation
             //Output: pattern of matrix M^T*M by (oI, oJ) representation
@@ -69,8 +147,14 @@ namespace hedra {
                         }
                     }
                     CurrTri+=NumCurrTris;
-                    //std::cout<<"CurrTri, NumCurrTris: "<<CurrTri<<","<<NumCurrTris<<std::endl;
                 }while (CurrTri!=iI.size());
+                
+                
+                //triplets for miu
+                for (int i=0;i<iJ.maxCoeff()+1;i++){
+                    oIlist.push_back(i);
+                    oJlist.push_back(i);
+                }
                 
                 oI.resize(oIlist.size());
                 oJ.resize(oJlist.size());
@@ -79,8 +163,10 @@ namespace hedra {
                 for (int i=0;i<oIlist.size();i++){
                     oI(i)=oIlist[i];
                     oJ(i)=oJlist[i];
-                    S2D.row(i)<<S2Dlist[i].first, S2Dlist[i].second;
                 }
+                for (int i=0;i<S2Dlist.size();i++)
+                    S2D.row(i)<<S2Dlist[i].first, S2Dlist[i].second;
+                
             }
             
             //returns the values of M^T*M+miu*I by multiplication and aggregating from Single2double list.
@@ -89,16 +175,16 @@ namespace hedra {
                               const Eigen::VectorXi& oJ,
                               const Eigen::VectorXd& iS,
                               const Eigen::MatrixXi& S2D,
-                              Eigen::VectorXd& oS,
-                              double miu)
+                              const double miu,
+                              Eigen::VectorXd& oS)
             {
                 for (int i=0;i<S2D.rows();i++)
                     oS(i)=iS(S2D(i,0))*iS(S2D(i,1));
                 
                 //adding miu*I
-                for (int i=0;i<S2D.rows();i++)
-                    if (oI(i)==oJ(i))
-                        oS(i)+=miu;
+                for (int i=S2D.rows();i<oI.rows();i++)
+                    oS(i)=miu;
+                
             }
             
             //returns M^t*ivec by (I,J,S) representation
@@ -141,6 +227,8 @@ namespace hedra {
                 prevx.resize(ST->xSize);
                 currEnergy.resize(ST->EVec.size());
                 prevEnergy.resize(ST->EVec.size());
+                
+                //TestMatrixOperations();
             }
             
             
@@ -163,7 +251,7 @@ namespace hedra {
                 //estimating initial miu
                 double miu=0.0;
                 ST->update_jacobian(prevx);
-                MatrixValues(HRows, HCols, ST->JVals, S2D, HVals, miu);
+                MatrixValues(HRows, HCols, ST->JVals, S2D, miu, HVals);
                 for (int i=0;i<HRows.size();i++)
                     if (HRows(i)==HCols(i))  //on the diagonal
                         miu=(miu < HVals(i) ? HVals(i) : miu);
@@ -181,7 +269,7 @@ namespace hedra {
                         ST->update_jacobian(prevx);
                         if (verbose)
                             cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
-                        MatrixValues(HRows, HCols, ST->JVals, S2D, HVals, miu);
+                        MatrixValues(HRows, HCols, ST->JVals, S2D,  miu, HVals);
                         MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                         
                         double firstOrderOptimality=rhs.template lpNorm<Infinity>();
