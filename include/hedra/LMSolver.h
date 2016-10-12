@@ -313,6 +313,7 @@ namespace hedra {
                             nu=beta;
                             cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
                         } else {
+                            x=prevx;
                             miu = miu*nu;
                             nu=2*nu;
                             cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
