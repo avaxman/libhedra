@@ -23,7 +23,7 @@ namespace hedra { namespace optimization {
     class MoebiusTraits{
     public:
         
-        //class requirements
+        //concept requirements
         Eigen::VectorXi JERows, JECols;  //rows and column indices for the jacobian matrix
         Eigen::VectorXd JEVals;         //values for the jacobian matrix.
         Eigen::VectorXd EVec;          //energy vector
@@ -33,54 +33,55 @@ namespace hedra { namespace optimization {
         Eigen::VectorXd JCVals;         //values for the jacobian matrix.
         Eigen::VectorXd CVec;          //energy vector
 
-        Eigen::MatrixXi D, F;
-        Eigen::VectorXi ConstIndices;
-        Eigen::MatrixXi CornerPairs;
-        Eigen::VectorXi CornerOffset;
-        Eigen::SparseMatrix<double> d0;
-        Eigen::MatrixXd OrigVq;
-        Eigen::MatrixXd ConstPoses;
         
-        Eigen::MatrixXi EdgeCornerPairs;  //for rigidity energy
-        Eigen::MatrixXi EdgeCornerVertices;  //the vertices themselves, for compatibility
+        Eigen::MatrixXd VOrigq;
+        Eigen::MatrixXi D, F;
+        Eigen::VectorXi constIndices;
+        Eigen::MatrixXi cornerPairs;
+        Eigen::VectorXi cornerOffset;
+
+        Eigen::MatrixXd constPoses;
+        
+        Eigen::MatrixXi edgeCornerPairs;  //for rigidity energy
+        Eigen::MatrixXi edgeCornerVertices;  //the vertices themselves, for compatibility
         
         Eigen::VectorXd prevSolution;   //from any previous running of the algorithm (in "raw" optimization format, with the corner variables etc.)
         
         Eigen::MatrixXd fullSolution;   //contains the locations of the vertices after the current run.
         
-        int NumCorners;
-        int NumEdgePairs;
+        int numCorners;
+        int numEdgePairs;
         
         bool isExactMC;
 
-        double SmoothFactor;
-        double CloseFactor;
-        double PosFactor;
-        double RigidRatio;
+        double smoothFactor;
+        //double closeFactor;
+        double posFactor;
+        double rigidRatio;
         
-        RowVector4d UnitQuat;
+        RowVector4d unitQuat;
         
         //intermediate variables
-        VectorXd CurrX;
-        VectorXd CurrLocations;
+        VectorXd currX;
+        VectorXd currLocations;
         VectorXd AMAPVec;
-        VectorXd RigidVec;
-        VectorXd CompVec;
-        VectorXd CloseVec;
-        VectorXd PosVec;
+        VectorXd rigidVec;
+        VectorXd compVec;
+        //VectorXd closeVec;
+        VectorXd posVec;
         VectorXd MCVec;
  
         int AMAPTriOffset, AMAPRowOffset;
-        int RigidTriOffset, RigidRowOffset;
-        int CloseTriOffset, CloseRowOffset;
-        int CompTriOffset, CompRowOffset;
-        int PosTriOffset, PosRowOffset;
+        int rigidTriOffset, rigidRowOffset;
+        //int closeTriOffset, CloseRowOffset;
+        int compTriOffset, compRowOffset;
+        int posTriOffset, posRowOffset;
         int MCTriOffset, MCRowOffset;
 
         void init(const Eigen::MatrixXd& _VOrig,
                   const Eigen::MatrixXi& _D ,
                   const Eigen::MatrixXi& _F ,
-                  const Eigen::VectorXi& _ConstIndices,
+                  const Eigen::VectorXi& _constIndices,
                   const bool _isExactMC,
                   const bool resetPrevSolution=true)
         {
@@ -88,108 +89,108 @@ namespace hedra { namespace optimization {
             using namespace Eigen;
             
             //imaginary quaternionic representation
-            OrigVq.resize(VOrig.rows(),4);
-            OrigVq.setZero();
-            OrigVq.block(0,1,VOrig.rows(),3)=VOrig;
+            VOrigq.resize(VOrig.rows(),4);
+            VOrigq.setZero();
+            VOrigq.block(0,1,VOrig.rows(),3)=VOrig;
             F=_F; D=_D;
-            ConstIndices=_ConstIndices;
+            constIndices=_constIndices;
             
-            UnitQuat<<1.0,0.0,0.0,0.0;
+            unitQuat<<1.0,0.0,0.0,0.0;
 
             //MobConstMat=inMobConstMat;
             isExactMC=_isExactMC;
 
             //computing relevant topology
-            NumCorners=D.sum();
-            CornerOffset.resize(F.rows());
-            CornerOffset(0)=0;
+            numCorners=D.sum();
+            cornerOffset.resize(F.rows());
+            cornerOffset(0)=0;
             
             for (int i=1;i<D.rows();i++)
-                CornerOffset(i)=CornerOffset(i-1)+D(i-1);
+                cornerOffset(i)=cornerOffset(i-1)+D(i-1);
             
-            MatrixXi AdjCorners(OrigV.rows(),12);
-            VectorXi Valences(OrigV.rows()); Valences.setZero();
+            MatrixXi adjCorners(VOrig.rows(),12);
+            VectorXi valences(VOrig.rows()); Valences.setZero();
             for (int i=0;i<D.rows();i++){
                 for (int j=0;j<D(i);j++){
-                    AdjCorners(F(i,j),Valences(F(i,j)))=CornerOffset(i)+j;
-                    Valences(F(i,j))++;
+                    adjCorners(F(i,j),valences(F(i,j)))=cornerOffset(i)+j;
+                    valences(F(i,j))++;
                 }
             }
 
-            vector<pair<int,int> > CornerPairList;
-            for (int i=0;i<OrigV.rows();i++)
-                for (int j=0;j<Valences(i)-1;j++)
-                    CornerPairList.push_back(pair<int,int>(AdjCorners(i,j),AdjCorners(i,(j+1)%Valences(i))));
+            vector<pair<int,int> > cornerPairList;
+            for (int i=0;i<VOrig.rows();i++)
+                for (int j=0;j<valences(i)-1;j++)
+                    cornerPairList.push_back(pair<int,int>(adjCorners(i,j),adjCorners(i,(j+1)%valences(i))));
             
-            CornerPairs.resize(CornerPairList.size(),2);
-            for (int i=0;i<CornerPairList.size();i++)
-                CornerPairs.row(i)<<CornerPairList[i].first, CornerPairList[i].second;
+            cornerPairs.resize(cornerPairList.size(),2);
+            for (int i=0;i<cornerPairList.size();i++)
+                cornerPairs.row(i)<<cornerPairList[i].first, cornerPairList[i].second;
             
-            xSize=4*NumCorners+3*OrigVq.rows();
-            CurrX.resize(4*NumCorners);
-            CurrLocations.resize(3*OrigVq.rows());
+            xSize=4*numCorners+3*VOrigq.rows();
+            currX.resize(4*numCorners);
+            currLocations.reize(3*VOrigq.rows());
             
             if (resetPrevSolution){
                 prevSolution.conservativeResize(xSize);
-                for (int i=0;i<DeformX.rows();i++)
-                    prevSolution.segment(4*i,4)=UnitQuat;    //corner variables are trivial
+                for (int i=0;i<Vorigq.rows();i++)
+                    prevSolution.segment(4*i,4)=unitQuat;    //corner variables are trivial
                 
-                for (int i=0;i<DeformVq.rows();i++)
+                for (int i=0;i<Vorigq.rows();i++)
                     prevSolution.segment(4*NumCorners+3*i,3)=_VOrig.row(i);
             }
             
-            VectorXi FaceNums=D;
-            FaceNums=(FaceNums.cwiseAbs2()-FaceNums);
-            NumEdgePairs=FaceNums.sum()/2;
+            VectorXi faceNums=D;
+            faceNums=(faceNums.cwiseAbs2()-faceNums);
+            numEdgePairs=faceNums.sum()/2;
             
-            EdgeCornerPairs.resize(NumEdgePairs,2);
-            EdgeCornerVertices.resize(NumEdgePairs,2);
-            int CurrPair=0;
+            edgeCornerPairs.resize(numEdgePairs,2);
+            edgeCornerVertices.resize(numEdgePairs,2);
+            int currPair=0;
             for (int i=0;i<D.rows();i++)
                 for (int j=0;j<D(i);j++)
                     for (int k=j+1;k<D(i);k++){
-                        EdgeCornerPairs.row(CurrPair)<<CornerOffset(i)+j, CornerOffset(i)+k;
-                        EdgeCornerVertices.row(CurrPair++)<<F(i,j), F(i,k);
+                        edgeCornerPairs.row(currPair)<<cornerOffset(i)+j, cornerOffset(i)+k;
+                        edgeCornerVertices.row(currPair++)<<F(i,j), F(i,k);
                     }
             
             
-            AMAPVec.resize(4*CornerPairs.rows());
-            RigidVec.resize(4*EdgeCornerPairs.rows());
-            CompVec.resize(4*EdgeCornerPairs.rows());
-            CloseVec.resize(SolutionSize);
-            PosVec.resize(3*ConstIndices.size());
-            if (isExactMC){
-                MCVec.resize(CornerPairs.rows());
+            AMAPVec.resize(4*cornerPairs.rows());
+            rigidVec.resize(4*edgeCornerPairs.rows());
+            compVec.resize(4*edgeCornerPairs.rows());
+            //CloseVec.resize(xSize);
+            posVec.resize(3*constIndices.size());
+            if (isExactMC)
+                MCVec.resize(cornerPairs.rows());
             else
                 MCVec.resize(0);
             
-            EVec.resize(AMAPVec.size()+RigidVec.size()+CloseVec.size());
-            CVec.resize(CompVec.size()+PosVec.size()+MCVec.size());
+            EVec.resize(AMAPVec.size()+rigidVec.size());//+CloseVec.size());
+            CVec.resize(compVec.size()+posVec.size()+MCVec.size());
             
                 
             //TODO: I think I can get rid of this because of Augmented Lagrangian
-            CloseFactor=10e-6;
+            //CloseFactor=10e-6;
      
             //Constructing Gradient Pattern
             
-            JERows.resize(2*4*CornerPairs.rows()+2*4*EdgeCornerPairs.rows()+xSize);
+            JERows.resize(2*4*cornerPairs.rows()+2*4*edgeCornerPairs.rows());//+xSize);
             JECols.resize(JERows.size());
             JEVals.resize(JERows.size());
             
             if (!isExactMC){
-                JCRows.resize(38*EdgeCornerPairs.rows()+3*ConstIndices.size());
-                JCCols.resize(GradRows.size());
-                JCVals.resize(GradRows.size());
+                JCRows.resize(38*edgeCornerPairs.rows()+3*constIndices.size());
+                JCCols.resize(JCRows.size());
+                JCVals.resize(JCRows.size());
             } else{
-                JCRows.resize(38*EdgeCornerPairs.rows()+3*ConstIndices.size()+2*4*CornerPairs.rows());
-                JCCols.resize(GradRows.size());
-                JCVals.resize(GradRows.size());
+                JCRows.resize(38*edgeCornerPairs.rows()+3*constIndices.size()+2*4*cornerPairs.rows());
+                JCCols.resize(JCRows.size());
+                JCVals.resize(JCRows.size());
             }
             
             /*******************************AMAP Energy********************************************/
             AMAPTriOffset=0;
             AMAPRowOffset=0;
-            for (int i=0;i<CornerPairs.rows();i++){
+            for (int i=0;i<cornerPairs.rows();i++){
                 for (int j=0;j<4;j++){
                     JERows(AMAPTriOffset+2*(4*i+j))=AMAPRowOffset+4*i+j;
                     JECols(AMAPTriOffset+2*(4*i+j))=4*CornerPairs(i,0)+j;
@@ -201,78 +202,78 @@ namespace hedra { namespace optimization {
             /*******************************Rigidity Energy*****************************************/
             RigidTriOffset=AMAPTriOffset+2*4*CornerPairs.rows();
             RigidRowOffset=AMAPRowOffset+4*CornerPairs.rows();
-            for (int i=0;i<EdgeCornerPairs.rows();i++){
+            for (int i=0;i<edgeCornerPairs.rows();i++){
                 for (int j=0;j<4;j++){
-                    JERows(RigidTriOffset+2*(4*i+j))=RigidRowOffset+4*i+j;
-                    JECols(RigidTriOffset+2*(4*i+j))=4*EdgeCornerPairs(i,0)+j;
-                    JERows(RigidTriOffset+2*(4*i+j)+1)=RigidRowOffset+4*i+j;
-                    JECols(RigidTriOffset+2*(4*i+j)+1)=4*EdgeCornerPairs(i,1)+j;
+                    JERows(RigidTriOffset+2*(4*i+j))=rigidRowOffset+4*i+j;
+                    JECols(RigidTriOffset+2*(4*i+j))=4*edgeCornerPairs(i,0)+j;
+                    JERows(RigidTriOffset+2*(4*i+j)+1)=rigidRowOffset+4*i+j;
+                    JECols(RigidTriOffset+2*(4*i+j)+1)=4*edgeCornerPairs(i,1)+j;
                 }
             }
 
             
             /****************************Closeness Energy*******************/
-            CloseTriOffset=RigidTriOffset+2*4*EdgeCornerPairs.rows();
-            CloseRowOffset=RigidRowOffset+4*EdgeCornerPairs.rows();
+            /*CloseTriOffset=rigidTriOffset+2*4*edgeCornerPairs.rows();
+            CloseRowOffsetr=rigidRowOffset+4*edgeCornerPairs.rows();
             for (int i=0;i<SolutionSize;i++){
                 JERows(CloseTriOffset+i)=CloseRowOffset+i;
                 JECols(CloseTriOffset+i)=i;
                 JEVals(CloseTriOffset+i)=CloseFactor;
-            }
+            }*/
             
             /****************************Compatibility Constraints*****************/
-            CompTriOffset=0;
-            CompRowOffset=0;
-            int CompTriCounter=CompTriOffset;
+            compTriOffset=0;
+            compRowOffset=0;
+            int compTriCounter=compTriOffset;
             Vector4i XiTriPoses; XiTriPoses<<0,8,18,28;
             Vector4i XjTriPoses; XjTriPoses<<4,12,22,32;
-            for (int i=0;i<EdgeCornerPairs.rows();i++){
-                int ColCorneri=4*EdgeCornerPairs(i,0);
-                int ColCornerj=4*EdgeCornerPairs(i,1);
-                int CurrRowOffset=4*i;
+            for (int i=0;i<edgeCornerPairs.rows();i++){
+                int colCorneri=4*edgeCornerPairs(i,0);
+                int colCornerj=4*edgeCornerPairs(i,1);
+                int currRowOffset=4*i;
                 //derivative of Xi
-                quatDerivativeIndices(JCRows, JCCols, CompTriCounter, XiTriPoses, CompRowOffset+CurrRowOffset, ColCorneri);
+                quatDerivativeIndices(JCRows, JCCols, compTriCounter, XiTriPoses, compRowOffset+currRowOffset, colCorneri);
                 
                 //Derivative of Xj
-                quatDerivativeIndices(JCRows, JCCols, CompTriCounter, XjTriPoses,CompRowOffset+CurrRowOffset, ColCornerj);
+                quatDerivativeIndices(JCRows, JCCols, compTriCounter, XjTriPoses,compRowOffset+currRowOffset, colCornerj);
                 
                 for (int k=0;k<3;k++){
                     //wj derivative
-                    GradRows(CompTriCounter+16+10*k)=CompRowOffset+CurrRowOffset+1+k;
-                    GradCols(CompTriCounter+16+10*k)=4*NumCorners+3*EdgeCornerVertices(i,1)+k;
-                    GradValues(CompTriCounter+16+10*k)=-1.0;
+                    JCRows(compTriCounter+16+10*k)=compRowOffset+currRowOffset+1+k;
+                    JCCols(compTriCounter+16+10*k)=4*numCorners+3*edgeCornerVertices(i,1)+k;
+                    JCVals(compTriCounter+16+10*k)=-1.0;
                     
                     //wi derivative
-                    GradRows(CompTriCounter+17+10*k)=CompRowOffset+CurrRowOffset+1+k;
-                    GradCols(CompTriCounter+17+10*k)=4*NumCorners+3*EdgeCornerVertices(i,0)+k;
-                    GradValues(CompTriCounter+17+10*k)=1.0;
+                    JCRows(compTriCounter+17+10*k)=compRowOffset+currRowOffset+1+k;
+                    JCCols(compTriCounter+17+10*k)=4*numCorners+3*edgeCornerVertices(i,0)+k;
+                    JCValues(compTriCounter+17+10*k)=1.0;
                 }
                 
-                CompTriCounter+=38;
+                compTriCounter+=38;
             }
             
             /****************************Positional Constraints*******************/
-            PosTriOffset=CompTriOffset+38*EdgeCornerPairs.rows();
-            PosRowOffset=CompRowOffset+4*EdgeCornerPairs.rows();
+            posTriOffset=compTriOffset+38*edgeCornerPairs.rows();
+            posRowOffset=compRowOffset+4*edgeCornerPairs.rows();
             
-            for (int i=0;i<ConstIndices.size();i++){
+            for (int i=0;i<constIndices.size();i++){
                 for (int k=0;k<3;k++){
-                    JCRows(PosTriOffset+3*i+k)=PosRowOffset+3*i+k;
-                    JCCols(PosTriOffset+3*i+k)=4*NumCorners+3*ConstIndices(i)+k;
+                    JCRows(posTriOffset+3*i+k)=posRowOffset+3*i+k;
+                    JCCols(posTriOffset+3*i+k)=4*numCorners+3*constIndices(i)+k;
                 }
             }
             
             
             /****************************Metric-Conformal Constraints*************/
             if (isExactMC){
-                MCTriOffset=PosTriOffset+3*ConstIndices.size();
-                MCRowOffset=PosRowOffset+3*ConstIndices.size();
-                for (int i=0;i<CornerPairs.rows();i++){
+                MCTriOffset=posTriOffset+3*constIndices.size();
+                MCRowOffset=posRowOffset+3*constIndices.size();
+                for (int i=0;i<cornerPairs.rows();i++){
                     for (int j=0;j<4;j++){
                         JCRows(MCTriOffset+2*(4*i+j))=MCRowOffset+i;
-                        JCCols(MCTriOffset+2*(4*i+j))=4*CornerPairs(i,0)+j;
+                        JCCols(MCTriOffset+2*(4*i+j))=4*cornerPairs(i,0)+j;
                         JCRows(MCTriOffset+2*(4*i+j)+1)=MCRowOffset+i;
-                        JCCols(MCTriOffset+2*(4*i+j)+1)=4*CornerPairs(i,1)+j;
+                        JCCols(MCTriOffset+2*(4*i+j)+1)=4*cornerPairs(i,1)+j;
                     }
                 }
             }
@@ -280,114 +281,112 @@ namespace hedra { namespace optimization {
         
         void update_energy(const Eigen::VectorXd& x){
             using namespace Eigen;
-            CurrX<<x.head(4*NumCorners);
-            CurrLocations<<x.tail(3*OrigVq.rows());
+            currX<<x.head(4*numCorners);
+            currLocations<<x.tail(3*VOrigq.rows());
             
-            for (int i=0;i<CornerPairs.rows();i++)
-                AMAPVec.segment(4*i,4)=(CurrX.segment(4*CornerPairs(i,1),4)-CurrX.segment(4*CornerPairs(i,0),4));
+            for (int i=0;i<cornerPairs.rows();i++)
+                AMAPVec.segment(4*i,4)=(currX.segment(4*cornerPairs(i,1),4)-currX.segment(4*cornerPairs(i,0),4));
             
-            AMAPVec.array()*=SmoothFactor;
+            AMAPVec.array()*=smoothFactor;
             
-            for (int i=0;i<EdgeCornerPairs.rows();i++)
-                RigidVec.segment(4*i,4)=(CurrX.segment(4*EdgeCornerPairs(i,1),4)-CurrX.segment(4*EdgeCornerPairs(i,0),4));
+            for (int i=0;i<edgeCornerPairs.rows();i++)
+                rigidVec.segment(4*i,4)=(currX.segment(4*EdgeCornerPairs(i,1),4)-currX.segment(4*edgeCornerPairs(i,0),4));
 
             
-            RigidVec.array()*=SmoothFactor*RigidRatio;
+            rigidVec.array()*=smoothFactor*rigidRatio;
             
-            CloseVec<<CloseFactor*(CurrSolution-InitSolution);
+            //CloseVec<<CloseFactor*(CurrSolution-InitSolution);
         
-            EVec<<AMAPVec, RigidVec, CloseVec
+            EVec<<AMAPVec, rigidVec;//, CloseVec
 
         }
         
         void update_constraints(const Eigen::VectorXd& x){
             using namespace Eigen;
-            CurrX<<x.head(4*NumCorners);
-            CurrLocations<<x.tail(3*OrigVq.rows());
+            currX<<x.head(4*numCorners);
+            currLocations<<x.tail(3*VOrigq.rows());
             
-            for (int i=0;i<EdgeCornerPairs.rows();i++){
-                RowVector4d Xi=CurrX.segment(4*EdgeCornerPairs(i,0),4).transpose();
-                RowVector4d Xj=CurrX.segment(4*EdgeCornerPairs(i,1),4).transpose();
-                RowVector4d qi=OrigVq.row(EdgeCornerVertices(i,0));
-                RowVector4d qj=OrigVq.row(EdgeCornerVertices(i,1));
-                RowVector3d wi=CurrLocations.segment(3*EdgeCornerVertices(i,0),3).transpose();
-                RowVector3d wj=CurrLocations.segment(3*EdgeCornerVertices(i,1),3).transpose();
-                RowVector4d CurrEdgeVector=QMult1(QMult1(QConj1(Xi),qj-qi),Xj);
-                CurrEdgeVector.tail(3)-=(wj-wi);
-                CompVec.segment(4*i,4)<<CurrEdgeVector.transpose();
+            for (int i=0;i<edgeCornerPairs.rows();i++){
+                RowVector4d Xi=currX.segment(4*edgeCornerPairs(i,0),4).transpose();
+                RowVector4d Xj=currX.segment(4*edgeCornerPairs(i,1),4).transpose();
+                RowVector4d qi=VOrigq.row(edgeCornerVertices(i,0));
+                RowVector4d qj=VOrigq.row(edgeCornerVertices(i,1));
+                RowVector3d wi=currLocations.segment(3*edgeCornerVertices(i,0),3).transpose();
+                RowVector3d wj=currLocations.segment(3*edgeCornerVertices(i,1),3).transpose();
+                RowVector4d currEdgeVector=QMult1(QMult1(QConj1(Xi),qj-qi),Xj);
+                currEdgeVector.tail(3)-=(wj-wi);
+                compVec.segment(4*i,4)<<currEdgeVector.transpose();
             }
             
             
-            for (int i=0;i<ConstIndices.size();i++)
-                PosVec.segment(3*i,3)<<PosFactor*(CurrLocations.segment(3*ConstIndices(i),3)-ConstPoses.row(i).transpose());
+            for (int i=0;i<constIndices.size();i++)
+                posVec.segment(3*i,3)<<posFactor*(currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose());
             
             if (!isExactMC){
-                CVec<<CompVec, PosVec;
+                CVec<<compVec, posVec;
             } else {
-                for (int i=0;i<CornerPairs.rows();i++)
-                    MCVec(i)=CurrX.segment(4*CornerPairs(i,1),4).squaredNorm()-CurrX.segment(4*CornerPairs(i,0),4).squaredNorm();
-                CVec<<CompVec, PosVec, MCVec;
+                for (int i=0;i<cornerPairs.rows();i++)
+                    MCVec(i)=currX.segment(4*cornerPairs(i,1),4).squaredNorm()-currX.segment(4*cornerPairs(i,0),4).squaredNorm();
+                CVec<<compVec, posVec, MCVec;
             }
         }
         
         void update_jacobian(const Eigen::VectorXd& x){
             using namespace Eigen;
-            CurrX<<CurrSolution.head(4*NumCorners);
-            CurrLocations<<CurrSolution.tail(3*OrigVq.rows());
+            currX<<currSolution.head(4*numCorners);
+            currLocations<<currSolution.tail(3*VOrigq.rows());
             
             /*******************************AMAP Energy********************************************/
-            for (int i=0;i<CornerPairs.rows();i++){
+            for (int i=0;i<cornerPairs.rows();i++){
                 for (int j=0;j<4;j++){
-                    JEVals(AMAPTriOffset+2*(4*i+j))=-SmoothFactor;
-                    JEVals(AMAPTriOffset+2*(4*i+j)+1)=SmoothFactor;
+                    JEVals(AMAPTriOffset+2*(4*i+j))=-smoothFactor;
+                    JEVals(AMAPTriOffset+2*(4*i+j)+1)=smoothFactor;
                 }
             }
             
             /*******************************Rigidity Energy*****************************************/
-            for (int i=0;i<EdgeCornerPairs.rows();i++){
+            for (int i=0;i<edgeCornerPairs.rows();i++){
                 for (int j=0;j<4;j++){
-                    JEVals(RigidTriOffset+2*(4*i+j))=-SmoothFactor*RigidRatio;
-                    JEVals(RigidTriOffset+2*(4*i+j)+1)=SmoothFactor*RigidRatio;
+                    JEVals(rigidTriOffset+2*(4*i+j))=-smoothFactor*rigidRatio;
+                    JEVals(rigidTriOffset+2*(4*i+j)+1)=smoothFactor*rigidRatio;
                 }
             }
             
             //closeness energy is constant
             
             /****************************Compatibility Constraints*****************/
-            int CompTriCounter=CompTriOffset;
+            int compTriCounter=compTriOffset;
             Vector4i XiTriPoses; XiTriPoses<<0,8,18,28;
             Vector4i XjTriPoses; XjTriPoses<<4,12,22,32;
-            for (int i=0;i<EdgeCornerPairs.rows();i++){
-                RowVector4d Xi=CurrX.segment(4*EdgeCornerPairs(i,0),4).transpose();
-                RowVector4d Xj=CurrX.segment(4*EdgeCornerPairs(i,1),4).transpose();
-                RowVector4d RightPart=QMult1(OrigVq.row(EdgeCornerVertices(i,1))-OrigVq.row(EdgeCornerVertices(i,0)),Xj);
-                RowVector4d LeftPart=QMult1(QConj1(Xi),OrigVq.row(EdgeCornerVertices(i,1))-OrigVq.row(EdgeCornerVertices(i,0)));
+            for (int i=0;i<edgeCornerPairs.rows();i++){
+                RowVector4d Xi=CurrX.segment(4*edgeCornerPairs(i,0),4).transpose();
+                RowVector4d Xj=CurrX.segment(4*edgeCornerPairs(i,1),4).transpose();
+                RowVector4d rightPart=QMult1(VOrigq.row(edgeCornerVertices(i,1))-VOrigq.row(edgeCornerVertices(i,0)),Xj);
+                RowVector4d leftPart=QMult1(QConj1(Xi),VOrigq.row(edgeCornerVertices(i,1))-VOrigq.row(edgeCornerVertices(i,0)));
                 
       
                 //derivative of Xi
-                quatDerivativeValues(JCVals, CompTriCounter, XiTriPoses, UnitQuat, RightPart, true, false);
+                quatDerivativeValues(JCVals, compTriCounter, XiTriPoses, unitQuat, rightPart, true, false);
                 
                 //Derivative of Xj
-                quatDerivativeValues(JCVals, CompTriCounter, XjTriPoses, LeftPart, UnitQuat, false, false);
+                quatDerivativeValues(JCVals, compTriCounter, XjTriPoses, leftPart, unitQuat, false, false);
                 
                 //the other compatibility values are constant
-                CompTriCounter+=38;
-                
-                
+                compTriCounter+=38;
             }
         
             
             
             /****************************Positional Constraints*******************/
-            for (int i=0;i<ConstIndices.size();i++)
+            for (int i=0;i<constIndices.size();i++)
                 for (int k=0;k<3;k++)
-                    JCVals(PosTriOffset+3*i+k)=PosFactor;
+                    JCVals(posTriOffset+3*i+k)=posFactor;
             
             /****************************Metric-Conformal Constraints*************/
             if (isExactMC){
-                for (int i=0;i<CornerPairs.rows();i++){
-                    RowVector4d Xi=CurrX.segment(4*CornerPairs(i,0),4).transpose();
-                    RowVector4d Xj=CurrX.segment(4*CornerPairs(i,1),4).transpose();
+                for (int i=0;i<cornerPairs.rows();i++){
+                    RowVector4d Xi=currX.segment(4*cornerPairs(i,0),4).transpose();
+                    RowVector4d Xj=currX.segment(4*cornerPairs(i,1),4).transpose();
                     for (int k=0;k<4;k++){
                         JCVals(MCTriOffset+2*(4*i+k))=-2*Xi(k);
                         JCVals(MCTriOffset+2*(4*i+k)+1)=2*Xj(k);
