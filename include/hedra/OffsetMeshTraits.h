@@ -9,6 +9,7 @@
 #define HEDRA_OFFSET_MESH_TRAITS_H
 #include <igl/igl_inline.h>
 #include <igl/harmonic.h>
+#include <hedra/polyhedral_face_normals.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -44,6 +45,8 @@ namespace hedra { namespace optimization {
 
             Eigen::MatrixXd fullSolution;       //The final solution of the last optimization
             
+            Eigen::MatrixXd faceNormals;
+            
             void init(const Eigen::MatrixXd& _VOrig,
                       const Eigen::VectorXi& _D,
                       const Eigen::MatrixXi& _F,
@@ -62,6 +65,8 @@ namespace hedra { namespace optimization {
                 EV=_EV;
                 oType=_oType;
                 d=_d;
+                
+                polyhedral_face_normals(VOrig, D,  F, faceNormals);
                 
                 xSize=3*VOrig.rows()+EV.rows();
                 
@@ -121,12 +126,9 @@ namespace hedra { namespace optimization {
                     int currIndex=0;
                     for (int i=0;i<D.rows();i++){
                         for (int j=0;j<D(i);j++){
-                            RowVector3d v12=VOrig.row(F(i,(j+1)%D(i)))-VOrig.row(F(i,j));
-                            RowVector3d v1n=VOrig.row(F(i,(j+D(i)-1)%D(i)))-VOrig.row(F(i,j));
-                            RowVector3d cornerNormal=v12.cross(v1n).normalized();
                             JERows.segment(3*currIndex,3).setConstant(currIndex);
                             JECols.segment(3*currIndex,3)<<3*F(i,j), 3*F(i,j)+1, 3*F(i,j)+2;
-                            JEVals.segment(3*currIndex,3)<<d*cornerNormal.transpose();
+                            JEVals.segment(3*currIndex,3)<<faceNormals.row(i).transpose();
                             currIndex++;
                         }
                     }
@@ -163,15 +165,9 @@ namespace hedra { namespace optimization {
                 
                 if (oType==FACE_OFFSET){
                     int currIndex=0;
-                    for (int i=0;i<D.rows();i++){
-                        for (int j=0;j<D(i);j++){
-                            //TODO: pass this computation to be offline
-                            RowVector3d v12=VOrig.row(F(i,(j+1)%D(i)))-VOrig.row(F(i,j));
-                            RowVector3d v1n=VOrig.row(F(i,(j+D(i)-1)%D(i)))-VOrig.row(F(i,j));
-                            RowVector3d cornerNormal=v12.cross(v1n).normalized();
-                            EVec(currIndex++)=d*(cornerNormal.dot(currV.row(F(i,j))-VOrig.row(F(i,j)))-1.0);
-                        }
-                    }
+                    for (int i=0;i<D.rows();i++)
+                        for (int j=0;j<D(i);j++)
+                            EVec(currIndex++)=faceNormals.row(i).dot(currV.row(F(i,j))-VOrig.row(F(i,j)))-d;
                     
                 }
                 
