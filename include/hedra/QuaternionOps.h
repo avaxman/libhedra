@@ -71,6 +71,18 @@ inline Eigen::MatrixXd QExp(const Eigen::MatrixXd& q)
     return expq;
 }
 
+inline void Quat2Coords(const MatrixXd& QV, MatrixXd& V)
+{
+    V.resize(QV.rows(), 3);
+    V=QV.block(0,1,QV.rows(),QV.cols()-1);
+}
+
+inline void Coords2Quat(const MatrixXd& V, MatrixXd& QV)
+{
+    QV.resize(V.rows(),4); QV.setZero();
+    QV.block(0,1,QV.rows(),QV.cols()-1)=V;
+}
+
 
 /*inline Eigen::RowVector4d SLERP(const Eigen::RowVector4d& q1, const Eigen::RowVector4d& q2, const double t){
     return QMult(q1, QExp(QLog(QMult(QInv(q1), q2))*t));
