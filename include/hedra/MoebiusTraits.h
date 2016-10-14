@@ -57,7 +57,7 @@ namespace hedra { namespace optimization {
 
         double smoothFactor;
         //double closeFactor;
-        double posFactor;
+        //double posFactor;
         double rigidRatio;
         
         Eigen::RowVector4d unitQuat;
@@ -320,7 +320,7 @@ namespace hedra { namespace optimization {
             
             
             for (int i=0;i<constIndices.size();i++)
-                posVec.segment(3*i,3)<<posFactor*(currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose());
+                posVec.segment(3*i,3)<</*posFactor**/(currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose());
             
             if (!isExactMC){
                 CVec<<compVec, posVec;
@@ -380,7 +380,7 @@ namespace hedra { namespace optimization {
             /****************************Positional Constraints*******************/
             for (int i=0;i<constIndices.size();i++)
                 for (int k=0;k<3;k++)
-                    JCVals(posTriOffset+3*i+k)=posFactor;
+                    JCVals(posTriOffset+3*i+k)=1.0; //posFactor;
             
             /****************************Metric-Conformal Constraints*************/
             if (isExactMC){
@@ -410,8 +410,21 @@ namespace hedra { namespace optimization {
             for (int i=0;i<VOrigq.rows();i++)
                 fullSolution.row(i)=x.segment(4*numCorners+3*i,3);
             
+            double prevError; update_constraints(prevSolution);
+            prevError=CVec.lpNorm<Eigen::Infinity>();
+            double currError; update_constraints(x);
+            currError=CVec.lpNorm<Eigen::Infinity>();
+            double rate=currError/prevError;
+            double reduceRate=std::min(rate/2.0,1.0);
+            //posFactor=0.95-0.45*(1.0-reduceRate);
+            //smoothFactor*=0.9-0.7*(1.0-reduceRate);
+            
+            std::cout<<"prevError, currError: "<<prevError<<","<<currError<<std::endl;
+            //std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
+            
+            
             prevSolution=x;
-            //smoothFactor*=0.5;
+
             
             return true;  //this traits doesn't have any more stop requirements
         }

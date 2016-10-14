@@ -273,7 +273,8 @@ namespace hedra {
                         MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                         
                         double firstOrderOptimality=rhs.template lpNorm<Infinity>();
-                        cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
+                        if (verbose)
+                            cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
                         
                         if (firstOrderOptimality<fooTolerance){
                             x=prevx;
@@ -291,7 +292,8 @@ namespace hedra {
                         }
                         
                         LS->solve(rhs,direction);
-                        cout<<"direction magnitude: "<<direction.norm()<<endl;
+                        if (verbose)
+                            cout<<"direction magnitude: "<<direction.norm()<<endl;
                         if (direction.norm() < xTolerance * prevx.norm()){
                             x=prevx;
                             if (verbose)
@@ -307,16 +309,20 @@ namespace hedra {
                         double rho=(prevE-currE)/(direction.dot(miu*direction+rhs));
                         if (rho>0){
                             x=tryx;
-                            cout<<"Energy: "<<currE<<endl;
-                            cout<<"1.0-pow(2.0*rho-1.0,3.0): "<<1.0-pow(2.0*rho-1.0,3.0)<<endl;
+                            if (verbose){
+                                cout<<"Energy: "<<currE<<endl;
+                                cout<<"1.0-pow(2.0*rho-1.0,3.0): "<<1.0-pow(2.0*rho-1.0,3.0)<<endl;
+                            }
                             miu*=(1.0/gamma > 1.0-(beta-1.0)*pow(2.0*rho-1.0,3) ? 1.0/gamma : 1.0-(beta-1.0)*pow(2.0*rho-1.0,3));
                             nu=beta;
-                            cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
+                            if (verbose)
+                                cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
                         } else {
                             x=prevx;
                             miu = miu*nu;
                             nu=2*nu;
-                            cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
+                            if (verbose)
+                                cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
                         }
                         
                         //The SolverTraits can order the optimization to stop by giving "true" of to continue by giving "false"

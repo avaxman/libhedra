@@ -94,15 +94,19 @@ namespace hedra { namespace optimization {
                 //updating the lagrangian function
                 currBigIteration++;
                 CT->update_constraints(x);
+                miu*=0.9;
                 lambda=lambda-CT->CVec/miu;
                 //std::cout<<"lambda: "<<lambda<<std::endl;
                 std::cout<<"Final Energy: "<<CT->EVec.template squaredNorm()<<std::endl<<std::endl<<std::endl;
                 std::cout<<"Constraint Error: "<<CT->CVec.template lpNorm<Eigen::Infinity>()<<std::endl<<std::endl<<std::endl;
                 
+                bool isCTStop=CT->post_optimization(x);
                 if ((CT->CVec.template lpNorm<Eigen::Infinity>()<constTolerance)||(currBigIteration>=maxBigIterations))
-                    return CT->post_optimization(x);  //Only stopping if the ConstraintTraits wants to stop
+                    return isCTStop;  //Only stopping if the ConstraintTraits wants to stop
                 else
                     return false;  ///do another optimization process, since we have not reached the constraints
+                
+                
 
             }
             
