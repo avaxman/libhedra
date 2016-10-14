@@ -18,7 +18,12 @@ namespace hedra {
     
     //deriving an expression a*X*b (or a*conj(X)*b) by X.
     
-    inline void quatDerivativeIndices(VectorXi& Rows, VectorXi& Cols, const int CurrTriPos, Vector4i TriSkips, const int Row, const int Col)
+    inline void quatDerivativeIndices(Eigen::VectorXi& Rows,
+                                      Eigen::VectorXi& Cols,
+                                      const int CurrTriPos,
+                                      const Eigen::Vector4i TriSkips,
+                                      const int Row,
+                                      const int Col)
     {
         for (int i=0;i<4;i++)
             for (int j=0;j<4;j++){
@@ -28,14 +33,20 @@ namespace hedra {
     }
     
     
-    inline void quatDerivativeValues(VectorXd& Values, const int CurrTriPos, Vector4i TriSkips, const RowVector4d& LeftCoeff, const RowVector4d& RightCoeff, const bool isConj, const bool add)
+    inline void quatDerivativeValues(Eigen::VectorXd& Values,
+                                     const int CurrTriPos,
+                                     const Eigen::Vector4i TriSkips,
+                                     const Eigen::RowVector4d& LeftCoeff,
+                                     const Eigen::RowVector4d& RightCoeff,
+                                     const bool isConj,
+                                     const bool add)
     {
         //[  ra, -vax, -vay, -vaz]
         //[ vax,   ra, -vaz,  vay]
         //[ vay,  vaz,   ra, -vax]
         //[ vaz, -vay,  vax,   ra]
         
-        Matrix4d a; a<<LeftCoeff(0), -LeftCoeff(1), -LeftCoeff(2), -LeftCoeff(3),
+        Eigen::Matrix4d a; a<<LeftCoeff(0), -LeftCoeff(1), -LeftCoeff(2), -LeftCoeff(3),
         LeftCoeff(1),  LeftCoeff(0), -LeftCoeff(3), LeftCoeff(2),
         LeftCoeff(2),  LeftCoeff(3), LeftCoeff(0), -LeftCoeff(1),
         LeftCoeff(3), -LeftCoeff(2), LeftCoeff(1), LeftCoeff(0);
@@ -47,7 +58,7 @@ namespace hedra {
         //[ vby, -vbz,   rb,  vbx]
         //[ vbz,  vby, -vbx,   rb]
         
-        Matrix4d b; b<<RightCoeff(0), -RightCoeff(1), -RightCoeff(2), -RightCoeff(3),
+        Eigen::Matrix4d b; b<<RightCoeff(0), -RightCoeff(1), -RightCoeff(2), -RightCoeff(3),
         RightCoeff(1),  RightCoeff(0),  RightCoeff(3), -RightCoeff(2),
         RightCoeff(2), -RightCoeff(3),  RightCoeff(0),  RightCoeff(1),
         RightCoeff(3),  RightCoeff(2), -RightCoeff(1),  RightCoeff(0);
@@ -63,7 +74,7 @@ namespace hedra {
             //[ ra*vbz + rb*vaz + vax*vby - vay*vbx, ra*vby - rb*vay - vax*vbz - vaz*vbx, rb*vax - ra*vbx - vay*vbz - vaz*vby, ra*rb + vax*vbx + vay*vby - vaz*vbz]
             
             
-            Matrix4d ab=a*b;
+            Eigen::Matrix4d ab=a*b;
             
             //cout<<"ab: "<<ab<<endl;
             
@@ -77,11 +88,11 @@ namespace hedra {
             
         } else {
             
-            Matrix4d ConjMat; ConjMat<<1.0,0.0,0.0,0.0,
+            Eigen::Matrix4d ConjMat; ConjMat<<1.0,0.0,0.0,0.0,
             0.0,-1.0,0.0,0.0,
             0.0,0.0,-1.0,0.0,
             0.0,0.0,0.0,-1.0;
-            Matrix4d abc=a*b*ConjMat;
+            Eigen::Matrix4d abc=a*b*ConjMat;
             
             //cout<<"abc:"<<abc<<endl;
             

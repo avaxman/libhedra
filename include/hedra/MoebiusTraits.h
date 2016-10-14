@@ -9,6 +9,7 @@
 #define HEDRA_MOEBIUS_TRAITS_H
 #include <igl/igl_inline.h>
 #include "quaternionic_derivatives.h"
+#include "QuaternionOps.h"
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -59,17 +60,17 @@ namespace hedra { namespace optimization {
         double posFactor;
         double rigidRatio;
         
-        RowVector4d unitQuat;
+        Eigen::RowVector4d unitQuat;
         
         //intermediate variables
-        VectorXd currX;
-        VectorXd currLocations;
-        VectorXd AMAPVec;
-        VectorXd rigidVec;
-        VectorXd compVec;
+        Eigen::VectorXd currX;
+        Eigen::VectorXd currLocations;
+        Eigen::VectorXd AMAPVec;
+        Eigen::VectorXd rigidVec;
+        Eigen::VectorXd compVec;
         //VectorXd closeVec;
-        VectorXd posVec;
-        VectorXd MCVec;
+        Eigen::VectorXd posVec;
+        Eigen::VectorXd MCVec;
  
         int AMAPTriOffset, AMAPRowOffset;
         int rigidTriOffset, rigidRowOffset;
@@ -78,20 +79,19 @@ namespace hedra { namespace optimization {
         int posTriOffset, posRowOffset;
         int MCTriOffset, MCRowOffset;
 
+        
+        //if constIndices is empty, the initial solution is the original mesh
         void init(const Eigen::MatrixXd& _VOrig,
                   const Eigen::MatrixXi& _D ,
                   const Eigen::MatrixXi& _F ,
-                  const Eigen::VectorXi& _constIndices,
                   const bool _isExactMC,
-                  const bool resetPrevSolution=true)
+                  const Eigen::VectorXi& _constIndices=Eigen::VectorXi::Zero(0))
         {
             
             using namespace Eigen;
             
             //imaginary quaternionic representation
-            VOrigq.resize(VOrig.rows(),4);
-            VOrigq.setZero();
-            VOrigq.block(0,1,VOrig.rows(),3)=VOrig;
+            Coords2Quat(_VOrig, VOrigq);
             F=_F; D=_D;
             constIndices=_constIndices;
             
@@ -108,8 +108,8 @@ namespace hedra { namespace optimization {
             for (int i=1;i<D.rows();i++)
                 cornerOffset(i)=cornerOffset(i-1)+D(i-1);
             
-            MatrixXi adjCorners(VOrig.rows(),12);
-            VectorXi valences(VOrig.rows()); Valences.setZero();
+            MatrixXi adjCorners(VOrigq.rows(),12);
+            VectorXi valences(VOrigq.rows()); valences.setZero();
             for (int i=0;i<D.rows();i++){
                 for (int j=0;j<D(i);j++){
                     adjCorners(F(i,j),valences(F(i,j)))=cornerOffset(i)+j;
@@ -117,10 +117,10 @@ namespace hedra { namespace optimization {
                 }
             }
 
-            vector<pair<int,int> > cornerPairList;
-            for (int i=0;i<VOrig.rows();i++)
+            std::vector<std::pair<int,int> > cornerPairList;
+            for (int i=0;i<VOrigq.rows();i++)
                 for (int j=0;j<valences(i)-1;j++)
-                    cornerPairList.push_back(pair<int,int>(adjCorners(i,j),adjCorners(i,(j+1)%valences(i))));
+                    cornerPairList.push_back(std::pair<int,int>(adjCorners(i,j),adjCorners(i,(j+1)%valences(i))));
             
             cornerPairs.resize(cornerPairList.size(),2);
             for (int i=0;i<cornerPairList.size();i++)
@@ -128,15 +128,15 @@ namespace hedra { namespace optimization {
             
             xSize=4*numCorners+3*VOrigq.rows();
             currX.resize(4*numCorners);
-            currLocations.reize(3*VOrigq.rows());
+            currLocations.resize(3*VOrigq.rows());
             
-            if (resetPrevSolution){
+            if (constIndices.size()==0){
                 prevSolution.conservativeResize(xSize);
-                for (int i=0;i<Vorigq.rows();i++)
+                for (int i=0;i<VOrigq.rows();i++)
                     prevSolution.segment(4*i,4)=unitQuat;    //corner variables are trivial
                 
-                for (int i=0;i<Vorigq.rows();i++)
-                    prevSolution.segment(4*NumCorners+3*i,3)=_VOrig.row(i);
+                for (int i=0;i<VOrigq.rows();i++)
+                    prevSolution.segment(4*numCorners+3*i,3)=_VOrig.row(i);
             }
             
             VectorXi faceNums=D;
@@ -193,21 +193,21 @@ namespace hedra { namespace optimization {
             for (int i=0;i<cornerPairs.rows();i++){
                 for (int j=0;j<4;j++){
                     JERows(AMAPTriOffset+2*(4*i+j))=AMAPRowOffset+4*i+j;
-                    JECols(AMAPTriOffset+2*(4*i+j))=4*CornerPairs(i,0)+j;
+                    JECols(AMAPTriOffset+2*(4*i+j))=4*cornerPairs(i,0)+j;
                     JERows(AMAPTriOffset+2*(4*i+j)+1)=AMAPRowOffset+4*i+j;
-                    JECols(AMAPTriOffset+2*(4*i+j)+1)=4*CornerPairs(i,1)+j;
+                    JECols(AMAPTriOffset+2*(4*i+j)+1)=4*cornerPairs(i,1)+j;
                 }
             }
             
             /*******************************Rigidity Energy*****************************************/
-            RigidTriOffset=AMAPTriOffset+2*4*CornerPairs.rows();
-            RigidRowOffset=AMAPRowOffset+4*CornerPairs.rows();
+            rigidTriOffset=AMAPTriOffset+2*4*cornerPairs.rows();
+            rigidRowOffset=AMAPRowOffset+4*cornerPairs.rows();
             for (int i=0;i<edgeCornerPairs.rows();i++){
                 for (int j=0;j<4;j++){
-                    JERows(RigidTriOffset+2*(4*i+j))=rigidRowOffset+4*i+j;
-                    JECols(RigidTriOffset+2*(4*i+j))=4*edgeCornerPairs(i,0)+j;
-                    JERows(RigidTriOffset+2*(4*i+j)+1)=rigidRowOffset+4*i+j;
-                    JECols(RigidTriOffset+2*(4*i+j)+1)=4*edgeCornerPairs(i,1)+j;
+                    JERows(rigidTriOffset+2*(4*i+j))=rigidRowOffset+4*i+j;
+                    JECols(rigidTriOffset+2*(4*i+j))=4*edgeCornerPairs(i,0)+j;
+                    JERows(rigidTriOffset+2*(4*i+j)+1)=rigidRowOffset+4*i+j;
+                    JECols(rigidTriOffset+2*(4*i+j)+1)=4*edgeCornerPairs(i,1)+j;
                 }
             }
 
@@ -246,7 +246,7 @@ namespace hedra { namespace optimization {
                     //wi derivative
                     JCRows(compTriCounter+17+10*k)=compRowOffset+currRowOffset+1+k;
                     JCCols(compTriCounter+17+10*k)=4*numCorners+3*edgeCornerVertices(i,0)+k;
-                    JCValues(compTriCounter+17+10*k)=1.0;
+                    JCVals(compTriCounter+17+10*k)=1.0;
                 }
                 
                 compTriCounter+=38;
@@ -290,7 +290,7 @@ namespace hedra { namespace optimization {
             AMAPVec.array()*=smoothFactor;
             
             for (int i=0;i<edgeCornerPairs.rows();i++)
-                rigidVec.segment(4*i,4)=(currX.segment(4*EdgeCornerPairs(i,1),4)-currX.segment(4*edgeCornerPairs(i,0),4));
+                rigidVec.segment(4*i,4)=(currX.segment(4*edgeCornerPairs(i,1),4)-currX.segment(4*edgeCornerPairs(i,0),4));
 
             
             rigidVec.array()*=smoothFactor*rigidRatio;
@@ -313,7 +313,7 @@ namespace hedra { namespace optimization {
                 RowVector4d qj=VOrigq.row(edgeCornerVertices(i,1));
                 RowVector3d wi=currLocations.segment(3*edgeCornerVertices(i,0),3).transpose();
                 RowVector3d wj=currLocations.segment(3*edgeCornerVertices(i,1),3).transpose();
-                RowVector4d currEdgeVector=QMult1(QMult1(QConj1(Xi),qj-qi),Xj);
+                RowVector4d currEdgeVector=QMult(QMult(QConj(Xi),qj-qi),Xj);
                 currEdgeVector.tail(3)-=(wj-wi);
                 compVec.segment(4*i,4)<<currEdgeVector.transpose();
             }
@@ -333,8 +333,8 @@ namespace hedra { namespace optimization {
         
         void update_jacobian(const Eigen::VectorXd& x){
             using namespace Eigen;
-            currX<<currSolution.head(4*numCorners);
-            currLocations<<currSolution.tail(3*VOrigq.rows());
+            currX<<x.head(4*numCorners);
+            currLocations<<x.tail(3*VOrigq.rows());
             
             /*******************************AMAP Energy********************************************/
             for (int i=0;i<cornerPairs.rows();i++){
@@ -359,10 +359,10 @@ namespace hedra { namespace optimization {
             Vector4i XiTriPoses; XiTriPoses<<0,8,18,28;
             Vector4i XjTriPoses; XjTriPoses<<4,12,22,32;
             for (int i=0;i<edgeCornerPairs.rows();i++){
-                RowVector4d Xi=CurrX.segment(4*edgeCornerPairs(i,0),4).transpose();
-                RowVector4d Xj=CurrX.segment(4*edgeCornerPairs(i,1),4).transpose();
-                RowVector4d rightPart=QMult1(VOrigq.row(edgeCornerVertices(i,1))-VOrigq.row(edgeCornerVertices(i,0)),Xj);
-                RowVector4d leftPart=QMult1(QConj1(Xi),VOrigq.row(edgeCornerVertices(i,1))-VOrigq.row(edgeCornerVertices(i,0)));
+                RowVector4d Xi=currX.segment(4*edgeCornerPairs(i,0),4).transpose();
+                RowVector4d Xj=currX.segment(4*edgeCornerPairs(i,1),4).transpose();
+                RowVector4d rightPart=QMult(VOrigq.row(edgeCornerVertices(i,1))-VOrigq.row(edgeCornerVertices(i,0)),Xj);
+                RowVector4d leftPart=QMult(QConj(Xi),VOrigq.row(edgeCornerVertices(i,1))-VOrigq.row(edgeCornerVertices(i,0)));
                 
       
                 //derivative of Xi
@@ -406,11 +406,12 @@ namespace hedra { namespace optimization {
         
         bool post_optimization(const Eigen::VectorXd& x){
             
-            fullSolution.conservativeResize(OrigVq.rows(),3);
-            for (int i=0;i<DeformVq.rows();i++)
-                fullSolution.row(i)=x.segment(4*NumCorners+3*i,3);
+            fullSolution.conservativeResize(VOrigq.rows(),3);
+            for (int i=0;i<VOrigq.rows();i++)
+                fullSolution.row(i)=x.segment(4*numCorners+3*i,3);
             
-            prevSolution=fullSolution;
+            prevSolution=x;
+            //smoothFactor*=0.5;
             
             return true;  //this traits doesn't have any more stop requirements
         }
@@ -422,7 +423,7 @@ namespace hedra { namespace optimization {
         
         
     };
-}
+} }
 
 
 

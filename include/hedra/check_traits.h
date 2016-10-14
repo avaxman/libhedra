@@ -18,15 +18,15 @@ namespace hedra {
     {
         //This function checks the Jacobian of a traits class that is put for optimization by approximate finite differences, and reports the difference. It is important to use after coding, but it is not for the actual optimization process, since it is really brute-force and slow.
         template<class SolverTraits>
-        void check_traits(SolverTraits& Traits, int SolutionSize){
+        void check_traits(SolverTraits& Traits){
             using namespace Eigen;
             using namespace std;
             cout<<"WARNING: FE gradient checking, reducing performance!!!"<<endl;
             cout<<"******************************************************"<<endl;
-            VectorXd CurrSolution(SolutionSize);
-            CurrSolution<<VectorXd::Random(SolutionSize, 1);
+            VectorXd CurrSolution(Traits.xSize);
+            CurrSolution<<VectorXd::Random(Traits.xSize, 1);
             
-            cout<<"Solution Size: "<<SolutionSize<<endl;
+            cout<<"Solution Size: "<<Traits.xSize<<endl;
             
             Traits.update_energy(CurrSolution);
             Traits.update_jacobian(CurrSolution);

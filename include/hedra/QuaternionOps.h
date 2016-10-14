@@ -71,15 +71,15 @@ inline Eigen::MatrixXd QExp(const Eigen::MatrixXd& q)
     return expq;
 }
 
-inline void Quat2Coords(const MatrixXd& QV, MatrixXd& V)
+inline void Quat2Coords(const Eigen::MatrixXd& QV, Eigen::MatrixXd& V)
 {
-    V.resize(QV.rows(), 3);
+    V.conservativeResize(QV.rows(), 3);
     V=QV.block(0,1,QV.rows(),QV.cols()-1);
 }
 
-inline void Coords2Quat(const MatrixXd& V, MatrixXd& QV)
+inline void Coords2Quat(const Eigen::MatrixXd& V, Eigen::MatrixXd& QV)
 {
-    QV.resize(V.rows(),4); QV.setZero();
+    QV.conservativeResize(V.rows(),4); QV.setZero();
     QV.block(0,1,QV.rows(),QV.cols()-1)=V;
 }
 
