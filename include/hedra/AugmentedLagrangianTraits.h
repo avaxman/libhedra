@@ -39,6 +39,9 @@ namespace hedra { namespace optimization {
             int maxBigIterations;            //max iterations of lambda correction + GN solve.
             int currBigIteration;            //current big iteration
             
+            double prevError;
+            double currError;
+            
             void init(ConstraintTraits* _CT, int _maxBigIterations=10, double constTolerance=10e-6){
                 
                 CT=_CT;
@@ -62,7 +65,9 @@ namespace hedra { namespace optimization {
                 CT->initial_solution(x0);
                 currBigIteration=0;
                 CT->update_constraints(x0);
+                miu=0.1;
                 lambda=-CT->CVec/miu;
+                prevError=currError=CT->CVec.template lpNorm<Eigen::Infinity>();
    
             }
             
@@ -93,8 +98,9 @@ namespace hedra { namespace optimization {
             bool post_optimization(const Eigen::VectorXd& x){
                 //updating the lagrangian function
                 currBigIteration++;
+                
                 CT->update_constraints(x);
-                miu*=0.9;
+                //miu*=0.9;
                 lambda=lambda-CT->CVec/miu;
                 //std::cout<<"lambda: "<<lambda<<std::endl;
                 std::cout<<"Final Energy: "<<CT->EVec.template squaredNorm()<<std::endl<<std::endl<<std::endl;
@@ -103,8 +109,19 @@ namespace hedra { namespace optimization {
                 bool isCTStop=CT->post_optimization(x);
                 if ((CT->CVec.template lpNorm<Eigen::Infinity>()<constTolerance)||(currBigIteration>=maxBigIterations))
                     return isCTStop;  //Only stopping if the ConstraintTraits wants to stop
-                else
+                else{
+                    //updating miu
+                    currError=CT->CVec.template lpNorm<Eigen::Infinity>();
+                    double reduceRate=currError/prevError;
+                    std::cout<<"reduceRate: "<<reduceRate<<std::endl;
+                    double miuMult=1.5-reduceRate;
+                    miuMult=(miuMult > 1.0 ? 1.0 : miuMult);
+                    miuMult=(miuMult < 0.5 ? 0.5 : miuMult);
+                    miu*=miuMult;
+                    std::cout<<"miu: "<<miu<<std::endl;
+                    prevError=currError;
                     return false;  ///do another optimization process, since we have not reached the constraints
+                }
                 
                 
 
