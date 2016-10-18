@@ -312,25 +312,20 @@ namespace hedra {
                             x=tryx;
                             if (verbose){
                                 //cout<<"Energy: "<<currE<<endl;
-                                //cout<<"1.0-(beta-1.0)*pow(2.0*rho-1.0,3): "<<1.0-(beta-1.0)*pow(2.0*rho-1.0,3)<<endl;
+                                cout<<"1.0-(beta-1.0)*pow(2.0*rho-1.0,3): "<<1.0-(beta-1.0)*pow(2.0*rho-1.0,3)<<endl;
                             }
                             miu*=(1.0/gamma > 1.0-(beta-1.0)*pow(2.0*rho-1.0,3) ? 1.0/gamma : 1.0-(beta-1.0)*pow(2.0*rho-1.0,3));
                             nu=beta;
-                            //if (verbose)
-                                //cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
+                            if (verbose)
+                                cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
                         } else {
                             x=prevx;
                             miu = miu*nu;
                             nu=2*nu;
-                            //if (verbose)
-                                //cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
+                            if (verbose)
+                                cout<<"rho, miu, nu: "<<rho<<","<<miu<<","<<nu<<endl;
                         }
-                        
-                        /*if (currIter%10){
-                            miu=initmiu;
-                            nu=beta;
-                        }*/
-                        
+                                               
                         //The SolverTraits can order the optimization to stop by giving "true" of to continue by giving "false"
                         if (ST->post_iteration(x)){
                             if (verbose)

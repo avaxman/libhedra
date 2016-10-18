@@ -181,7 +181,7 @@ namespace hedra {
                         prevEnergy<<ST->EVec;
                         prevError=prevEnergy.squaredNorm();
                         double h=1.0;
-                        double t=10e-4*direction.dot(rhs);
+                        double t=0.0; //10e-4*direction.dot(rhs);
                         do{
                             x<<prevx+h*direction;
                             ST->update_energy(x);
