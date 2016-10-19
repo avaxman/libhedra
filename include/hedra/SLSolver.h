@@ -153,9 +153,9 @@ namespace hedra {
 
                 ST->update_jacobian(prevx);
                 do{
-                    ST->pre_iteration(prevx);
                     ST->update_energy(prevx);
                     ST->update_jacobian(prevx);
+                    ST->pre_iteration(prevx);
                     MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
                     MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                     
@@ -168,6 +168,8 @@ namespace hedra {
                         
                     LS->solve(rhs,direction);
                     x=prevx+direction;
+                    ST->update_energy(x);
+                    ST->update_jacobian(x);
                     ST->post_iteration(x);
                     prevx=x;
                 }while (!ST->post_optimization(x));

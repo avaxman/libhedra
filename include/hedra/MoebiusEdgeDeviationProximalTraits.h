@@ -30,10 +30,10 @@ namespace hedra { namespace optimization {
         Eigen::VectorXd EVec;          //energy vector
         int xSize;                  //size of the solution
         
-        Eigen::VectorXi fullJRows, fullJCols;
+        /*Eigen::VectorXi fullJRows, fullJCols;
         Eigen::VectorXd fullJVals;
         Eigen::VectorXi a2x;            //from the entire set of variables "a" to the free variables in the optimization "x".
-        Eigen::VectorXi colMap;         //raw map of a2x into the columns from fullJ*Cols into J*Cols
+        Eigen::VectorXi colMap;         //raw map of a2x into the columns from fullJ*Cols into J*Cols*/
         
         Eigen::MatrixXd VOrigq;
         Eigen::MatrixXi D, F, EV;
@@ -51,6 +51,7 @@ namespace hedra { namespace optimization {
         double rigidRatio;
         double posFactor;
         double closeFactor;
+        double prevPosError;
         int bigIter;
         
         Eigen::RowVector4d unitQuat;
@@ -61,7 +62,7 @@ namespace hedra { namespace optimization {
         Eigen::VectorXd currLocations;
         Eigen::VectorXd AMAPVec;
         Eigen::VectorXd rigidVec;
-        //Eigen::VectorXd posVec;
+        Eigen::VectorXd posVec;
         Eigen::VectorXd closeVec;
         
         int AMAPTriOffset, AMAPRowOffset;
@@ -84,8 +85,7 @@ namespace hedra { namespace optimization {
             F=_F; D=_D;
             constIndices=_constIndices;
             constPoses.conservativeResize(constIndices.size(),3);
-            bigIter=0;
-            
+     
             //enriching list of edges with diagonals
             std::vector<std::pair<int,int> > EVList;
             for (int i=0;i<F.rows();i++)
@@ -100,26 +100,24 @@ namespace hedra { namespace optimization {
             for (int i=0;i<EVList.size();i++)
                 EV.row(_EV.rows()+i)<<EVList[i].first, EVList[i].second;
             
-            unitQuat<<1.0,0.0,0.0,0.0;
-            closeFactor=100;
-            
-            xSize=4*VOrigq.rows()+3*(VOrigq.rows()-constIndices.size());
+            unitQuat<<1.0,0.0,0.0,0.0;            
+            xSize=4*VOrigq.rows()+3*(VOrigq.rows());//-constIndices.size());
             currY.resize(4*VOrigq.rows());
             prevY.resize(4*VOrigq.rows());
             currLocations.resize(3*VOrigq.rows());
             
             AMAPVec.resize(4*EV.rows());
             rigidVec.resize(4*EV.rows());
-            //posVec.resize(3*constIndices.rows());
+            posVec.resize(3*constIndices.rows());
             closeVec.resize(4*VOrigq.rows());
             
-            EVec.resize(AMAPVec.size()+rigidVec.size()+closeVec.size());//+/*posVec.size()+closeVec.size()*/);
+            EVec.resize(AMAPVec.size()+rigidVec.size()+posVec.size()+closeVec.size());
             
             //Constructing Gradient Pattern
             
-            fullJRows.resize(38*EV.rows()+2*4*EV.rows()+4*VOrigq.rows());//+3*VOrigq.rows()+xSize);
-            fullJCols.resize(fullJRows.size());
-            fullJVals.resize(fullJRows.size());
+            JRows.resize(38*EV.rows()+2*4*EV.rows()+3*constIndices.size()+4*VOrigq.rows());
+            JCols.resize(JRows.size());
+            JVals.resize(JRows.size());
             
 
             /*******************************AMAP Energy********************************************/
@@ -134,20 +132,20 @@ namespace hedra { namespace optimization {
                 int currRowOffset=4*i;
                 double pairLength=(VOrigq.row(EV(i,1))-VOrigq.row(EV(i,0))).norm();
                 //derivative of Xi
-                quatDerivativeIndices(fullJRows, fullJCols, AMAPTriCounter, YiTriPoses, AMAPRowOffset+currRowOffset, coli);
+                quatDerivativeIndices(JRows, JCols, AMAPTriCounter, YiTriPoses, AMAPRowOffset+currRowOffset, coli);
                 
                 //Derivative of Xj
-                quatDerivativeIndices(fullJRows, fullJCols, AMAPTriCounter, YjTriPoses,AMAPRowOffset+currRowOffset, colj);
+                quatDerivativeIndices(JRows, JCols, AMAPTriCounter, YjTriPoses,AMAPRowOffset+currRowOffset, colj);
                 
                 for (int k=0;k<3;k++){
                     //wj derivative
-                    fullJRows(AMAPTriCounter+16+10*k)=AMAPRowOffset+currRowOffset+1+k;
-                    fullJCols(AMAPTriCounter+16+10*k)=4*VOrigq.rows()+3*EV(i,1)+k;
+                    JRows(AMAPTriCounter+16+10*k)=AMAPRowOffset+currRowOffset+1+k;
+                    JCols(AMAPTriCounter+16+10*k)=4*VOrigq.rows()+3*EV(i,1)+k;
                     //JVals(AMAPTriCounter+16+10*k)=-1.0;///pairLength;
                     
                     //wi derivative
-                    fullJRows(AMAPTriCounter+17+10*k)=AMAPRowOffset+currRowOffset+1+k;
-                    fullJCols(AMAPTriCounter+17+10*k)=4*VOrigq.rows()+3*EV(i,0)+k;
+                    JRows(AMAPTriCounter+17+10*k)=AMAPRowOffset+currRowOffset+1+k;
+                    JCols(AMAPTriCounter+17+10*k)=4*VOrigq.rows()+3*EV(i,0)+k;
                     //JVals(AMAPTriCounter+17+10*k)=1.0;///pairLength;
                 }
                 
@@ -160,15 +158,15 @@ namespace hedra { namespace optimization {
             rigidRowOffset=AMAPRowOffset+4*EV.rows();
             for (int i=0;i<EV.rows();i++){
                 for (int j=0;j<4;j++){
-                    fullJRows(rigidTriOffset+2*(4*i+j))=rigidRowOffset+4*i+j;
-                    fullJCols(rigidTriOffset+2*(4*i+j))=4*EV(i,0)+j;
-                    fullJRows(rigidTriOffset+2*(4*i+j)+1)=rigidRowOffset+4*i+j;
-                    fullJCols(rigidTriOffset+2*(4*i+j)+1)=4*EV(i,1)+j;
+                    JRows(rigidTriOffset+2*(4*i+j))=rigidRowOffset+4*i+j;
+                    JCols(rigidTriOffset+2*(4*i+j))=4*EV(i,0)+j;
+                    JRows(rigidTriOffset+2*(4*i+j)+1)=rigidRowOffset+4*i+j;
+                    JCols(rigidTriOffset+2*(4*i+j)+1)=4*EV(i,1)+j;
                 }
             }
             
             /****************************positional soft constraints*******************************/
-            /*posTriOffset=rigidTriOffset+4*2*EV.rows();
+            posTriOffset=rigidTriOffset+4*2*EV.rows();
             posRowOffset=rigidRowOffset+4*EV.rows();
              
             for (int i=0;i<constIndices.size();i++){
@@ -176,20 +174,20 @@ namespace hedra { namespace optimization {
                     JRows(posTriOffset+3*i+k)=posRowOffset+3*i+k;
                     JCols(posTriOffset+3*i+k)=4*VOrigq.rows()+3*constIndices(i)+k;
                 }
-             }*/
+             }
             
             /******************************closeness to previous solution***************************/
-            closeTriOffset=rigidTriOffset+4*2*EV.rows();
-            closeRowOffset=rigidRowOffset+4*EV.rows();
+            closeTriOffset=posTriOffset+3*constIndices.size();
+            closeRowOffset=posRowOffset+3*constIndices.size();
             
             for (int i=0;i<4*VOrigq.rows();i++){
-                fullJRows(closeTriOffset+i)=closeRowOffset+i;
-                fullJCols(closeTriOffset+i)=i;
-                fullJVals(closeTriOffset+i)=closeFactor;
+                JRows(closeTriOffset+i)=closeRowOffset+i;
+                JCols(closeTriOffset+i)=i;
+                //fullJVals(closeTriOffset+i)=closeFactor;
             }
             
         
-            a2x=Eigen::VectorXi::Zero(VOrigq.rows());
+            /*a2x=Eigen::VectorXi::Zero(VOrigq.rows());
             int CurrIndex=0;
             for (int i=0;i<constIndices.size();i++)
                 a2x(constIndices(i))=-1;
@@ -225,7 +223,7 @@ namespace hedra { namespace optimization {
                     JCols(actualGradCounter)=colMap(fullJCols(i));
                     JVals(actualGradCounter++)=fullJVals(i);
                 }
-            }
+            }*/
             
             //recalibrating prevSolution
             prevSolution.conservativeResize(xSize);
@@ -238,7 +236,7 @@ namespace hedra { namespace optimization {
                 }
                 fullSolution=_VOrig;
                 //std::cout<<"Initialization without constraints: "<<std::endl;
-            } else {
+            } /*else {
                 //the corner variables stay the same
                 
                 for (int i=0;i<a2x.size();i++){
@@ -247,7 +245,7 @@ namespace hedra { namespace optimization {
                 }
                 //std::cout<<"prevSolution: "<<prevSolution<<std::endl;
                 //std::cout<<"Initialization with constraints:"<<std::endl;
-            }
+            }*/
             
         }
         
@@ -255,13 +253,13 @@ namespace hedra { namespace optimization {
             using namespace Eigen;
             currY<<x.head(4*VOrigq.rows());
             prevY<<prevSolution.head(4*VOrigq.rows());
-            //currLocations<<x.tail(3*VOrigq.rows());
-            for (int i=0;i<a2x.size();i++)
+            currLocations<<x.tail(3*VOrigq.rows());
+            /*for (int i=0;i<a2x.size();i++)
                 if (a2x(i)!=-1)
                     currLocations.segment(3*i,3)<<x.segment(4*VOrigq.rows()+3*a2x(i),3);
             
             for (int i=0;i<constIndices.size();i++)
-                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();
+                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();*/
             
             for (int i=0;i<EV.rows();i++){
                 RowVector4d Yi=prevY.segment(4*EV(i,0),4).transpose();
@@ -276,22 +274,23 @@ namespace hedra { namespace optimization {
                 AMAPVec.segment(4*i,4)<<currEdgeVector.transpose();
             }
 
-            AMAPVec.array()*=smoothFactor;
+            //AMAPVec.array()*=smoothFactor;
             //std::cout<<"AMAP.maxCoeffs(): "<<AMAPVec.lpNorm<Infinity>()<<std::endl;
             
             for (int i=0;i<EV.rows();i++)
                 rigidVec.segment(4*i,4)=(currY.segment(4*EV(i,1),4)-currY.segment(4*EV(i,0),4));
             
             
-            rigidVec.array()*=smoothFactor*rigidRatio;
+            //rigidVec.array()*=smoothFactor*rigidRatio;
             //std::cout<<"rigidVec.maxCoeff(): "<<rigidVec.lpNorm<Infinity>()<<std::endl;
             
-            //for (int i=0;i<constIndices.size();i++)
-            //    posVec.segment(3*i,3)<<posFactor*(currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose());
+            //
+            for (int i=0;i<constIndices.size();i++)
+               posVec.segment(3*i,3)<<currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose();
             
-            closeVec<<closeFactor*(currY-prevY);
+            closeVec<<(currY-prevY);
             
-            EVec<<AMAPVec, rigidVec, closeVec;//, posVec, closeVec;
+            EVec<<smoothFactor*AMAPVec, smoothFactor*rigidRatio*rigidVec, posFactor*posVec, closeFactor*closeVec;
             
         }
         
@@ -300,13 +299,13 @@ namespace hedra { namespace optimization {
             using namespace Eigen;
             currY<<x.head(4*VOrigq.rows());
             prevY<<prevSolution.head(4*VOrigq.rows());
-            //currLocations<<x.tail(3*VOrigq.rows());
-            for (int i=0;i<a2x.size();i++)
+            currLocations<<x.tail(3*VOrigq.rows());
+            /*for (int i=0;i<a2x.size();i++)
                 if (a2x(i)!=-1)
                     currLocations.segment(3*i,3)<<x.segment(4*VOrigq.rows()+3*a2x(i),3);
             
             for (int i=0;i<constIndices.size();i++)
-                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();
+                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();*/
             
             /****************************AMAP Energy*****************/
             int AMAPTriCounter=AMAPTriOffset;
@@ -323,14 +322,14 @@ namespace hedra { namespace optimization {
                 RowVector4d leftPart=smoothFactor*QMult(QConj(Yi),VOrigq.row(EV(i,1))-VOrigq.row(EV(i,0)));///pairLength;
                 
                 //derivative of Yi
-                quatDerivativeValues(fullJVals, AMAPTriCounter, YiTriPoses, unitQuat, rightPart, true, false);
+                quatDerivativeValues(JVals, AMAPTriCounter, YiTriPoses, unitQuat, rightPart, true, false);
                 
                 //Derivative of Yj
-                quatDerivativeValues(fullJVals, AMAPTriCounter, YjTriPoses, leftPart, unitQuat, false, false);
+                quatDerivativeValues(JVals, AMAPTriCounter, YjTriPoses, leftPart, unitQuat, false, false);
                 
                 for (int k=0;k<3;k++){
-                    fullJVals(AMAPTriCounter+16+10*k)=-smoothFactor;///pairLength;
-                    fullJVals(AMAPTriCounter+17+10*k)=smoothFactor;///pairLength;
+                    JVals(AMAPTriCounter+16+10*k)=-smoothFactor;///pairLength;
+                    JVals(AMAPTriCounter+17+10*k)=smoothFactor;///pairLength;
                 }
                 AMAPTriCounter+=38;
             }
@@ -340,24 +339,29 @@ namespace hedra { namespace optimization {
             /*******************************Rigidity Energy*****************************************/
             for (int i=0;i<EV.rows();i++){
                 for (int j=0;j<4;j++){
-                    fullJVals(rigidTriOffset+2*(4*i+j))=-smoothFactor*rigidRatio;
-                    fullJVals(rigidTriOffset+2*(4*i+j)+1)=smoothFactor*rigidRatio;
+                    JVals(rigidTriOffset+2*(4*i+j))=-smoothFactor*rigidRatio;
+                    JVals(rigidTriOffset+2*(4*i+j)+1)=smoothFactor*rigidRatio;
                 }
             }
             
-            int actualGradCounter=0;
+            /*int actualGradCounter=0;
             for (int i=0;i<fullJCols.size();i++)
                 if (colMap(fullJCols(i))!=-1)  //not a removed variable
-                    JVals(actualGradCounter++)=fullJVals(i);
+                    JVals(actualGradCounter++)=fullJVals(i);*/
             
             for (int i=0;i<JVals.size();i++)
                 if (isnan(JVals(i)))
                     std::cout<<"nan in JVals("<<i<<")"<<std::endl;
             
             /***************************Positional Constraints*******************/
-            /*for (int i=0;i<constIndices.size();i++)
+            for (int i=0;i<constIndices.size();i++)
                 for (int k=0;k<3;k++)
-                    JVals(posTriOffset+3*i+k)=posFactor;*/
+                    JVals(posTriOffset+3*i+k)=posFactor;
+            
+            /***************************Closeness Constraints*******************/
+            for (int i=0;i<4*VOrigq.rows();i++){
+                JVals(closeTriOffset+i)=closeFactor;
+            }
             
             
             
@@ -375,20 +379,38 @@ namespace hedra { namespace optimization {
             
             fullSolution.conservativeResize(VOrigq.rows(),3);
             
-            /*for (int i=0;i<VOrigq.rows();i++)
-                fullSolution.row(i)<<x.segment(4*VOrigq.rows()+3*i,3).transpose();*/
-            for (int i=0;i<a2x.size();i++)
+            for (int i=0;i<VOrigq.rows();i++)
+                fullSolution.row(i)<<x.segment(4*VOrigq.rows()+3*i,3).transpose();
+            /*for (int i=0;i<a2x.size();i++)
                 if (a2x(i)!=-1)
                     fullSolution.row(i)<<x.segment(4*VOrigq.rows()+3*a2x(i),3).transpose();
             
             for (int i=0;i<constIndices.size();i++)
-                fullSolution.row(constIndices(i))=constPoses.row(i);
+                fullSolution.row(constIndices(i))=constPoses.row(i);*/
+            
+            //if the smoothness inner iteration did not converge, let it
+            update_energy(prevSolution);
+            double prevError=EVec.lpNorm<Eigen::Infinity>();
+            update_energy(x);
+            double currError=EVec.lpNorm<Eigen::Infinity>();
+            //TODO: continue
+            
+            
+            
+            
+            
+            //updating the posFactor
+            update_energy(prevSolution);
+            double posPrevError=posVec.lpNorm<Eigen::Infinity>();
+            update_energy(x);
+            double currPosError=posVec.lpNorm<Eigen::Infinity>();
+            if (currPosError<)
+            
             
             prevSolution=x;
-            std::cout<<"bigIter: "<<bigIter<<std::endl;
+            //std::cout<<"bigIter: "<<bigIter<<std::endl;
             bigIter++;
-            //posFactor*=0.95;
-            return (bigIter>25);  //this traits doesn't have any more stop requirements
+            return (bigIter>100);  //this traits doesn't have any more stop requirements
         }
         
         MoebiusEdgeDeviationProximalTraits(){}
