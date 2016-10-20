@@ -55,8 +55,13 @@ namespace hedra { namespace optimization {
                 
                 miu=0.1;  //TODO: something more sophisticated
                 lambda.setOnes();
-                JRows<<CT->JERows, CT->JCRows.array()+CT->EVec.size();
-                JCols<<CT->JECols, CT->JCCols;
+                if (CT->JCRows.size()!=0){
+                    JRows<<CT->JERows, CT->JCRows.array()+CT->EVec.size();
+                    JCols<<CT->JECols, CT->JCCols;
+                } else {
+                    JRows<<CT->JERows;
+                    JCols<<CT->JECols;
+                }
                 
                 std::cout<<"Augmented EVec size: "<<EVec.size()<<std::endl;
             }
@@ -67,6 +72,7 @@ namespace hedra { namespace optimization {
                 CT->update_constraints(x0);
                 miu=0.1;
                 lambda=-CT->CVec/miu;
+                std::cout<<"initial lambda: "<<lambda<<std::endl;
                 prevError=currError=CT->CVec.template lpNorm<Eigen::Infinity>();
    
             }
@@ -86,13 +92,19 @@ namespace hedra { namespace optimization {
                 
                 CT->update_energy(x);
                 CT->update_constraints(x);
-                EVec<<CT->EVec, sqrt(miu/2.0)*(CT->CVec/miu-lambda);
+                if (CT->CVec.size()!=0)
+                    EVec<<CT->EVec, sqrt(miu/2.0)*(CT->CVec/miu-lambda);
+                else
+                    EVec<<CT->EVec;
             }
             
             void update_jacobian(const Eigen::VectorXd& x){
                 
                 CT->update_jacobian(x);
-                JVals<<CT->JEVals, sqrt(1.0/(2.0*miu))*CT->JCVals;
+                if (CT->JCVals.size()!=0)
+                    JVals<<CT->JEVals, sqrt(1.0/(2.0*miu))*CT->JCVals;
+                else
+                    JVals<<CT->JEVals;
             }
             
             bool post_optimization(const Eigen::VectorXd& x){
@@ -102,6 +114,7 @@ namespace hedra { namespace optimization {
                 CT->update_constraints(x);
                 //miu*=0.9;
                 lambda=lambda-CT->CVec/miu;
+                std::cout<<"change of lambda: "<<lambda<<std::endl;
                 //std::cout<<"lambda: "<<lambda<<std::endl;
                 std::cout<<"Final Energy: "<<CT->EVec.template squaredNorm()<<std::endl<<std::endl<<std::endl;
                 std::cout<<"Constraint Error: "<<CT->CVec.template lpNorm<Eigen::Infinity>()<<std::endl<<std::endl<<std::endl;

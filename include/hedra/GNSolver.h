@@ -163,7 +163,7 @@ namespace hedra {
                         ST->update_energy(prevx);
                         ST->update_jacobian(prevx);
                         if (verbose)
-                            cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
+                            cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template lpNorm<Infinity>()<<endl;
                         MatrixValues(HRows, HCols, ST->JVals, S2D, HVals);
                         MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                         
@@ -175,22 +175,25 @@ namespace hedra {
                         }
                         
                         LS->solve(rhs,direction);
+                        cout<<"direction max"<<direction.template lpNorm<Infinity>()<<endl;
                         
                         //doing a line search by decreasing by half until the energy goes down
                         //TODO: more effective line search
                         prevEnergy<<ST->EVec;
-                        prevError=prevEnergy.squaredNorm();
+                        prevError=prevEnergy.template lpNorm<Infinity>();
                         double h=1.0;
                         double t=0.0; //10e-4*direction.dot(rhs);
                         do{
                             x<<prevx+h*direction;
                             ST->update_energy(x);
                             currEnergy<<ST->EVec;
-                            currError=currEnergy.squaredNorm();
+                            currError=currEnergy.template lpNorm<Infinity>();
+                            cout<<"h="<<h<<endl;
                             if (prevError-currError>=h*t)
                                 break;
                             
                             h*=0.5;
+                            
                         }while (h>hTolerance);
                         
                         if (verbose){
