@@ -181,6 +181,7 @@ namespace hedra {
                         //TODO: more effective line search
                         prevEnergy<<ST->EVec;
                         prevError=prevEnergy.template lpNorm<Infinity>();
+                        cout<<"prevError: "<<prevError<<endl;
                         double h=1.0;
                         double t=0.0; //10e-4*direction.dot(rhs);
                         do{
@@ -188,8 +189,9 @@ namespace hedra {
                             ST->update_energy(x);
                             currEnergy<<ST->EVec;
                             currError=currEnergy.template lpNorm<Infinity>();
-                            cout<<"h="<<h<<endl;
-                            if (prevError-currError>=h*t)
+                            //cout<<"currError: "<<currError<<endl;
+                            //cout<<"h="<<h<<endl;
+                            if (prevError-currError>=0.0)//h*t)
                                 break;
                             
                             h*=0.5;
@@ -197,7 +199,7 @@ namespace hedra {
                         }while (h>hTolerance);
                         
                         if (verbose){
-                            cout<<"currError: "<<currError<<endl;
+                            //cout<<"currError: "<<currError<<endl;
                         }
                         
                         currIter++;
@@ -205,14 +207,14 @@ namespace hedra {
                         double firstOrderOptimality=rhs.lpNorm<Infinity>();
                         stop=(firstOrderOptimality<fooTolerance)&&(xDiff<xTolerance);
                         if (verbose){
-                            cout<<"xDiff: "<<xDiff<<endl;
-                            cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
-                            cout<<"stop: "<<stop<<endl;
+                            //cout<<"xDiff: "<<xDiff<<endl;
+                            //cout<<"firstOrderOptimality: "<<firstOrderOptimality<<endl;
+                            //cout<<"stop: "<<stop<<endl;
                         }
                         prevx<<x;
                         //The SolverTraits can order the optimization to stop by giving "true" of to continue by giving "false"
                         bool stopFromTraits=ST->post_iteration(x);
-                        stop = stop || stopFromTraits;
+                        stop = /*stop ||*/ stopFromTraits;
                         if (stopFromTraits)
                             cout<<"ST->Post_iteration() gave a stop"<<endl;
                     }while ((currIter<=maxIterations)&&(!stop));

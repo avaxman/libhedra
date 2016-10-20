@@ -364,6 +364,10 @@ namespace hedra { namespace optimization {
             closeVec<<x-initSolution;
             
             update_constraints(x);
+            
+            //std::cout<<"AMAPVec: "<<smoothFactor*AMAPVec.lpNorm<Infinity>()<<std::endl;
+            //std::cout<<"rigidVec: "<<smoothFactor*rigidRatio*rigidVec.lpNorm<Infinity>()<<std::endl;
+            //std::cout<<"closeVec: "<<closeFactor*closeVec.lpNorm<Infinity>()<<std::endl;
 
             EVec<<smoothFactor*AMAPVec, smoothFactor*rigidRatio*rigidVec, closeFactor*closeVec, constVec;
 
@@ -401,13 +405,18 @@ namespace hedra { namespace optimization {
             if (!isExactMC){
                 if (posVec.size()!=0)
                     constVec<<compVec, posFactor*posVec;
-                else
+                else{
+                    //std::cout<<"should be here!"<<std::endl;
                     constVec<<compVec;
+                }
             } else {
                 for (int i=0;i<cornerPairs.rows();i++)
                     MCVec(i)=currX.segment(4*cornerPairs(i,1),4).squaredNorm()-currX.segment(4*cornerPairs(i,0),4).squaredNorm();
                 constVec<<compVec, posFactor*posVec, MCVec;
             }
+            
+            //std::cout<<"compVec: "<<compVec.lpNorm<Infinity>()<<std::endl;
+            //std::cout<<"posVec: "<<posFactor*posVec.lpNorm<Infinity>()<<std::endl;
         }
         
         void update_jacobian(const Eigen::VectorXd& x){
@@ -512,9 +521,9 @@ namespace hedra { namespace optimization {
             initSolution=prevx;
             update_constraints(prevx);
             prevError=constVec.lpNorm<Eigen::Infinity>();
-            std::cout<<"prevError: "<<prevError<<std::endl;
-            std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
-            std::cout<<"posFactor: "<<posFactor<<std::endl;
+            //std::cout<<"prevError: "<<prevError<<std::endl;
+            //std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
+            //std::cout<<"posFactor: "<<posFactor<<std::endl;
         }
         bool post_iteration(const Eigen::VectorXd& x){
             //when error is halved, the smoothness is reduced by slowest, and when error change is zero, smoothness is halved.
@@ -525,10 +534,10 @@ namespace hedra { namespace optimization {
             posFactor*=0.95;//-0.45*(1.0-reduceRate);
             smoothFactor*=0.9;//-0.7*(1.0-reduceRate);
             
-            std::cout<<"reduceRate: "<<reduceRate<<std::endl;
+            //std::cout<<"reduceRate: "<<reduceRate<<std::endl;
             std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
             std::cout<<"posFactor: "<<posFactor<<std::endl;
-            std::cout<<"constVec.lpNorm<Eigen::Infinity>(): "<<constVec.lpNorm<Eigen::Infinity>()<<std::endl;
+            //std::cout<<"constVec.lpNorm<Eigen::Infinity>(): "<<constVec.lpNorm<Eigen::Infinity>()<<std::endl;
             
             return (constVec.lpNorm<Eigen::Infinity>()<constTolerance);
         }
