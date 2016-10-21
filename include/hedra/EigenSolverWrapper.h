@@ -98,7 +98,7 @@ namespace hedra {
             ls.analyze_pattern(I,J);
             ls.factorize();
             VectorXd x;
-            ps.solve(b,x);
+            ls.solve(b,x);
             return x;
         }
       
