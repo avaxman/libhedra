@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 #include <cstdio>
+#include <set>
+
 
 namespace hedra {
     namespace optimization
@@ -37,7 +39,7 @@ namespace hedra {
                     triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), 1.0));  //it's just a pattern
                 A.setFromTriplets(triplets.begin(), triplets.end());
                 solver.analyzePattern(A);
-                return true;
+                return (solver.info()==Eigen::Success);
             }
             
             bool factorize(const Eigen::VectorXd& values){
@@ -45,10 +47,8 @@ namespace hedra {
                 for (int i=0;i<rows.size();i++)
                     triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), values(i)));
                 A.setFromTriplets(triplets.begin(), triplets.end());
-                if (!solver.factorize(A))
-                    std::cout<<"Warning, factorization did not succeed!!!"<<std::endl;
-                return true;  //TODO: to check if factorization went ok.
-                
+                solver.factorize(A);
+                return (solver.info()==Eigen::Success);
             }
             
             bool solve(const Eigen::MatrixXd& rhs,
