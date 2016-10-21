@@ -45,13 +45,14 @@ namespace hedra {
                 for (int i=0;i<rows.size();i++)
                     triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), values(i)));
                 A.setFromTriplets(triplets.begin(), triplets.end());
-                solver.factorize(A);
+                if (!solver.factorize(A))
+                    std::cout<<"Warning, factorization did not succeed!!!"<<std::endl;
                 return true;  //TODO: to check if factorization went ok.
                 
             }
             
             bool solve(const Eigen::MatrixXd& rhs,
-                       Eigen::VectorXd& x){
+                       Eigen::MatrixXd& x){
                 
                 x = solver.solve(rhs);
                 return true;
@@ -60,7 +61,7 @@ namespace hedra {
         
         //a simple SPD linear solution solver
         template<class EigenSparseSolver>
-        Eigen::VectorXd EigenSingleSolveWrapper(Eigen::SparseMatrix<double> A,Eigen::VectorXd b)
+        Eigen::MatrixXd EigenSingleSolveWrapper(const Eigen::SparseMatrix<double> A,Eigen::MatrixXd b)
         {
             using namespace Eigen;
             VectorXi I;
@@ -95,9 +96,9 @@ namespace hedra {
                 }
             
             EigenSolverWrapper<EigenSparseSolver> ls;
-            ls.analyze_pattern(I,J);
-            ls.factorize();
-            VectorXd x;
+            ls.analyze(I,J);
+            ls.factorize(S);
+            MatrixXd x;
             ls.solve(b,x);
             return x;
         }
