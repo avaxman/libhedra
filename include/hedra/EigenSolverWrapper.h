@@ -58,6 +58,50 @@ namespace hedra {
             }
         };
         
+        //a simple SPD linear solution solver
+        template<class EigenSparseSolver>
+        Eigen::VectorXd EigenSingleSolveWrapper(Eigen::SparseMatrix<double> A,Eigen::VectorXd b)
+        {
+            using namespace Eigen;
+            VectorXi I;
+            VectorXi J;
+            VectorXd S;
+            int Counter=0;
+            
+            for (int k=0; k<A.outerSize(); ++k)
+                for (SparseMatrix<double>::InnerIterator it(A,k); it; ++it)
+                {
+                    if (it.row()>it.col())
+                        continue;
+                    
+                    Counter++;
+                }
+            
+            int NumNonZero=Counter;
+            I.resize(NumNonZero);
+            J.resize(NumNonZero);
+            S.resize(NumNonZero);
+            Counter=0;
+            for (int k=0; k<A.outerSize(); ++k)
+                for (SparseMatrix<double>::InnerIterator it(A,k); it; ++it)
+                {
+                    if (it.row()>it.col())
+                        continue;
+                    
+                    S(Counter)=it.value();
+                    I(Counter)=it.row();   // row index
+                    J(Counter++)=it.col();   // col index (here it is equal to k
+                    
+                }
+            
+            EigenSolverWrapper<EigenSparseSolver> ls;
+            ls.analyze_pattern(I,J);
+            ls.factorize();
+            VectorXd x;
+            ps.solve(b,x);
+            return x;
+        }
+      
     }
 }
 
