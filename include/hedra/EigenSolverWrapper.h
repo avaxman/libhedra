@@ -112,8 +112,8 @@ namespace hedra {
                 }
             
             EigenSolverWrapper<EigenSparseSolver> ls;
-            ls.analyze(I,J);
-            ls.factorize(S);
+            ls.analyze(I,J, false);
+            ls.factorize(S, false);
             MatrixXd x;
             ls.solve(b,x);
             return x;

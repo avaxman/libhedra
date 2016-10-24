@@ -219,7 +219,7 @@ namespace hedra {
                 MatrixPattern(ST->JRows, ST->JCols,HRows,HCols,S2D);
                 HVals.resize(HRows.size());
                 
-                LS->analyze(HRows,HCols);
+                LS->analyze(HRows,HCols, true);
                 
                 d.resize(ST->xSize);
                 x.resize(ST->xSize);
@@ -286,7 +286,7 @@ namespace hedra {
                         }
                         
                         //solving to get the GN direction
-                        if(!LS->factorize(HVals)) {
+                        if(!LS->factorize(HVals, true)) {
                             // decomposition failed
                             cout<<"Solver Failed to factorize! "<<endl;
                             return false;
