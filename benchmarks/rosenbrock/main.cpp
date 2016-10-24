@@ -9,7 +9,7 @@
 
 typedef hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > LinearSolver;
 
-#define VALLEY_COEFF 5.0
+#define VALLEY_COEFF 20.0
 
 class RosenbrockTraits{
 public:
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     
     slTraits.init();
     lmSolver.init(&lSolver, &slTraits, 1000);
-    hedra::optimization::check_traits(slTraits, slTraits.xSize);
+    hedra::optimization::check_traits(slTraits);
     lmSolver.solve(true);
     
     return 0;

@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     slTraits.init();
     ctTraits.init(&slTraits, 100);
     lmSolver.init(&lSolver, &ctTraits, 1000);
-    hedra::optimization::check_traits(ctTraits, ctTraits.xSize);
+    hedra::optimization::check_traits(ctTraits);
     //exit(0);
     lmSolver.solve(true);
     
