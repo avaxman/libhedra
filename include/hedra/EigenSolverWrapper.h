@@ -20,6 +20,7 @@ namespace hedra {
     namespace optimization
     {
         //a templated wrapper to all sparse solvers by Eigen. Not doing much and not entirely efficient since the matrix has to be initialized twice, but not too bad.
+        //
         
         //TODO: perhaps better to invalidate the analysis stage and do it all in the factorization.
         template<class EigenSparseSolver>
@@ -29,23 +30,35 @@ namespace hedra {
             Eigen::SparseMatrix<double> A;
             Eigen::VectorXi rows, cols;
             
+            //if Symmetric = true that means that (_rows, _cols) only contain the bottom left as input, and the matrix will be symmetrized.
             bool analyze(const Eigen::VectorXi& _rows,
-                         const Eigen::VectorXi& _cols){
+                         const Eigen::VectorXi& _cols,
+                         const bool Symmetric){
                 rows=_rows;
                 cols=_cols;
                 A.resize(rows.maxCoeff()+1, cols.maxCoeff()+1);
                 std::vector<Eigen::Triplet<double> > triplets;
-                for (int i=0;i<rows.size();i++)
+                for (int i=0;i<rows.size();i++){
                     triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), 1.0));  //it's just a pattern
+                    if ((Symmetric)&&(rows(i)!=cols(i)))
+                        triplets.push_back(Eigen::Triplet<double> (cols(i), rows(i), 1.0));
+                }
+                A.setZero();
                 A.setFromTriplets(triplets.begin(), triplets.end());
                 solver.analyzePattern(A);
                 return (solver.info()==Eigen::Success);
             }
             
-            bool factorize(const Eigen::VectorXd& values){
+            bool factorize(const Eigen::VectorXd& values,
+                           const bool Symmetric){
                 std::vector<Eigen::Triplet<double> > triplets;
-                for (int i=0;i<rows.size();i++)
+                for (int i=0;i<rows.size();i++){
                     triplets.push_back(Eigen::Triplet<double> (rows(i), cols(i), values(i)));
+                    if ((Symmetric)&&(rows(i)!=cols(i)))
+                        triplets.push_back(Eigen::Triplet<double> (cols(i), rows(i), values(i)));
+                        
+                }
+                A.setZero();
                 A.setFromTriplets(triplets.begin(), triplets.end());
                 solver.factorize(A);
                 return (solver.info()==Eigen::Success);
@@ -54,7 +67,10 @@ namespace hedra {
             bool solve(const Eigen::MatrixXd& rhs,
                        Eigen::MatrixXd& x){
                 
-                x = solver.solve(rhs);
+                 //cout<<"Rhs: "<<rhs<<endl;
+                x.conservativeResize(A.cols(), rhs.cols());
+                for (int i=0;i<rhs.cols();i++)
+                    x.col(i) = solver.solve(rhs.col(i));
                 return true;
             }
         };
