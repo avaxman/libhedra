@@ -292,7 +292,10 @@ namespace hedra {
                             return false;
                         }
                         
-                        LS->solve(rhs,direction);
+                        MatrixXd mRhs=rhs;
+                        MatrixXd mDirection;
+                        LS->solve(mRhs,mDirection);
+                        direction=mDirection.col(0);
                         if (verbose)
                             cout<<"direction magnitude: "<<direction.norm()<<endl;
                         if (direction.norm() < xTolerance * prevx.norm()){

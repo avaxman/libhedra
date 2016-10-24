@@ -1479,3 +1479,8 @@ examples/moebius/build/libigl/glfw/src/glfw3Config.cmake
 examples/moebius/build/libigl/glfw/src/glfw3ConfigVersion.cmake
 examples/moebius/build/libigl/glfw/src/glfw_config.h
 examples/moebius/build/libigl/glfw/src/libglfw3.a
+examples/levenberg-marquadt/build/libigl/glfw/CMakeFiles/Export/lib/cmake/glfw3/glfw3Targets-release.cmake
+examples/levenberg-marquadt/build/libigl/glfw/CMakeFiles/Export/lib/cmake/glfw3/glfw3Targets.cmake
+examples/levenberg-marquadt/build/libigl/glfw/src/CMakeFiles/glfw_objects.dir/cocoa_joystick.m.o
+examples/levenberg-marquadt/build/libigl/glfw/src/CMakeFiles/glfw_objects.dir/cocoa_time.c.o
+examples/levenberg-marquadt/build/libigl/glfw/src/CMakeFiles/glfw_objects.dir/vulkan.c.o
