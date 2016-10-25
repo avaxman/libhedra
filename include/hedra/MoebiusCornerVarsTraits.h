@@ -44,7 +44,8 @@ namespace hedra { namespace optimization {
         
         Eigen::VectorXd initSolution;   //from any previous running of the algorithm (in "raw" optimization format, with the corner variables etc.)
         
-        Eigen::MatrixXd fullSolution;   //contains the locations of the vertices after the current run.
+        Eigen::MatrixXd finalPositions;   //contains the positions of the vertices after the current run.
+        Eigen::MatrixXd finalX;             //the final corner variables
         
         int numCorners;
         int numEdgePairs;
@@ -160,8 +161,6 @@ namespace hedra { namespace optimization {
             constVec.resize(compVec.size()+posVec.size()+MCVec.size());
             std::cout<<"EVec size: "<<EVec.size()<<std::endl;
             std::cout<<"constVec size: "<<constVec.size()<<std::endl;
-            std::cout<<"rigidRatio: "<<rigidRatio<<std::endl;
-            std::cout<<"posFactor: "<<rigidRatio<<std::endl;
             
             closeFactor=10e-6;
             constTolerance=10e-7;
@@ -260,8 +259,8 @@ namespace hedra { namespace optimization {
             
             /****************************Metric-Conformal Constraints*************/
             if (isExactMC){
-                MCTriOffset=compTriOffset+38*edgeCornerPairs.rows(); //posTriOffset+3*constIndices.size();
-                MCRowOffset=compRowOffset+4*edgeCornerPairs.rows(); //posRowOffset+3*constIndices.size();
+                MCTriOffset=posTriOffset+3*constIndices.size();
+                MCRowOffset=posRowOffset+3*constIndices.size();
                 for (int i=0;i<cornerPairs.rows();i++){
                     for (int j=0;j<4;j++){
                         JRows(MCTriOffset+2*(4*i+j))=MCRowOffset+i;
@@ -272,62 +271,7 @@ namespace hedra { namespace optimization {
                 }
             }
             
-            /*a2x=Eigen::VectorXi::Zero(VOrigq.rows());
-            int CurrIndex=0;
-            for (int i=0;i<constIndices.size();i++)
-                a2x(constIndices(i))=-1;
-            
-            for (int i=0;i<VOrigq.rows();i++)
-                if (a2x(i)!=-1)
-                    a2x(i)=CurrIndex++;
-            
-            colMap.resize(4*numCorners+3*VOrigq.rows());
-            for (int i=0;i<4*numCorners;i++)
-                colMap(i)=i;
-            for (int i=0;i<VOrigq.rows();i++)
-                if (a2x(i)!=-1)
-                    colMap.segment(4*numCorners+3*i,3)<<4*numCorners+3*a2x(i),4*numCorners+3*a2x(i)+1,4*numCorners+3*a2x(i)+2;
-                else
-                    colMap.segment(4*numCorners+3*i,3)<<-1,-1,-1;
-            
-            //setting up the Jacobian rows and columns
-            int actualGradCounter=0;
-            for (int i=0;i<fullJECols.size();i++){
-                if (colMap(fullJECols(i))!=-1)  //not a removed variable
-                    actualGradCounter++;
-            }
-            
-            JERows.resize(actualGradCounter);
-            JECols.resize(actualGradCounter);
-            JEVals.resize(actualGradCounter);
-            
-            actualGradCounter=0;
-            for (int i=0;i<fullJCCols.size();i++){
-                if (colMap(fullJCCols(i))!=-1)  //not a removed variable
-                    actualGradCounter++;
-            }
-            
-            JCRows.resize(actualGradCounter);
-            JCCols.resize(actualGradCounter);
-            JCVals.resize(actualGradCounter);
-
-            actualGradCounter=0;
-            for (int i=0;i<fullJECols.size();i++){
-                if (colMap(fullJECols(i))!=-1){  //not a removed variable
-                    JERows(actualGradCounter)=fullJERows(i);
-                    JECols(actualGradCounter)=colMap(fullJECols(i));
-                    JEVals(actualGradCounter++)=fullJEVals(i);
-                }
-            }
-            
-            actualGradCounter=0;
-            for (int i=0;i<fullJCCols.size();i++){
-                if (colMap(fullJCCols(i))!=-1){  //not a removed variable
-                    JCRows(actualGradCounter)=fullJCRows(i);
-                    JCCols(actualGradCounter)=colMap(fullJCCols(i));
-                    JCVals(actualGradCounter++)=fullJCVals(i);
-                }
-            }*/
+        
             
             //calibrating prevSolution
             initSolution.conservativeResize(xSize);
@@ -337,8 +281,11 @@ namespace hedra { namespace optimization {
                 
                 for (int i=0;i<origVq.rows();i++){
                     initSolution.segment(4*numCorners+3*i,3)=_origV.row(i);
-                    fullSolution=_origV;
                 }
+                finalPositions=_origV;
+                finalX.resize(numCorners,4);
+                finalX.setZero();
+                finalX.col(0)=VectorXd::Constant(numCorners, 1.0);
             } else {
                 update_constraints(initSolution);
                 prevError=constVec.lpNorm<Infinity>();
@@ -350,12 +297,6 @@ namespace hedra { namespace optimization {
             currX<<x.head(4*numCorners);
             currLocations<<x.tail(3*origVq.rows());
 
-            /*for (int i=0;i<a2x.size();i++)
-                if (a2x(i)!=-1)
-                    currLocations.segment(3*i,3)<<x.segment(4*numCorners+3*a2x(i),3);
-            
-            for (int i=0;i<constIndices.size();i++)
-                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();*/
             
             for (int i=0;i<cornerPairs.rows();i++)
                 AMAPVec.segment(4*i,4)=(currX.segment(4*cornerPairs(i,1),4)-currX.segment(4*cornerPairs(i,0),4));
@@ -367,10 +308,6 @@ namespace hedra { namespace optimization {
             
             update_constraints(x);
             
-            //std::cout<<"AMAPVec: "<<smoothFactor*AMAPVec.lpNorm<Infinity>()<<std::endl;
-            //std::cout<<"rigidVec: "<<smoothFactor*rigidRatio*rigidVec.lpNorm<Infinity>()<<std::endl;
-            //std::cout<<"closeVec: "<<closeFactor*closeVec.lpNorm<Infinity>()<<std::endl;
-
             EVec<<smoothFactor*AMAPVec, smoothFactor*rigidRatio*rigidVec, closeFactor*closeVec, constVec;
 
         }
@@ -380,13 +317,6 @@ namespace hedra { namespace optimization {
             currX<<x.head(4*numCorners);
             currLocations<<x.tail(3*origVq.rows());
             
-            /*for (int i=0;i<a2x.size();i++)
-                if (a2x(i)!=-1)
-                    currLocations.segment(3*i,3)<<x.segment(4*numCorners+3*a2x(i),3);
-            
-            for (int i=0;i<constIndices.size();i++)
-                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();*/
-    
             for (int i=0;i<edgeCornerPairs.rows();i++){
                 RowVector4d Xi=currX.segment(4*edgeCornerPairs(i,0),4).transpose();
                 RowVector4d Xj=currX.segment(4*edgeCornerPairs(i,1),4).transpose();
@@ -402,13 +332,12 @@ namespace hedra { namespace optimization {
             
             
             for (int i=0;i<constIndices.size();i++)
-                posVec.segment(3*i,3)<<(currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose());///averageEdgeLength;
+                posVec.segment(3*i,3)<<(currLocations.segment(3*constIndices(i),3)-constPoses.row(i).transpose());
             
             if (!isExactMC){
                 if (posVec.size()!=0)
                     constVec<<compVec, posFactor*posVec;
                 else{
-                    //std::cout<<"should be here!"<<std::endl;
                     constVec<<compVec;
                 }
             } else {
@@ -416,21 +345,12 @@ namespace hedra { namespace optimization {
                     MCVec(i)=currX.segment(4*cornerPairs(i,1),4).squaredNorm()-currX.segment(4*cornerPairs(i,0),4).squaredNorm();
                 constVec<<compVec, posFactor*posVec, MCVec;
             }
-            
-            //std::cout<<"compVec: "<<compVec.lpNorm<Infinity>()<<std::endl;
-            //std::cout<<"posVec: "<<posFactor*posVec.lpNorm<Infinity>()<<std::endl;
         }
         
         void update_jacobian(const Eigen::VectorXd& x){
             using namespace Eigen;
             currX<<x.head(4*numCorners);
             currLocations<<x.tail(3*origVq.rows());
-            /*for (int i=0;i<a2x.size();i++)
-                if (a2x(i)!=-1)
-                    currLocations.segment(3*i,3)<<x.segment(4*numCorners+3*a2x(i),3);
-            
-            for (int i=0;i<constIndices.size();i++)
-                currLocations.segment(3*constIndices(i),3)=constPoses.row(i).transpose();*/
             
             /*******************************AMAP Energy********************************************/
             for (int i=0;i<cornerPairs.rows();i++){
@@ -494,20 +414,6 @@ namespace hedra { namespace optimization {
                 }
             }
             
-            /*int actualGradCounter=0;
-            for (int i=0;i<fullJECols.size();i++)
-                if (colMap(fullJECols(i))!=-1)  //not a removed variable
-                    JEVals(actualGradCounter++)=fullJEVals(i);
-            
-            for (int i=0;i<JEVals.size();i++)
-                if (isnan(JEVals(i)))
-                    std::cout<<"nan in JEVals("<<i<<")"<<std::endl;
-            
-            actualGradCounter=0;
-            for (int i=0;i<fullJCCols.size();i++)
-                if (colMap(fullJCCols(i))!=-1)  //not a removed variable
-                    JCVals(actualGradCounter++)=fullJCVals(i);*/
-            
             for (int i=0;i<JVals.size();i++)
                 if (isnan(JVals(i)))
                     std::cout<<"nan in JVals("<<i<<")"<<std::endl;
@@ -523,9 +429,6 @@ namespace hedra { namespace optimization {
             initSolution=prevx;
             update_constraints(prevx);
             prevError=constVec.lpNorm<Eigen::Infinity>();
-            //std::cout<<"prevError: "<<prevError<<std::endl;
-            //std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
-            //std::cout<<"posFactor: "<<posFactor<<std::endl;
         }
         bool post_iteration(const Eigen::VectorXd& x){
             //when error is halved, the smoothness is reduced by slowest, and when error change is zero, smoothness is halved.
@@ -534,13 +437,9 @@ namespace hedra { namespace optimization {
             double rate=constVec.lpNorm<Eigen::Infinity>()/prevError;
             double reduceRate=std::min(rate/2.0,1.0);
             
-            //posFactor*=0.95;//-0.45*(1.0-reduceRate);
             smoothFactor*=0.9;//-0.7*(1.0-reduceRate);
-            
-            //std::cout<<"reduceRate: "<<reduceRate<<std::endl;
             std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
-            std::cout<<"posFactor: "<<posFactor<<std::endl;
-            //std::cout<<"constVec.lpNorm<Eigen::Infinity>(): "<<constVec.lpNorm<Eigen::Infinity>()<<std::endl;
+           
             
             return (constVec.lpNorm<Eigen::Infinity>()<constTolerance);
         }
@@ -548,28 +447,19 @@ namespace hedra { namespace optimization {
         bool post_optimization(const Eigen::VectorXd& x){
             
             initSolution=x;
-            fullSolution.conservativeResize(origVq.rows(),3);
+            finalPositions.conservativeResize(origVq.rows(),3);
             for (int i=0;i<origVq.rows();i++)
-                fullSolution.row(i)<<x.segment(4*numCorners+3*i,3).transpose();
-            /*for (int i=0;i<a2x.size();i++)
-                if (a2x(i)!=-1)
-                    fullSolution.row(i)<<x.segment(4*numCorners+3*a2x(i),3).transpose();
+                finalPositions.row(i)<<x.segment(4*numCorners+3*i,3).transpose();
             
-            for (int i=0;i<constIndices.size();i++)
-                fullSolution.row(constIndices(i))=constPoses.row(i);*/
+            finalX.conservativeResize(4*numCorners,4);
+            for (int i=0;i<numCorners;i++)
+                finalX.row(i)<<x.segment(4*i,4).transpose();
             
-            /*double prevError; update_constraints(prevSolution);
-            prevError=CVec.lpNorm<Eigen::Infinity>();
-            double currError; update_constraints(x);
-            currError=CVec.lpNorm<Eigen::Infinity>();
-            std::cout<<"prevError, currError: "<<prevError<<","<<currError<<std::endl;
-            prevSolution=x;*/
             update_energy(x);
             double finalTotalError=EVec.lpNorm<Eigen::Infinity>();
             double finalConstError=constVec.lpNorm<Eigen::Infinity>();
             std::cout<<"Final Const Error:"<<finalTotalError<<std::endl;
             std::cout<<"Final Total Error:"<<finalConstError<<std::endl;
-
             return true;
         }
         
