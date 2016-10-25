@@ -83,6 +83,65 @@ inline void Coords2Quat(const Eigen::MatrixXd& V, Eigen::MatrixXd& QV)
     QV.block(0,1,QV.rows(),QV.cols()-1)=V;
 }
 
+inline void quat2SparseMatrix(const Eigen::VectorXi& RowIndices,
+                              const Eigen::VectorXi& ColIndices,
+                              const Eigen::MatrixXd& Values,
+                              Eigen::SparseMatrix<double>& Mat,
+                              const int m,
+                              const int n)
+{
+    /*[  rq, -vqx, -vqy, -vqz]
+     [ vqx,   rq, -vqz,  vqy]
+     [ vqy,  vqz,   rq, -vqx]
+     [ vqz, -vqy,  vqx,   rq]*/
+    using namespace Eigen;
+    using namespace std;
+    Mat.resize(4*m,4*n);
+    vector<Triplet<double> > RealTris(16*RowIndices.size());
+    for (int i=0;i<RowIndices.size();i++){
+        
+        //r=rq*rp-<vq,vp>
+        RealTris[16*i]=Triplet<double>(4*RowIndices(i),      4*ColIndices(i),     Values(i,0));
+        RealTris[16*i+1]=Triplet<double>(4*RowIndices(i)+1,    4*ColIndices(i)+1,   Values(i,0));
+        RealTris[16*i+2]=Triplet<double>(4*RowIndices(i)+2,    4*ColIndices(i)+2,   Values(i,0));
+        RealTris[16*i+3]=Triplet<double>(4*RowIndices(i)+3,    4*ColIndices(i)+3,   Values(i,0));
+        
+        //v=rq*vp+vp*vq+(vq x vp)
+        RealTris[16*i+4]=Triplet<double>(4*RowIndices(i),      4*ColIndices(i)+1,   -Values(i,1));
+        RealTris[16*i+5]=Triplet<double>(4*RowIndices(i)+1,    4*ColIndices(i),     Values(i,1));
+        RealTris[16*i+6]=Triplet<double>(4*RowIndices(i)+2,    4*ColIndices(i)+3,   -Values(i,1));
+        RealTris[16*i+7]=Triplet<double>(4*RowIndices(i)+3,    4*ColIndices(i)+2,   Values(i,1));
+        
+        RealTris[16*i+8]=Triplet<double>(4*RowIndices(i),      4*ColIndices(i)+2,   -Values(i,2));
+        RealTris[16*i+9]=Triplet<double>(4*RowIndices(i)+1,    4*ColIndices(i)+3,   Values(i,2));
+        RealTris[16*i+10]=Triplet<double>(4*RowIndices(i)+2,    4*ColIndices(i),     Values(i,2));
+        RealTris[16*i+11]=Triplet<double>(4*RowIndices(i)+3,    4*ColIndices(i)+1,   -Values(i,2));
+        
+        RealTris[16*i+12]=Triplet<double>(4*RowIndices(i),      4*ColIndices(i)+3,   -Values(i,3));
+        RealTris[16*i+13]=Triplet<double>(4*RowIndices(i)+1,    4*ColIndices(i)+2,   -Values(i,3));
+        RealTris[16*i+14]=Triplet<double>(4*RowIndices(i)+2,    4*ColIndices(i)+1,   Values(i,3));
+        RealTris[16*i+15]=Triplet<double>(4*RowIndices(i)+3,    4*ColIndices(i),     Values(i,3));
+    }
+    
+    Mat.setFromTriplets(RealTris.begin(), RealTris.end());
+}
+
+inline Eigen::SparseMatrix<double> quatConjMat(int m){
+    Eigen::SparseMatrix<double> Mat(4*m,4*m);
+    std::vector<Eigen::Triplet<double> > Tris(4*m);
+    for (int i=0;i<m;i++){
+        Tris[4*i]=Eigen::Triplet<double>(4*i,4*i,1.0);
+        Tris[4*i+1]=Eigen::Triplet<double>(4*i+1,4*i+1,-1.0);
+        Tris[4*i+2]=Eigen::Triplet<double>(4*i+2,4*i+2,-1.0);
+        Tris[4*i+3]=Eigen::Triplet<double>(4*i+3,4*i+3,-1.0);
+    }
+    
+    Mat.setFromTriplets(Tris.begin(), Tris.end());
+    return Mat;
+    
+}
+
+
 
 /*inline Eigen::RowVector4d SLERP(const Eigen::RowVector4d& q1, const Eigen::RowVector4d& q2, const double t){
     return QMult(q1, QExp(QLog(QMult(QInv(q1), q2))*t));

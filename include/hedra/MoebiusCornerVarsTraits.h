@@ -160,6 +160,8 @@ namespace hedra { namespace optimization {
             constVec.resize(compVec.size()+posVec.size()+MCVec.size());
             std::cout<<"EVec size: "<<EVec.size()<<std::endl;
             std::cout<<"constVec size: "<<constVec.size()<<std::endl;
+            std::cout<<"rigidRatio: "<<rigidRatio<<std::endl;
+            std::cout<<"posFactor: "<<rigidRatio<<std::endl;
             
             closeFactor=10e-6;
             constTolerance=10e-7;
@@ -527,11 +529,12 @@ namespace hedra { namespace optimization {
         }
         bool post_iteration(const Eigen::VectorXd& x){
             //when error is halved, the smoothness is reduced by slowest, and when error change is zero, smoothness is halved.
+            initSolution=x;
             update_constraints(x);
             double rate=constVec.lpNorm<Eigen::Infinity>()/prevError;
             double reduceRate=std::min(rate/2.0,1.0);
             
-            posFactor*=0.95;//-0.45*(1.0-reduceRate);
+            //posFactor*=0.95;//-0.45*(1.0-reduceRate);
             smoothFactor*=0.9;//-0.7*(1.0-reduceRate);
             
             //std::cout<<"reduceRate: "<<reduceRate<<std::endl;
@@ -544,6 +547,7 @@ namespace hedra { namespace optimization {
         
         bool post_optimization(const Eigen::VectorXd& x){
             
+            initSolution=x;
             fullSolution.conservativeResize(origVq.rows(),3);
             for (int i=0;i<origVq.rows();i++)
                 fullSolution.row(i)<<x.segment(4*numCorners+3*i,3).transpose();
@@ -566,7 +570,7 @@ namespace hedra { namespace optimization {
             std::cout<<"Final Const Error:"<<finalTotalError<<std::endl;
             std::cout<<"Final Total Error:"<<finalConstError<<std::endl;
 
-            return true;  //this traits doesn't have any more stop requirements
+            return true;
         }
         
         MoebiusCornerVarsTraits(){}
