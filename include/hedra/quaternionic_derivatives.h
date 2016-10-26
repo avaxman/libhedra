@@ -8,7 +8,7 @@
 
 #ifndef HEDRA_QUATERNIONIC_DERIVATIVES_H
 #define HEDRA_QUATERNIONIC_DERIVATIVES_H
-#include <hedra/QuaternionOps.h>
+#include <hedra/quaternionic_operations.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>

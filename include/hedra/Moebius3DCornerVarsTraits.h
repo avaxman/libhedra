@@ -463,8 +463,8 @@ namespace hedra { namespace optimization {
             return true;
         }
         
-        MoebiusCornerVarsTraits(){}
-        ~MoebiusCornerVarsTraits(){}
+        Moebius3DCornerVarsTraits(){}
+        ~Moebius3DCornerVarsTraits(){}
 
     };
 } }
