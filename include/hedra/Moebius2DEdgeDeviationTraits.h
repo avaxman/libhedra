@@ -135,7 +135,7 @@ namespace hedra { namespace optimization {
             AMAPVec.resize(EV.rows());
             rigidVec.resize(EV.rows());
             posVec.resize(constIndices.size());
-            closeVec.resize(xSize);
+            closeVec.resize(xSize/2);
             mobVec.resize(D.sum()-3*D.rows());
             if (isExactMC || isExactIAP)
                 deviationVec.resize(EV.rows());
@@ -350,17 +350,24 @@ namespace hedra { namespace optimization {
             }
             
             //calibrating initSolution
-            initSolution.conservativeResize(xSize);
+            initSolution.conservativeResize(xSize/2);
+            finalPositions.conservativeResize(origVc.rows());
+            finalY.conservativeResize(origVc.rows());
+            finalE.conservativeResize(EV.rows());
             if (constIndices.size()==0){
-                initSolution.head(origVc.rows())=VectorXcd::Zero(origVc.rows());
+                finalPositions<<_origVc;
+                finalY<<VectorXcd::Constant(origVc.rows(), Complex(1.0,0.0));
+                initSolution.head(origVc.rows())=finalY;
                 initSolution.segment(origVc.rows(),origVc.rows())=origVc;
-                finalPositions=_origVc;
-                finalY=VectorXcd::Constant(origVc.rows(), Complex(1.0,0.0));
-                if (isExactMC || isExactIAP)
-                    finalE=VectorXcd::Constant(EV.rows(), Complex(1.0,0.0));
-                    
+                if (isExactMC || isExactIAP){
+                    finalE<<VectorXcd::Constant(EV.rows(), Complex(1.0,0.0));
+                    initSolution.tail(EV.rows())=finalE;
+                }
                 prevError=0.0;
             } else {
+                if (isExactMC || isExactIAP)
+                    initSolution.tail(EV.rows())=finalE;
+
                 //update_constraints(initSolution);
                 //prevError=constVec.lpNorm<Infinity>();
             }
@@ -386,13 +393,39 @@ namespace hedra { namespace optimization {
         
             update_constraints(x);
             
-            if (!isExactMC && !isExactIAP)
-                EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), mobVec.real(),
-                          smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), mobVec.imag();
-            
-            else
-                EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), mobVec.real(), deviationVec.real(),
-                          smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), mobVec.imag(), deviationVec.imag(),MCVec, IAPVec;
+            if (mobVec.size()!=0){
+                if (!isExactMC && !isExactIAP)
+                    EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), mobVec.real(),
+                              smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), mobVec.imag();
+                
+                else{
+                    if (isExactMC){
+                        EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), mobVec.real(), deviationVec.real(),
+                              smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), mobVec.imag(), deviationVec.imag(),MCVec;
+                    
+                    }else if (isExactIAP){
+                        EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), mobVec.real(), deviationVec.real(),
+                        smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), mobVec.imag(), deviationVec.imag(),IAPVec;
+                    }
+                }
+            } else {
+                if (!isExactMC && !isExactIAP)
+                    EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(),
+                    smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag();
+                
+                else{
+                    if (isExactMC){
+                        EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), deviationVec.real(),
+                        smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), deviationVec.imag(),MCVec;
+                        
+                    }else if (isExactIAP){
+                        EVec<<smoothFactor*AMAPVec.real(), smoothFactor*rigidRatio*rigidVec.real(), closeFactor*closeVec.real(), posFactor*posVec.real(), deviationVec.real(),
+                        smoothFactor*AMAPVec.imag(), smoothFactor*rigidRatio*rigidVec.imag(), closeFactor*closeVec.imag(), posFactor*posVec.imag(), deviationVec.imag(),IAPVec;
+                    }
+                }
+
+            }
+        
             
         }
         
@@ -420,7 +453,10 @@ namespace hedra { namespace optimization {
             }
             
             if (!isExactMC && !isExactIAP){
-                constVec<<posVec, mobVec;
+                if (mobVec.size()!=0)
+                    constVec<<posVec, mobVec;
+                else
+                    constVec<<posVec;
             } else{
                 //Deviation constraints
                 currE<<currSolution.segment(origVc.rows()+origVc.rows(),EV.rows());
@@ -428,12 +464,23 @@ namespace hedra { namespace optimization {
                 for (int i=0;i<EV.rows();i++)
                     deviationVec(i)=currY(EV(i,0))*(origVc(EV(i,1))-origVc(EV(i,0)))*currY(EV(i,1))-currE(i)*currEdges(i);
                 
-                if (isExactMC)
-                    MCVec<<currE.array().abs2()-1;
-                if (isExactIAP)
-                    IAPVec<<currE.array().imag();
-                
-                constVec<<posVec, mobVec, deviationVec, MCVec.cast<Complex>(), IAPVec.cast<Complex>();
+                if (mobVec.size()!=0){
+                    if (isExactMC){
+                        MCVec<<currE.array().abs2()-1;
+                        constVec<<posVec, mobVec, deviationVec, MCVec.cast<Complex>();
+                    }if (isExactIAP){
+                        IAPVec<<currE.array().imag();
+                        constVec<<posVec, mobVec, deviationVec, IAPVec.cast<Complex>();
+                    }
+                } else {
+                    if (isExactMC){
+                        MCVec<<currE.array().abs2()-1;
+                        constVec<<posVec, deviationVec, MCVec.cast<Complex>();
+                    }if (isExactIAP){
+                        IAPVec<<currE.array().imag();
+                        constVec<<posVec,  deviationVec, IAPVec.cast<Complex>();
+                    }
+                }
             }
             
         }
