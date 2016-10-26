@@ -5,11 +5,11 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef HEDRA_CORNER_VARS_MOEBIUS_TRAITS_H
-#define HEDRA_CORNER_VARS_MOEBIUS_TRAITS_H
+#ifndef HEDRA_MOEBIUS_3D_CORNER_VARS_TRAITS_H
+#define HEDRA_MOEBIUS_3D_CORNER_VARS_TRAITS_H
 #include <igl/igl_inline.h>
-#include "quaternionic_derivatives.h"
-#include "QuaternionOps.h"
+#include <hedra/quaternionic_derivatives.h>
+#include <hedra/quaternionic_operations.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@ namespace hedra { namespace optimization {
 
     //This traits class implements the "unonstraintTraits" concept, for the energy and constraints of the quaternionic system of deformation in [Vaxman et. al 2015] (see Tutorial).
     //TODO: fully integrate this as a constraint class
-    class MoebiusCornerVarsTraits{
+    class Moebius3DCornerVarsTraits{
     public:
         
         //concept requirements

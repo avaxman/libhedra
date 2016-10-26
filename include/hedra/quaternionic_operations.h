@@ -6,8 +6,8 @@
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
 
-#ifndef HEDRA_QUATERNION_OPS
-#define HEDRA_QUATERNION_OPS
+#ifndef HEDRA_QUATERNIONIC_OPERATIONS
+#define HEDRA_QUATERNIONIC_OPERATIONS
 
 #include <iostream>
 #include <Eigen/Dense>
