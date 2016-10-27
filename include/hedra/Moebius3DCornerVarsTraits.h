@@ -162,8 +162,8 @@ namespace hedra { namespace optimization {
             std::cout<<"EVec size: "<<EVec.size()<<std::endl;
             std::cout<<"constVec size: "<<constVec.size()<<std::endl;
             
-            closeFactor=10e-6;
-            constTolerance=10e-7;
+            closeFactor=1e-6;
+            constTolerance=1e-7;
             
             //Constructing Gradient Pattern
             
@@ -437,7 +437,7 @@ namespace hedra { namespace optimization {
             double rate=constVec.lpNorm<Eigen::Infinity>()/prevError;
             double reduceRate=std::min(rate/2.0,1.0);
             
-            smoothFactor*=0.9;//-0.7*(1.0-reduceRate);
+            smoothFactor*=0.75;//-0.7*(1.0-reduceRate);
             std::cout<<"smoothFactor: "<<smoothFactor<<std::endl;
            
             

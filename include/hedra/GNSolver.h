@@ -151,7 +151,7 @@ namespace hedra {
                 bool stop=false;
                 double currError, prevError;
                 VectorXd rhs(ST->xSize);
-                VectorXd direction;
+                MatrixXd direction;
                 if (verbose)
                     cout<<"******Beginning Optimization******"<<endl;
                 

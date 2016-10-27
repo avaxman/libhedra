@@ -117,8 +117,8 @@ namespace hedra { namespace optimization {
             if (isExactMC || isExactIAP)
                 xSize+=2*EV.rows();
             
-            closeFactor=10e-6;
-            constTolerance=10e-9;
+            closeFactor=1e-6;
+            constTolerance=1e-7;
             
             //creating difference operator
             d0.resize(EV.rows(), origVc.rows());
@@ -631,8 +631,8 @@ namespace hedra { namespace optimization {
             update_energy(x);
             double finalTotalError=EVec.lpNorm<Eigen::Infinity>();
             double finalConstError=constVec.lpNorm<Eigen::Infinity>();
-            std::cout<<"Final Const Error:"<<finalTotalError<<std::endl;
-            std::cout<<"Final Total Error:"<<finalConstError<<std::endl;
+            std::cout<<"Final Total Error:"<<finalTotalError<<std::endl;
+            std::cout<<"Final Const Error:"<<finalConstError<<std::endl;
             return true;
         }
         
