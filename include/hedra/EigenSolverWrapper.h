@@ -46,7 +46,7 @@ namespace hedra {
                 A.setZero();
                 A.setFromTriplets(triplets.begin(), triplets.end());
                 solver.analyzePattern(A);
-                return (solver.info()==Eigen::Success);
+                return true; //(solver.info()==Eigen::Success);
             }
             
             bool factorize(const Eigen::VectorXd& values,
@@ -77,7 +77,7 @@ namespace hedra {
         
         //a simple SPD linear solution solver
         template<class EigenSparseSolver>
-        Eigen::MatrixXd EigenSingleSolveWrapper(const Eigen::SparseMatrix<double> A,Eigen::MatrixXd b)
+        Eigen::MatrixXd EigenSingleSolveWrapper(const Eigen::SparseMatrix<double> A,Eigen::MatrixXd b, bool Symmetric)
         {
             using namespace Eigen;
             VectorXi I;
@@ -88,7 +88,7 @@ namespace hedra {
             for (int k=0; k<A.outerSize(); ++k)
                 for (SparseMatrix<double>::InnerIterator it(A,k); it; ++it)
                 {
-                    if (it.row()>it.col())
+                    if ((it.row()>it.col())&&(Symmetric))
                         continue;
                     
                     Counter++;
@@ -102,7 +102,7 @@ namespace hedra {
             for (int k=0; k<A.outerSize(); ++k)
                 for (SparseMatrix<double>::InnerIterator it(A,k); it; ++it)
                 {
-                    if (it.row()>it.col())
+                    if ((it.row()>it.col())&&(Symmetric))
                         continue;
                     
                     S(Counter)=it.value();
@@ -112,8 +112,8 @@ namespace hedra {
                 }
             
             EigenSolverWrapper<EigenSparseSolver> ls;
-            ls.analyze(I,J, false);
-            ls.factorize(S, false);
+            ls.analyze(I,J, Symmetric);
+            ls.factorize(S, Symmetric);
             MatrixXd x;
             ls.solve(b,x);
             return x;

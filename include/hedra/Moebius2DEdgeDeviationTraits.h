@@ -478,7 +478,7 @@ namespace hedra { namespace optimization {
                         constVec<<posVec, deviationVec, MCVec.cast<Complex>();
                     }if (isExactIAP){
                         IAPVec<<currE.array().imag();
-                        constVec<<posVec,  deviationVec, IAPVec.cast<Complex>();
+                        constVec<<posVec, deviationVec, IAPVec.cast<Complex>();
                     }
                 }
             }
