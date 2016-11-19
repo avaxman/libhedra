@@ -188,10 +188,12 @@ libhedra provides the following function to compute the cross ratio:
 hedra::quat_cross_ratio(V, Q, cr)
 ```
 
-where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$
+where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$.
 
 
 ##Modeling with Affine Maps
+
+![Modeling with Affine Maps example](modeling_affine_screenshot.png "Modeling with Affine Maps example")
 
 Modelling polyhedral meshes with affine maps was done in [#vaxman_2012] for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf). The algorithm is demonstrated in `examples\modeling_affine`.
 
@@ -213,10 +215,10 @@ where (parameters (e.g., `EF`) that have been discussed before with the same nam
 | parameter                     | Description                                                                         |
 | :----------------------- | :---------------------------------------------------------------------------------- |
 | `h`            | A list of handle indices into `V`                                             |
-| `alpha, beta`               | Parameters controlling face map presctiption vs. map smoothness (see the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf)) |
+| `alpha, beta`               | Parameters controlling face map prescription vs. map smoothness (see the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf)) |
 | `adata`              | A struct of type hedra::affine_data computed by `affine_maps_precompute` and passed to `affine_maps_deform`. Not supposed to be edited by the user.|
-| `qh`            | A list of size $\left|h\right| \times 3$ of new handles positions correponding to $h$.
-| `numIterations`             |Of the algorithm. Generally refereing to the as-rigid-as-possible part of the map prescription. |
+| `qh`            | A list of size $\left|h\right| \times 3$ of new handles positions corresponding to $h$.
+| `numIterations`             |Of the algorithm. Generally referring to the as-rigid-as-possible part of the map prescription. |
 | `q`             | The full result in $\left|V\right| \times 3$ vertices (including the handles).|
 
 
