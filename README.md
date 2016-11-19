@@ -27,7 +27,7 @@ Using the library then amounts to including the relevant header files in the `in
 
 libhedra is a header-only library; that means that no building is required to set it up. Functions are usually in single eponymous header file, but they are sometimes aggregated under one header if they strongly depend on each other. Some functions (none of the currently implemented) depend on the existence of external dependencies, and will not work otherwise; the rest of the library is not affected.
 
-There are not many classes, and no difficult data structures; much like [libigl](http://libigl.github.io/libigl/), simplicity is key. The library then mostly works with [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code. 
+There are not many classes, and no difficult data structures; much like [libigl](http://libigl.github.io/libigl/), simplicity is key. The library then mostly works with [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code.
 
 
 
@@ -82,6 +82,9 @@ Example: TBD.
 
 
 ##Loading and Visualization
+
+![Visualization example](visualization_screenshort.png "Logo Title Text 1")
+
 
 Meshes can be loaded from OFF files, which have a similar data structure, with the following function:
 
@@ -138,7 +141,7 @@ if (sphereV.rows()!=0){
     bigT<<T;
     bigTC<<TC;
 }
-    
+
 viewer.data.clear();
 viewer.data.set_mesh(bigV,bigT);
 
@@ -146,7 +149,7 @@ viewer.data.set_mesh(bigV,bigT);
 
 **Note**: `sphereT` indices are relative to `sphereV`, and therefore need to be adjusted to indices in `bigV` before concatenation.
 
- 
+
 ##Evaluation
 
 `libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
@@ -188,7 +191,7 @@ libhedra provides the following function to compute the cross ratio:
 hedra::quad_cross_ratio(V, Q, cr)
 ```
 
-where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$ 
+where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$
 
 
 
@@ -223,11 +226,11 @@ where (parameters (e.g., `EF`) that have been discussed before with the same nam
 
 ##Optimization
 
-Optimization is done in libhedra by generic classes, taking templated trait classes as input. While this is a more complicated design pattern than simple functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily. 
+Optimization is done in libhedra by generic classes, taking templated trait classes as input. While this is a more complicated design pattern than simple functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily.
 
 ###Nonlinear Least Squares
 
-libhedra support nonlinear least squares optimization by Gauss-Newton iterations through the class `GNSolver<LinearSolver, SolverTraits>` in the respective header file. This class accepts two traits classes: for linear solving, and for the least-squares objectives. 
+libhedra support nonlinear least squares optimization by Gauss-Newton iterations through the class `GNSolver<LinearSolver, SolverTraits>` in the respective header file. This class accepts two traits classes: for linear solving, and for the least-squares objectives.
 
 The optimizer solves problems of the form:
 
@@ -308,7 +311,7 @@ class SolverTraits{
 
 ```
 
-The functions are callbacks that will be triggered by the optimizer `GNSolver`, where: 
+The functions are callbacks that will be triggered by the optimizer `GNSolver`, where:
 
 | Class Member                    | Description                                                                         |
 | :----------------------- | :---------------------------------------------------------------------------------- |
@@ -325,7 +328,7 @@ The functions are callbacks that will be triggered by the optimizer `GNSolver`, 
 An example of Nonlinear least-squares is done in `examples/gauss-newton`, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [#Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in [libigl](http://libigl.github.io/libigl/).
 
 
-          
+
 
 ##Future Plans
 
@@ -355,10 +358,3 @@ If you use libhedra in your academic projects, please cite the implemented paper
 [#moreland_2009]: Kenneth Moreland. [Diverging Color Maps for Scientific Visualization](http://www.kennethmoreland.com/color-maps).
 [#vaxman_2012]: Amir Vaxman. [Modeling Polyhedral Meshes with Affine Maps](http://dl.acm.org/citation.cfm?id=2346801) , 2012
 [#Froehlich_2011]: Fr&ouml;hlich, Stefan and Botsch, Mario, [Example-Driven Deformations Based on Discrete Shells](http://graphics.uni-bielefeld.de/publications/cgf11.pdf), 2011.
-
-
-
-
-
-
-
