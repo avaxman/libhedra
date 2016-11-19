@@ -228,6 +228,8 @@ Optimization is done in libhedra by generic classes, taking templated trait clas
 
 ###Nonlinear Least Squares
 
+**Note: the demo currently uses a more sophisticated levenberg_marquadt solver with `LMSolver` instead of `GNSolver` below. The user interface is otherwise the same, but the solution algorithm is a somewhat different. The text berlow will be updated soon.**
+
 libhedra support nonlinear least squares optimization by Gauss-Newton iterations through the class `GNSolver<LinearSolver, SolverTraits>` in the respective header file. This class accepts two traits classes: for linear solving, and for the least-squares objectives.
 
 The optimizer solves problems of the form:
@@ -335,7 +337,7 @@ The following functionality will soon be available in libhedra:
 * Parallel and offset meshes, including evaluation of the Steiner formula for discrete curvature.
 * Local-global iterations for shape projection.
 * Constrained optimization using augmented Lagrangians.
-* Conformal Mesh Deformations with M&ouml;bius Transformations.
+* Conformal Mesh Deformations with M&ouml;bius Transformations: integrating the working demo [MoebiusCode](https://github.com/avaxman/MoebiusCode) which already relies on libhedra.
 * Polyhedral patterns parametrization and optimization.
 
 If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman] (avaxman@gmail.com) (or open an issue in the repository)
