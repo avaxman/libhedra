@@ -14,7 +14,7 @@ Eigen::MatrixXd TC;
 Eigen::MatrixXd sphereColors, lineColors;
 Eigen::MatrixXd faceCenters, faceNormals;
 
-bool ShowPolygonalEdges=false;
+bool ShowPolygonalEdges=true;
 bool ShowVertexSpheres=false;
 bool ShowFaceNormals=false;
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 {
     using namespace std;
 
-    hedra::polygonal_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
+    hedra::polygonal_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron_fixed.off", V, D, F);
     
     std::cout<<R"(
     1 Switch polygonal edges/triangulated edges

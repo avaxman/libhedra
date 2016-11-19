@@ -60,9 +60,9 @@ The disadvantage is when a mesh contains relatively a few high-degree faces acco
 While `V` and `F` represent the raw information about a polygonal mesh, combinatorial information is often required. It can be obtained with the following function:
 
 ```cpp
-#include <hedra/hedra_edge_topology>
+#include <hedra/polygonal_edge_topology>
 
-hedra::hedra_edge_topology(D, F, EV, FE, EF, EFi, FEs,InnerEdges);
+hedra::polygonal_edge_topology(D, F, EV, FE, EF, EFi, FEs,InnerEdges);
 ```
 
 where:
@@ -76,26 +76,23 @@ where:
 | `FEs`             | `FEs(i,j)` holds the sign of edge `FE(i,j)` in face `i`. That is, if the edge is oriented positively or negatively relative to the face. |
 | `innerEdges`             | a vector of indices into `EV` of inner (non-boundary) edges. |
 
-Example: TBD.
-
-
 
 
 ##Loading and Visualization
 
-![Visualization example](visualization_screenshot.png "Logo Title Text 1")
+![Visualization example](visualization_screenshot.png "Visualization example")
 
 
 Meshes can be loaded from OFF files, which have a similar data structure, with the following function:
 
 ```cpp
-hedra_read_OFF(filename, V, D, F);
+polygonal_read_OFF(filename, V, D, F);
 ```
 
 libhedra builds upon libigl viewer for visualization and interaction. libigl viewer currently only supports triangle meshes, and therefore we visualize our meshes by triangulating the faces using `hedra::triangulate_mesh`. Visualization can be worked out through the following code snippet from `examples\visualization`:
 
 ```cpp
-hedra::hedra_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
+hedra::polygonal_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
 hedra::triangulate_mesh(D, F,T,TF);
 hedra::hedra_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
 igl::viewer::Viewer viewer;

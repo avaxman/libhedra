@@ -35,8 +35,8 @@ namespace hedra
                 RowVector3d vn=V.row(F(i,(j+D(i)-1)%D(i)));
                 RowVector3d v0=V.row(F(i,j));
                 RowVector3d v1=V.row(F(i,(j+1)%D(i)));
-                
-                faceNormal=faceNormal+((v1-v0).cross(vn-v0)).normalized();
+                if (((v1-v0).cross(vn-v0)).norm()>10e-6)
+                    faceNormal=faceNormal+((v1-v0).cross(vn-v0)).normalized();
             }
             
             faceNormals.row(i)=faceNormal.normalized();
