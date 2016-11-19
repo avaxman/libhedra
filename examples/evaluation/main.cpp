@@ -90,6 +90,12 @@ int main(int argc, char *argv[])
     using namespace std;
     using namespace Eigen;
     
+    std::cout<<R"(
+    1 Show planarity between [0,1]
+    2 Show concyclity between [0,5]
+    3 Show normalized edge lengths
+    )";
+    
     hedra::polygonal_read_OFF(DATA_PATH "/intersection.off", V, D, F);
     hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
     hedra::triangulate_mesh(D, F, T, TF);

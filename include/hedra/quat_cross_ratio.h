@@ -8,7 +8,7 @@
 #ifndef HEDRA_QUAT_CROSS_RATIO_H
 #define HEDRA_QUAT_CROSS_RATIO_H
 #include <igl/igl_inline.h>
-#include <hedra/QuaternionOps.h>
+#include <hedra/quaternionic_operations.h>
 #include <Eigen/Core>
 #include <vector>
 #include <cmath> 

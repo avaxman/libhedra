@@ -94,7 +94,7 @@ libhedra builds upon libigl viewer for visualization and interaction. libigl vie
 ```cpp
 hedra::polygonal_read_OFF(DATA_PATH "/rhombitruncated_cubeoctahedron.off", V, D, F);
 hedra::triangulate_mesh(D, F,T,TF);
-hedra::hedra_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
+hedra::polygonal_edge_topology(D,F, EV,FE, EF, EFi, FEs, innerEdges);
 igl::viewer::Viewer viewer;
 viewer.data.clear();
 viewer.data.set_mesh(V, T);
@@ -102,7 +102,7 @@ viewer.data.set_mesh(V, T);
 
 ``T`` is the resulting triangle mesh, and `TF` is a vector relating every triangle to the face it tesselates. In this manner, one can easily adress the set of triangles belonging to a single face for purposes of visualization (say, a uniform color).
 
-Nevertheless, the default edges in the overlay of libigl will show the triangulated edges. To see the polygonal edges and nothing else, the following code from `examples\visualization` can be used:
+Nevertheless, the default edges in the `show overlay` feature of the libigl viewer will show the triangulated edges. To see the polygonal edges and nothing else, the following code from `examples\visualization` can be used:
 
 ```cpp
 Eigen::MatrixXd origEdgeColors(EV.rows(),3);
@@ -149,6 +149,8 @@ viewer.data.set_mesh(bigV,bigT);
 
 ##Evaluation
 
+![Evaluation example](evaluation_screenshot.png "Evaluation example")
+
 `libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
 
 ###Planarity
@@ -183,13 +185,10 @@ The quaternionic cross-ratio encode two interesting geometric properties, that a
 libhedra provides the following function to compute the cross ratio:
 
 ```cpp
-#include <hedra/quat_cross_ratio.h>
-
-hedra::quad_cross_ratio(V, Q, cr)
+hedra::quat_cross_ratio(V, Q, cr)
 ```
 
 where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$
-
 
 
 ##Modeling with Affine Maps
