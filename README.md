@@ -83,7 +83,7 @@ Example: TBD.
 
 ##Loading and Visualization
 
-![Visualization example](visualization_screenshort.png "Logo Title Text 1")
+![Visualization example](visualization_screenshot.png "Logo Title Text 1")
 
 
 Meshes can be loaded from OFF files, which have a similar data structure, with the following function:
