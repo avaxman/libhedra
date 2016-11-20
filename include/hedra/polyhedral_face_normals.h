@@ -15,7 +15,7 @@
 
 namespace hedra
 {
-    // Computes normals to (near)-polyhedral faces. the assumption of ``nearness'' is to have a coherent normals for all corners which similar enough for a simple nondegenerate average.
+    // Computes normals to (near)-polyhedral and convex faces. the assumption of ``nearness'' is to have a coherent normals for all corners which are similar enough and co-oriented, so that a simple nondegenerate average works.
     // Inputs:
     //  V           eigen double matrix     #V by 3 vertex coordinates
     //  D           eigen int vector        #F by 1 - face degrees

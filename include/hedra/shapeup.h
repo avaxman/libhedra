@@ -12,7 +12,6 @@
 #include <igl/setdiff.h>
 #include <igl/cat.h>
 #include <Eigen/Core>
-#include <Eigen/SimplicialLLT>
 #include <vector>
 
 
@@ -44,21 +43,19 @@ namespace hedra
     //TODO: Currently uniform weights. Make them geometric.
     
     struct ShapeupData{
-        
+
         //input data
-        Eigen::MatrixXd& V,
-        Eigen::VectorXi& D,
-        Eigen::MatrixXi& F,
-        Eigen::VectorXi& SD,
-        Eigen::MatrixXi& S,
-        Eigen::VectorXi& h,
+        Eigen::MatrixXd V;
+        Eigen::VectorXi D;
+        Eigen::MatrixXi F;
+        Eigen::VectorXi SD;
+        Eigen::MatrixXi S;
+        Eigen::VectorXi h;
         
         //relevant matrices
         Eigen::SparseMatrix<double> A, Q, C, E;
         
         Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > solver;
-        
-
     };
 
     IGL_INLINE void shapeup_precompute(const Eigen::MatrixXd& V,
@@ -74,10 +71,10 @@ namespace hedra
         using namespace Eigen;
         //The integration solve is separable to x,y,z components
         sudata.V=V; sudata.F=F; sudata.D=D; sudata.SD=SD; sudata.S=S; sudata.h=h;
-        sudata.Q.conservativeResize(subsets.rows(), V.rows());  //Shape matrix (integration);
+        sudata.Q.conservativeResize(S.rows(), V.rows());  //Shape matrix (integration);
         sudata.C.conservativeResize(h.rows(), V.rows());        //Closeness matrix for handles
         
-        vector<Triplet<double> > QTriplets;
+        std::vector<Triplet<double> > QTriplets;
         int currRow=0;
         for (int i=0;i<S.rows();i++){
             double avgCoeff=1.0/(double)SD(i);
@@ -94,15 +91,15 @@ namespace hedra
         
         sudata.Q.setFromTriplets(QTriplets.begin(), QTriplets.end());
         
-        vector<Triplet<double> > CTriplets;
+        std::vector<Triplet<double> > CTriplets;
         for (int i=0;i<h.size();i++)
             CTriplets.push_back(Triplet<double>(i,h(i), closeCoeff));
         
         sudata.C.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
-        igl::cat(sudata.Q, sudata.C, sudata.A);
+        igl::cat(1, sudata.Q, sudata.C, sudata.A);
         
-        sudata.E=sudata.A.transpose()*sudata.A();
+        sudata.E=sudata.A.transpose()*sudata.A;
         sudata.solver.compute(sudata.E);
     }
     
@@ -112,9 +109,8 @@ namespace hedra
                                     const Eigen::MatrixXd& vh,
                                     const struct ShapeupData& sudata,
                                     Eigen::MatrixXd& currV,
-                                    const int maxIterations=50;
-                                    const double& vTolerance=10e-6)
-    
+                                    const int maxIterations=50,
+                                    const double vTolerance=10e-6)
     {
         using namespace Eigen;
         MatrixXd prevV=currV;
@@ -125,13 +121,13 @@ namespace hedra
             projection(sudata, currV, PV);
             //constructing the projection part of the right hand side
             int currRow=0;
-            for (int i=0;i<S.rows();i++){
-                for (int j=0;j<SD(i);j++)
+            for (int i=0;i<sudata.S.rows();i++){
+                for (int j=0;j<sudata.SD(i);j++)
                     b.row(currRow)=PV.block(i, 3*j, 1,3).transpose();
-                currRow+=SD(i);
+                currRow+=sudata.SD(i);
             }
-            currV=solver.solve(sudata.A.transpose()*b);
-            double currChange=(currV-prevV).lpNorm<Infinity>;
+            currV=sudata.solver.solve(sudata.A.transpose()*b);
+            double currChange=(currV-prevV).lpNorm<Infinity>();
             std::cout<<"Iteration: "<<i<<", currChange: "<<currChange<<std::endl;
             if (currChange<vTolerance)
                 break;
@@ -139,6 +135,5 @@ namespace hedra
         }
     }
 }
-
 
 #endif
