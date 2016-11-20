@@ -32,8 +32,8 @@ namespace hedra
         regularity.resize(D.size());
         
         for (int i=0;i<D.rows();i++){
-            VectorXd lengths;
-            VectorXd angles;
+            VectorXd lengths(D(i));
+            VectorXd angles(D(i));
             //finding the minimal-coordinate vertex which is convex by definition and taking its normal as seed.
             
             Eigen::MatrixXd VFace(D(i),3);
@@ -68,7 +68,7 @@ namespace hedra
                 double cosangle=(v3-v2).dot(v1-v2);
                 lengths(vecIndex)=(v2-v1).norm();
                 angles(vecIndex++)=atan2(sinangle, cosangle);
-                currVertex=(startVertex+1)%D(i);
+                currVertex=(currVertex+1)%D(i);
             }while(currVertex!=startVertex);
             
             double meanl=lengths.mean();
@@ -77,7 +77,7 @@ namespace hedra
             double stddeva=((angles.array()-angles.mean())/(double)angles.size()).matrix().norm();
             double covl=stddevl/meanl;
             double cova=stddeva/meana;
-            regularity(i)=100.0*sqrt(covl*covl+cova*cova);
+            regularity(i)=100.0*sqrt((covl*covl+cova*cova)/2);
         }
         return true;
     }

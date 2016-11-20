@@ -51,6 +51,7 @@ namespace hedra
         Eigen::VectorXi SD;
         Eigen::MatrixXi S;
         Eigen::VectorXi h;
+        double shapeCoeff, closeCoeff;
         
         //relevant matrices
         Eigen::SparseMatrix<double> A, Q, C, E;
@@ -70,14 +71,15 @@ namespace hedra
     {
         using namespace Eigen;
         //The integration solve is separable to x,y,z components
-        sudata.V=V; sudata.F=F; sudata.D=D; sudata.SD=SD; sudata.S=S; sudata.h=h;
-        sudata.Q.conservativeResize(S.rows(), V.rows());  //Shape matrix (integration);
+        sudata.V=V; sudata.F=F; sudata.D=D; sudata.SD=SD; sudata.S=S; sudata.h=h; sudata.closeCoeff=closeCoeff; sudata.shapeCoeff=shapeCoeff;
+        sudata.Q.conservativeResize(SD.sum(), V.rows());  //Shape matrix (integration);
         sudata.C.conservativeResize(h.rows(), V.rows());        //Closeness matrix for handles
         
         std::vector<Triplet<double> > QTriplets;
         int currRow=0;
         for (int i=0;i<S.rows();i++){
             double avgCoeff=1.0/(double)SD(i);
+            
             for (int j=0;j<SD(i);j++){
                 for (int k=0;k<SD(i);k++){
                     if (j==k)
@@ -98,14 +100,13 @@ namespace hedra
         sudata.C.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
         igl::cat(1, sudata.Q, sudata.C, sudata.A);
-        
         sudata.E=sudata.A.transpose()*sudata.A;
         sudata.solver.compute(sudata.E);
     }
     
     
     
-    IGL_INLINE void shapeup_compute(void (*projection) (const struct ShapeupData&, const Eigen::MatrixXd, const Eigen::MatrixXd&),
+    IGL_INLINE void shapeup_compute(void (*projection) (const struct ShapeupData&, const Eigen::MatrixXd&, Eigen::MatrixXd&),
                                     const Eigen::MatrixXd& vh,
                                     const struct ShapeupData& sudata,
                                     Eigen::MatrixXd& currV,
@@ -116,19 +117,26 @@ namespace hedra
         MatrixXd prevV=currV;
         MatrixXd PV;
         MatrixXd b(sudata.A.rows(),3);
-        b.block(sudata.Q.rows(), 0, sudata.h.rows(),3)=vh;  //this stays constant throughout the iterations
+        b.block(sudata.Q.rows(), 0, sudata.h.rows(),3)=sudata.closeCoeff*vh;  //this stays constant throughout the iterations
+        
+        //std::cout<<"vh: "<<vh<<std::endl;
+        //std::cout<<"V(h(0))"<<currV.row(sudata.h(0))<<std::endl;
         for (int i=0;i<maxIterations;i++){
             projection(sudata, currV, PV);
             //constructing the projection part of the right hand side
             int currRow=0;
             for (int i=0;i<sudata.S.rows();i++){
                 for (int j=0;j<sudata.SD(i);j++)
-                    b.row(currRow)=PV.block(i, 3*j, 1,3).transpose();
-                currRow+=sudata.SD(i);
+                    b.row(currRow++)=sudata.shapeCoeff*PV.block(i, 3*j, 1,3);
+                //currRow+=sudata.SD(i);
             }
+            //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b)<<std::endl;
             currV=sudata.solver.solve(sudata.A.transpose()*b);
+            //std::cout<<"b: "<<b<<std::endl;
+            std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b).lpNorm<Infinity>()<<std::endl;
             double currChange=(currV-prevV).lpNorm<Infinity>();
             std::cout<<"Iteration: "<<i<<", currChange: "<<currChange<<std::endl;
+            prevV=currV;
             if (currChange<vTolerance)
                 break;
             
