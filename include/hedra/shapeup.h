@@ -54,7 +54,7 @@ namespace hedra
         double shapeCoeff, closeCoeff;
         
         //relevant matrices
-        Eigen::SparseMatrix<double> A, Q, C, E;
+        Eigen::SparseMatrix<double> A, Q, C, E, At;
         
         Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > solver;
     };
@@ -100,7 +100,8 @@ namespace hedra
         sudata.C.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
         igl::cat(1, sudata.Q, sudata.C, sudata.A);
-        sudata.E=sudata.A.transpose()*sudata.A;
+        sudata.At=sudata.A.transpose();  //to save up this expensive computation.
+        sudata.E=sudata.At*sudata.A;
         sudata.solver.compute(sudata.E);
     }
     
@@ -131,9 +132,9 @@ namespace hedra
                 //currRow+=sudata.SD(i);
             }
             //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b)<<std::endl;
-            currV=sudata.solver.solve(sudata.A.transpose()*b);
+            currV=sudata.solver.solve(sudata.At*b);
             //std::cout<<"b: "<<b<<std::endl;
-            std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b).lpNorm<Infinity>()<<std::endl;
+            //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b).lpNorm<Infinity>()<<std::endl;
             double currChange=(currV-prevV).lpNorm<Infinity>();
             std::cout<<"Iteration: "<<i<<", currChange: "<<currChange<<std::endl;
             prevV=currV;
