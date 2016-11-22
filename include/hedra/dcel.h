@@ -76,7 +76,7 @@ namespace hedra
         
         //halfedge to vertex and vice versa
         HV.conservativeResize(numH);
-        VH.conservativeResize(V.rows());
+        VH.conservativeResize(EV.maxCoeff()+1);
         for (int i=0;i<EV.rows();i++){
             HV(EH(i,0))=EV(i,0);
             VH(EV(i,0))=EH(i,0);
