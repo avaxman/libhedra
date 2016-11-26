@@ -21,10 +21,10 @@ namespace hedra
     //  V  eigen double matrix  #V by 3 - vertex coordinates
     //  D  eigen int vector     #F by 1 - face degrees
     //  F  eigen int matrix     #F by max(D) - vertex indices in face
-    IGL_INLINE bool polygonal_read_OFF(const std::string str,
-                                       const Eigen::MatrixXd& V,
-                                       const Eigen::VectorXi& D,
-                                       const Eigen::MatrixXi& F)
+    IGL_INLINE bool polygonal_write_OFF(const std::string str,
+                                        const Eigen::MatrixXd& V,
+                                        const Eigen::VectorXi& D,
+                                        const Eigen::MatrixXi& F)
     {
         
         using namespace std;
