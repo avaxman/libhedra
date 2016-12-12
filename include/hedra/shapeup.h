@@ -54,7 +54,7 @@ namespace hedra
         double shapeCoeff, closeCoeff;
         
         //relevant matrices
-        Eigen::SparseMatrix<double> A, Q, C, E, At;
+        Eigen::SparseMatrix<double> A, Q, C, E, At, W;
         
         Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > solver;
     };
@@ -65,6 +65,7 @@ namespace hedra
                                        const Eigen::VectorXi& SD,
                                        const Eigen::MatrixXi& S,
                                        const Eigen::VectorXi& h,
+                                       const Eigen::VectorXd& w,
                                        const double shapeCoeff,
                                        const double closeCoeff,
                                        struct ShapeupData& sudata)
@@ -83,9 +84,9 @@ namespace hedra
             for (int j=0;j<SD(i);j++){
                 for (int k=0;k<SD(i);k++){
                     if (j==k)
-                        QTriplets.push_back(Triplet<double>(currRow+j, S(i,k), shapeCoeff*(1.0-avgCoeff)));
+                        QTriplets.push_back(Triplet<double>(currRow+j, S(i,k), (1.0-avgCoeff)));
                     else
-                        QTriplets.push_back(Triplet<double>(currRow+j, S(i,k), shapeCoeff*(-avgCoeff)));
+                        QTriplets.push_back(Triplet<double>(currRow+j, S(i,k), (-avgCoeff)));
                 }
             }
             currRow+=SD(i);
@@ -95,19 +96,34 @@ namespace hedra
         
         std::vector<Triplet<double> > CTriplets;
         for (int i=0;i<h.size();i++)
-            CTriplets.push_back(Triplet<double>(i,h(i), closeCoeff));
+            CTriplets.push_back(Triplet<double>(i,h(i), 1.0));
         
         sudata.C.setFromTriplets(CTriplets.begin(), CTriplets.end());
         
         igl::cat(1, sudata.Q, sudata.C, sudata.A);
         sudata.At=sudata.A.transpose();  //to save up this expensive computation.
-        sudata.E=sudata.At*sudata.A;
+        
+        //weight matrix
+        vector<Triplet<double> > WTriplets;
+        //std::cout<<"w: "<<w<<std::endl;
+        currRow=0;
+        for (int i=0;i<SD.rows();i++){
+            for (int j=0;j<SD(i);j++)
+                WTriplets.push_back(Triplet<double>(currRow+j,currRow+j,shapeCoeff*w(i)));
+            currRow+=SD(i);
+        }
+        for (int i=0;i<h.size();i++)
+            WTriplets.push_back(Triplet<double>(SD.sum()+i, SD.sum()+i, closeCoeff));
+        sudata.W.resize(SD.sum()+h.size(), SD.sum()+h.size());
+        sudata.W.setFromTriplets(WTriplets.begin(), WTriplets.end());
+        
+        sudata.E=sudata.At*sudata.W*sudata.A;
         sudata.solver.compute(sudata.E);
     }
     
     
     
-    IGL_INLINE void shapeup_compute(void (*projection) (const struct ShapeupData&, const Eigen::MatrixXd&, Eigen::MatrixXd&),
+    IGL_INLINE void shapeup_compute(void (*projection)(int , const hedra::ShapeupData&, const Eigen::MatrixXd& , Eigen::MatrixXd&),
                                     const Eigen::MatrixXd& vh,
                                     const struct ShapeupData& sudata,
                                     Eigen::MatrixXd& currV,
@@ -118,23 +134,27 @@ namespace hedra
         MatrixXd prevV=currV;
         MatrixXd PV;
         MatrixXd b(sudata.A.rows(),3);
-        b.block(sudata.Q.rows(), 0, sudata.h.rows(),3)=sudata.closeCoeff*vh;  //this stays constant throughout the iterations
+        b.block(sudata.Q.rows(), 0, sudata.h.rows(),3)=vh;  //this stays constant throughout the iterations
         
         //std::cout<<"vh: "<<vh<<std::endl;
         //std::cout<<"V(h(0))"<<currV.row(sudata.h(0))<<std::endl;
+        PV.conservativeResize(sudata.SD.rows(), 3*sudata.SD.maxCoeff());
         for (int i=0;i<maxIterations;i++){
-            projection(sudata, currV, PV);
+            for (int j=0;j<sudata.SD.rows();j++)
+                projection(j, sudata, currV, PV);
             //constructing the projection part of the right hand side
             int currRow=0;
             for (int i=0;i<sudata.S.rows();i++){
                 for (int j=0;j<sudata.SD(i);j++)
-                    b.row(currRow++)=sudata.shapeCoeff*PV.block(i, 3*j, 1,3);
+                    b.row(currRow++)=PV.block(i, 3*j, 1,3);
                 //currRow+=sudata.SD(i);
             }
             //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b)<<std::endl;
-            currV=sudata.solver.solve(sudata.At*b);
+            currV=sudata.solver.solve(sudata.At*sudata.W*b);
             //std::cout<<"b: "<<b<<std::endl;
-            //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b).lpNorm<Infinity>()<<std::endl;
+            std::cout<<"A*prevV-b:"<<(sudata.W*(sudata.A*prevV-b)).lpNorm<Infinity>()<<std::endl;
+            //std::cout<<"b:"<<b.block(b.rows()-1, 0, 1, b.cols())<<std::endl;
+            //exit(0);
             double currChange=(currV-prevV).lpNorm<Infinity>();
             std::cout<<"Iteration: "<<i<<", currChange: "<<currChange<<std::endl;
             prevV=currV;
