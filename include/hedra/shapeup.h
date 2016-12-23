@@ -140,6 +140,7 @@ namespace hedra
         //std::cout<<"V(h(0))"<<currV.row(sudata.h(0))<<std::endl;
         PV.conservativeResize(sudata.SD.rows(), 3*sudata.SD.maxCoeff());
         for (int i=0;i<maxIterations;i++){
+            //std::cout<<"A*prevV-b before local projection:"<<(sudata.W*(sudata.A*prevV-b)).squaredNorm()<<std::endl;
             for (int j=0;j<sudata.SD.rows();j++)
                 projection(j, sudata, currV, PV);
             //constructing the projection part of the right hand side
@@ -149,10 +150,11 @@ namespace hedra
                     b.row(currRow++)=PV.block(i, 3*j, 1,3);
                 //currRow+=sudata.SD(i);
             }
+            //std::cout<<"A*prevV-b after local projection:"<<(sudata.W*(sudata.A*prevV-b)).squaredNorm()<<std::endl;
             //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b)<<std::endl;
             currV=sudata.solver.solve(sudata.At*sudata.W*b);
             //std::cout<<"b: "<<b<<std::endl;
-            std::cout<<"A*prevV-b:"<<(sudata.W*(sudata.A*prevV-b)).lpNorm<Infinity>()<<std::endl;
+            //std::cout<<"A*cubbV-b after global solve:"<<(sudata.W*(sudata.A*currV-b)).squaredNorm()<<std::endl;
             //std::cout<<"b:"<<b.block(b.rows()-1, 0, 1, b.cols())<<std::endl;
             //exit(0);
             double currChange=(currV-prevV).lpNorm<Infinity>();
