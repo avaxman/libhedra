@@ -30,11 +30,11 @@ namespace hedra
     IGL_INLINE bool vertex_insertion(const Eigen::MatrixXd& V,
                                     const Eigen::VectorXi& D,
                                     const Eigen::MatrixXi& F,
-                                     const Eigen::MatrixXd& EV,
+                                     const Eigen::MatrixXi& EV,
                                     const Eigen::MatrixXi& FE,
                                     Eigen::MatrixXd& newV,
                                     Eigen::VectorXi& newD,
-                                    Eigen::VectorXi& newF)
+                                    Eigen::MatrixXi& newF)
     {
         using namespace Eigen;
         MatrixXd faceCenters;
@@ -45,10 +45,11 @@ namespace hedra
             midEdges.row(i)<<(V.row(EV(i,0))+V.row(EV(i,1)))/2.0;
         
         
-        newV.resize(V.rows()+D.rows()+FE.rows(),3);
+        newV.resize(V.rows()+D.rows()+EV
+                    .rows(),3);
         newV.block(0,0,V.rows(),3)=V;
         newV.block(V.rows(),0,F.rows(),3)=faceCenters;
-        newV.block(V.rows()+F.rows(),0,FE.rows(),3)=midEdges;
+        newV.block(V.rows()+F.rows(),0,EV.rows(),3)=midEdges;
         
         //the mesh is basicaly sum(D) quads (D per face)
         newD=VectorXi::Constant(D.sum(),4);

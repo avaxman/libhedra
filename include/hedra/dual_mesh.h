@@ -65,12 +65,10 @@ namespace hedra
         Eigen::VectorXi HV,HE,HF,nextH,prevH,twinH;
         hedra::dcel(D, F, EV, EF, EFi, innerEdges,VH,EH,FH,HV,HE,HF,nextH,prevH,twinH);
         
-        cout<<"EF: "<<EF<<endl;
-        cout<<"HF: "<<HF<<endl;
-        
         //traversing one rings to collect faces
         int currDualFace=0;
         vector<vector<int> > dualFList(V.rows()-boundVertexMask.sum());
+        //cout<<"VH: "<<VH<<endl;
         for (int i=0;i<VH.rows();i++){
             if (boundVertexMask(i))
                 continue;  //at the moment, not making dual faces for boundary vertices
@@ -94,8 +92,6 @@ namespace hedra
             for (int j=0;j<dualFList[i].size();j++)
                 dualF(i,j)=dualFList[i][j];
         
-        cout<<"dualD: "<<dualD<<endl;
-        cout<<"dualF: "<<dualF<<endl;
         return true;
     }
 }

@@ -31,7 +31,7 @@ namespace hedra
                                     const Eigen::MatrixXi& F,
                                     Eigen::MatrixXd& newV,
                                     Eigen::VectorXi& newD,
-                                    Eigen::VectorXi& newF)
+                                    Eigen::MatrixXi& newF)
     {
         using namespace Eigen;
         MatrixXd faceCenters;
@@ -48,7 +48,9 @@ namespace hedra
         int currNewFace=0;
         for (int i=0;i<D.rows();i++)
             for (int j=0;j<D(i);j++)
-                newF.row(currNewFace++)<<F(i,j), F(i,(j+1)%D(i)), F.rows()+i;
+                newF.row(currNewFace++)<<F(i,j), F(i,(j+1)%D(i)), V.rows()+i;
+        
+        //cout<<"newF: "<<newF<<endl;
         
         return true;
     }
