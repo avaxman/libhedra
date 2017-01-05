@@ -154,11 +154,12 @@ namespace hedra
             //std::cout<<"A*currV-b:"<<i<<(sudata.A*currV-b)<<std::endl;
             currV=sudata.solver.solve(sudata.At*sudata.W*b);
             //std::cout<<"b: "<<b<<std::endl;
-            //std::cout<<"A*cubbV-b after global solve:"<<(sudata.W*(sudata.A*currV-b)).squaredNorm()<<std::endl;
+            //std::cout<<"A*cubbV-b after global solve:"<<
+            std::cout<<i<<","<<(sudata.W*(sudata.A*currV-b)).squaredNorm()<<std::endl;
             //std::cout<<"b:"<<b.block(b.rows()-1, 0, 1, b.cols())<<std::endl;
             //exit(0);
             double currChange=(currV-prevV).lpNorm<Infinity>();
-            std::cout<<"Iteration: "<<i<<", currChange: "<<currChange<<std::endl;
+            //std::cout<<"Iteration: "<<i<<", currChange: "<<currChange<<std::endl;
             prevV=currV;
             if (currChange<vTolerance)
                 break;

@@ -10,6 +10,7 @@
 #include <igl/igl_inline.h>
 #include <igl/setdiff.h>
 #include <hedra/polygonal_face_centers.h>
+#include <hedra/dcel.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -35,59 +36,66 @@ namespace hedra
                               const Eigen::MatrixXi& F,
                               const Eigen::MatrixXi& EV,
                               const Eigen::MatrixXi& EF,
-                              const Eigen::MatrixXi& FE;
-                              const Eigen::VectorXi innerEdges,
+                              const Eigen::MatrixXi& EFi,
+                              const Eigen::MatrixXi& FE,
+                              const Eigen::VectorXi& innerEdges,
                               Eigen::MatrixXd& dualV,
                               Eigen::VectorXi& dualD,
-                              Eigen::VectorXi& dualF)
+                              Eigen::MatrixXi& dualF) 
     {
         using namespace Eigen;
-        MatrixXd faceCenters;
-        polygonal_face_centers(V,D,F,faceCenters);
-        
+        polygonal_face_centers(V,D,F,dualV);
+    
         VectorXi allIndices, boundEdges, stub;
-        allIndices=VectorXi::LinSpaced(EV.rows(), 0, Ev.rows()-1);
-        setdiff(allIndices,innerEdges, boundEdges, stub);
+        allIndices=VectorXi::LinSpaced(EV.rows(), 0, EV.rows()-1);
+        igl::setdiff(allIndices,innerEdges, boundEdges, stub);
         
-        MatrixXd midBoundEdges(boundEdges.rows(),3);
+        VectorXi boundVertexMask=VectorXi::Constant(V.rows(),0);
+        for (int i=0;i<boundEdges.rows();i++){
+            boundVertexMask(EV(boundEdges(i),0))=1;
+            boundVertexMask(EV(boundEdges(i),1))=1;
+        }
+        /*MatrixXd midBoundEdges(boundEdges.rows(),3);
         for (int i=0;i<boundEdges.rows();i++)
-            midBoundEdges.row(i)<<(V.row(EV(boundEdges(i),0))+V.row(EV(boundEdges(i),1)))/2.0;
+            midBoundEdges.row(i)<<(V.row(EV(boundEdges(i),0))+V.row(EV(boundEdges(i),1)))/2.0;*/
         
         
-        //adding the boundEdges vertices as "faces"
-        MatrixXi extEF=EF;
-        for (int i=0;i<boundEdges.rows();i++)
-            extEF(boundEdges(i),1)=F.rows()+i;
+        Eigen::VectorXi VH;
+        Eigen::MatrixXi EH,FH;
+        Eigen::VectorXi HV,HE,HF,nextH,prevH,twinH;
+        hedra::dcel(D, F, EV, EF, EFi, innerEdges,VH,EH,FH,HV,HE,HF,nextH,prevH,twinH);
         
-        dualV.resize(F.rows()+boundEdges.rows(),3);
-        dualV.block(0,0,faceCenters.rows(),3)=faceCenters;
-        dualV.block(faceCenters.rows(),0,midBoundEdges.rows(),3)=midBoundEdges;
+        cout<<"EF: "<<EF<<endl;
+        cout<<"HF: "<<HF<<endl;
         
-        vector<vector<int > > VE;
-        for (int i=0;i<EV.rows();i++){
-            VE(EV(i,0)).push_back(i));
-            VE(EV(i,1)).push_back(i));
+        //traversing one rings to collect faces
+        int currDualFace=0;
+        vector<vector<int> > dualFList(V.rows()-boundVertexMask.sum());
+        for (int i=0;i<VH.rows();i++){
+            if (boundVertexMask(i))
+                continue;  //at the moment, not making dual faces for boundary vertices
+            int beginH=VH(i);
+            int currH=beginH;
+            do{
+                dualFList[currDualFace].push_back(HF(currH));
+                currH=twinH(prevH(currH));
+            }while((currH!=beginH)&&(currH!=-1));
+            currDualFace++;
         }
         
-        dualD.resize(V.rows());
+        dualD.resize(dualFList.size());
         for (int i=0;i<dualD.rows();i++)
-            dualD(i)=VE[i].size();
+            dualD(i)=dualFList[i].size();
         
-        dualF.resize(dualD.rows(),dualD.maxCoeff()+1);
+        dualF=MatrixXi::Constant(dualD.rows(),dualD.maxCoeff()+1,-1);
         
-        //creating faces
-        for (int i=0;i<VE.rows();i++){
-            int currEdge=VE[i][0];
-            dualF(i,j)=EF(currEdge,0);
-            for (int j=1;j<VE[i].size();i++){
-                int nextVertex=(EF(currEdge,0)==F(i,j-1) ? EF(currEdge,1) : EF(currEdge,0));
-                dualF(i,j)=EF(currEdge,nextVertex);
-                //looking for next edge
-                for (int k=0;k<VE[0].size();k++)
-                    if (((EF(VE[i][k],0)==nextVertex)||(EF(VE[i][k],1)==nextVertex))&&(VE[0][k]!=currEdge))
-                        currEdge=k;
-            }
-        }
+        //putting vertices in random order
+        for (int i=0;i<dualFList.size();i++)
+            for (int j=0;j<dualFList[i].size();j++)
+                dualF(i,j)=dualFList[i][j];
+        
+        cout<<"dualD: "<<dualD<<endl;
+        cout<<"dualF: "<<dualF<<endl;
         return true;
     }
 }

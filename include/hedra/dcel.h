@@ -56,20 +56,20 @@ namespace hedra
         //doing a local halfedge structure for polygonal meshes
         EH=Eigen::MatrixXi::Constant(EV.rows(),2,-1);
         int numH=0;
-        for (int i=0;i<innerEdges.size();i++){
-            EH.row(innerEdges(i))<<numH, numH+1;
-            numH+=2;
+        
+        for (int i=0;i<EF.rows();i++){
+            if (EF(i,0)!=-1)
+                EH(i,0)=numH++;
+            if (EF(i,1)!=-1)
+                EH(i,1)=numH++;
         }
         
-        //all EH(i,0)==-1 must be boundary edges at this stage
-        for (int i=0;i<EH.rows();i++)
-            if (EH(i,0)==-1)
-                EH(i,0)=numH++;
         
         //halfedges to edge
         HE.conservativeResize(numH);
         for (int i=0;i<EH.rows();i++){
-            HE(EH(i,0))=i;
+            if (EH(i,0)!=-1)
+                HE(EH(i,0))=i;
             if (EH(i,1)!=-1)
                 HE(EH(i,1))=i;
         }
@@ -78,8 +78,10 @@ namespace hedra
         HV.conservativeResize(numH);
         VH.conservativeResize(EV.maxCoeff()+1);
         for (int i=0;i<EV.rows();i++){
-            HV(EH(i,0))=EV(i,0);
-            VH(EV(i,0))=EH(i,0);
+            if (EH(i,0)!=-1){
+                HV(EH(i,0))=EV(i,0);
+                VH(EV(i,0))=EH(i,0);
+            }
             if (EH(i,1)!=-1){
                 HV(EH(i,1))=EV(i,1);
                 VH(EV(i,1))=EH(i,1);
@@ -89,7 +91,7 @@ namespace hedra
         //halfedge to twin
         twinH=Eigen::VectorXi::Constant(numH, -1);
         for (int i=0;i<EH.rows();i++)
-            if (EH(i,1)!=-1){
+            if ((EH(i,0)!=-1)&&(EH(i,1)!=-1)){
                 twinH(EH(i,0))=EH(i,1);
                 twinH(EH(i,1))=EH(i,0);
             }
@@ -98,11 +100,13 @@ namespace hedra
         FH.resize(F.rows(), F.cols());
         HF.resize(numH);
         for (int i=0;i<EF.rows();i++){
-            FH(EF(i,0),EFi(i,0))=EH(i,0);
-            HF(EH(i,0))=EF(i,0);
+            if (EF(i,0)!=-1){
+                FH(EF(i,0),EFi(i,0))=EH(i,0);
+                HF(EH(i,0))=EF(i,0);
+            }
             if (EF(i,1)!=-1){
                 FH(EF(i,1),EFi(i,1))=EH(i,1);
-                HF(EH(i,0))=EF(i,0);
+                HF(EH(i,1))=EF(i,1);
             }
         }
         
