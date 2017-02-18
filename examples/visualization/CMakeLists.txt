@@ -24,9 +24,8 @@ else()
   # Libigl requires a modern C++ compiler that supports c++11
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") 
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "." )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 endif()
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
 
 # libigl options: choose between header only and compiled static library
 # Header-only is preferred for small projects. For larger projects the static build
@@ -39,7 +38,7 @@ option(LIBIGL_WITH_NANOGUI     "Use Nanogui menu"   OFF)
 # libigl options: choose your dependencies (by default everything is OFF except opengl) 
 option(LIBIGL_WITH_VIEWER      "Use OpenGL viewer"  ON)
 option(LIBIGL_WITH_OPENGL      "Use OpenGL"         ON)
-option(LIBIGL_WITH_GLFW        "Use GLFW"           ON)
+option(LIBIGL_WITH_OPENGL_GLFW "Use GLFW"           ON)
 option(LIBIGL_WITH_BBW         "Use BBW"            OFF)
 option(LIBIGL_WITH_EMBREE      "Use Embree"         OFF)
 option(LIBIGL_WITH_PNG         "Use PNG"            OFF)

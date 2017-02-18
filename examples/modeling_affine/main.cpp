@@ -199,6 +199,9 @@ int main(int argc, char *argv[])
     using namespace std;
     using namespace Eigen;
     
+    cout<<"press 1+right button to select new handles"<<endl;
+    cout<<"press the right button and drag the edit the mesh"<<endl;
+    
     hedra::polygonal_read_OFF(DATA_PATH "/six.off", V, D, F);
     hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
     hedra::triangulate_mesh(D, F, T, TF);
@@ -215,6 +218,5 @@ int main(int argc, char *argv[])
     UpdateCurrentView(viewer);
     viewer.launch();
     
-    cout<<"press 1+right button to select new handles"<<endl;
-    cout<<"press the right button and drag the edit the mesh"<<endl;
+    
 }
