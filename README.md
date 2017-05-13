@@ -2,7 +2,7 @@
 
 libhedra is a library that targets the processing of polygonal and polyhedral meshes, that are not necessarily triangular. It supports the generation, analysis, editing, and optimization of such meshes.
 
-##Installation
+## Installation
 
 libhedra is a header-only library, building on [libigl](http://libigl.github.io/libigl/) and consequently [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page). They are bundled as submodules within libhedra. As such, minimal installation is needed. Some function would require extra dependencies, and they will be mentioned in context.
 
@@ -23,7 +23,7 @@ make
 
 Using the library then amounts to including the relevant header files in the `include` directory.
 
-##Design Principles
+## Design Principles
 
 libhedra is a header-only library; that means that no building is required to set it up. Functions are usually in single eponymous header file, but they are sometimes aggregated under one header if they strongly depend on each other. Some functions (none of the currently implemented) depend on the existence of external dependencies, and will not work otherwise; the rest of the library is not affected.
 
@@ -31,7 +31,7 @@ There are not many classes, and no difficult data structures; much like [libigl]
 
 
 
-##Mesh representation
+## Mesh representation
 
 [libigl](http://libigl.github.io/libigl/) represents triangle meshes by a pair of matrices: a matrix `V` that stores vertex coordinates, and a matrix ``F`` that stores oriented triangles as vertex indices into ``v``. Polygonal meshes are characterized by an arbitrary number of vertices per face, and so the mesh representation in libhedra provides an extension of this compact representation with two matrices and a vector:
 
@@ -55,7 +55,7 @@ This representation has a few advantages:
 
 The disadvantage is when a mesh contains relatively a few high-degree faces accompanied by many low-degree ones. Then, `max(D)` is high, and a major part of the memory occupied by `F` is not used. But this type of meshes are rare in practice.
 
-###Mesh Combinatorics
+### Mesh Combinatorics
 
 While `V` and `F` represent the raw information about a polygonal mesh, combinatorial information is often required. It can be obtained with the following function:
 
@@ -78,7 +78,7 @@ where:
 
 
 
-##Loading and Visualization
+## Loading and Visualization
 
 ![Visualization example](visualization_screenshot.png "Visualization example")
 
@@ -113,7 +113,7 @@ viewer.data.clear();
 viewer.data.set_mesh(V, T);
 viewer.data.set_edges(V,EV,OrigEdgeColors);
 ```
-###Augmenting the viewer
+### Augmenting the viewer
 libhedra adds some extra functionality to the libigl viewer with the following functions:
 
 | Function   | Description       |
@@ -147,13 +147,13 @@ viewer.data.set_mesh(bigV,bigT);
 **Note**: `sphereT` indices are relative to `sphereV`, and therefore need to be adjusted to indices in `bigV` before concatenation.
 
 
-##Evaluation
+## Evaluation
 
 ![Evaluation example](evaluation_screenshot.png "Evaluation example")
 
 `libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
 
-###Planarity
+### Planarity
 
 The planarity of a quadrilateral with vertex positions $q_1,q_2,q_3,q_4$ is often measured by the percentage of the distance between the diagonals $q_3-q_1$ and $q_4-q_2$ to the average diagonal length. Planarity of higher-degree faces is measured as the root-mean-square error of all consecutive quadrilaterlas within the face. That is, for a polygonal face $f=q_1,\cdots,q_d$, we get:
 
@@ -164,11 +164,11 @@ The usual reasonable tolerance is 1%. The libhedra function is `planarity(V,D, F
 
 
 
-###Concyclity
+### Concyclity
 
 The concyclity of a quadrilateral with vertex positions $q_1,q_2,q_3,q_4$ measures how much the quad deviates from being concyclic, or \emph{circular}. Consider the two triangles $T_1=q_1,q_2,q_3$ and $T_2=q_3, q_4, q_1$, and their circumcircles. Then, the concyclity of the quad can be measured as the intersection angle between the (tangents to the) circles at the intersection points $q_1$ and $q_3$. A rule-of-thumb tolerance is under $5^{\circ}$. The libhedra function is `concyclity(V,D, F,c)`.
 
-###Quaternionic cross-ratios
+### Quaternionic cross-ratios
 
 We treat coorrdinates in $\mathbb{R}^3$ as imaginary quaternions in $Im\mathbb{H}$. That is, with zero real part. Given four coordinates $q_1,q_2,q_3,q_4$ as imaginary quaternions, the quaternionic cross-ratio can be defined in several isomorphic ways. A standard one is:
 
@@ -191,7 +191,7 @@ hedra::quat_cross_ratio(V, Q, cr)
 where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$.
 
 
-##Modeling with Affine Maps
+## Modeling with Affine Maps
 
 ![Modeling with Affine Maps example](modeling_affine_screenshot.png "Modeling with Affine Maps example")
 
@@ -222,11 +222,11 @@ where (parameters (e.g., `EF`) that have been discussed before with the same nam
 | `q`             | The full result in $\left|V\right| \times 3$ vertices (including the handles).|
 
 
-##Optimization
+## Optimization
 
 Optimization is done in libhedra by generic classes, taking templated trait classes as input. While this is a more complicated design pattern than simple functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily.
 
-###Nonlinear Least Squares
+### Nonlinear Least Squares
 
 **Note: the demo currently uses a more sophisticated levenberg_marquadt solver with `LMSolver` instead of `GNSolver` below. The user interface is otherwise the same, but the solution algorithm is a somewhat different. The text berlow will be updated soon.**
 
@@ -271,7 +271,7 @@ Solving is done by simply calling `GNSOLver::solver(bool verbose)`. The initial 
 
 Note that the first-order optimality condition is by default pretty relaxed (or rather mostly disabled).
 
-####The trait classes
+#### The trait classes
 
 Any `LinearSolver` class must include the following functionality:
 
@@ -330,7 +330,7 @@ An example of Nonlinear least-squares is done in `examples/gauss-newton`, implem
 
 
 
-##Future Plans
+## Future Plans
 
 The following functionality will soon be available in libhedra:
 
@@ -342,7 +342,7 @@ The following functionality will soon be available in libhedra:
 
 If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman] (avaxman@gmail.com) (or open an issue in the repository)
 
-##Acknowledge libhedra
+## Acknowledge libhedra
 
 If you use libhedra in your academic projects, please cite the implemented papers appropriately. To cite the library in general, you could use this BibTeX entry:
 
