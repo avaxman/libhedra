@@ -51,7 +51,7 @@ namespace hedra
       TCOffset=TC.rows();
       V.conservativeResize(V.rows()+res*res*points.rows(),3);
       T.conservativeResize(T.rows()+2*(res-1)*res*points.rows(),3);
-      TC.conservativeResize(TC.rows()+(colorPerVertex ? V.rows() : T.rows()),3);
+      TC.conservativeResize(TC.rows()+(colorPerVertex ? res*res*points.rows() : 2*(res-1)*res*points.rows()),3);
     }
     
     for (int i=0;i<points.rows();i++){
@@ -73,10 +73,10 @@ namespace hedra
       //creating faces
       for (int j=0;j<res-1;j++){
         for (int k=0;k<res;k++){
-          int v1=(res*res)*i+j*res+k;
-          int v2=(res*res)*i+(j+1)*res+k;
-          int v3=(res*res)*i+(j+1)*res+(k+1)%res;
-          int v4=(res*res)*i+j*res+(k+1)%res;
+          int v1=VOffset+(res*res)*i+j*res+k;
+          int v2=VOffset+(res*res)*i+(j+1)*res+k;
+          int v3=VOffset+(res*res)*i+(j+1)*res+(k+1)%res;
+          int v4=VOffset+(res*res)*i+j*res+(k+1)%res;
           T.row(TOffset+2*(((res-1)*res)*i+res*j+k))<<v1,v2,v3;
           T.row(TOffset+2*(((res-1)*res)*i+res*j+k)+1)<<v4,v1,v3;
           if (!colorPerVertex){

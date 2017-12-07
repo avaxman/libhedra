@@ -56,7 +56,7 @@ namespace hedra
       
       V.conservativeResize(VOffset+2*res*P1.rows(),3);
       T.conservativeResize(TOffset+2*res*P1.rows(),3);
-      int NewColorSize=(colorPerVertex ? V.rows() : T.rows());
+      int NewColorSize=(colorPerVertex ? 2*res*P1.rows() : 2*res*P1.rows());
       TC.conservativeResize(TCOffset+NewColorSize,3);
       
     }
@@ -92,8 +92,8 @@ namespace hedra
         }
         
         
-        T.row(TOffset+2*res*i+2*j)<<v3,v2,v1;
-        T.row(TOffset+2*res*i+2*j+1)<<v4,v2,v3;
+        T.row(TOffset+2*res*i+2*j)<<VOffset+v3,VOffset+v2,VOffset+v1;
+        T.row(TOffset+2*res*i+2*j+1)<<VOffset+v4,VOffset+v2,VOffset+v3;
         
         if (!colorPerVertex){
           TC.row(TCOffset+2*res*i+2*j)<<C.row(i);
