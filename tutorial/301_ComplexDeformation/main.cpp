@@ -1,8 +1,7 @@
-
-
+#include <igl/viewer/Viewer.h>
 
 int main(int argc, char *argv[])
 {
-    cout<<"This tutorial will be available soon!"<<endl;
+  std::cout<<"This tutorial will be available soon!"<<std::endl;
   return 0;
 }

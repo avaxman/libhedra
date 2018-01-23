@@ -8,13 +8,13 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../shared/cmake)
 
 ### libIGL options: choose between header only and compiled static library
 option(LIBIGL_USE_STATIC_LIBRARY "Use LibIGL as static library" OFF)
-option(LIBDIRECTIONAL_USE_STATIC_LIBRARY "Use Libdirectional as static library" OFF)
+option(LIBHEDRA_USE_STATIC_LIBRARY "Use Libhedra as static library" OFF)
 option(LIBIGL_WITH_VIEWER      "Use OpenGL viewer"  ON)
 option(LIBIGL_WITH_NANOGUI     "Use Nanogui menu"   OFF)
 option(LIBIGL_WITH_EMBREE      "Use Embree"         ON)
 
 ### Adding libIGL and libdirectional: choose the path to your local copy
-include(libdirectional)
+include(libhedra)
 
 ### Output directories
 if(MSVC)

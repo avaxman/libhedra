@@ -31,11 +31,8 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
 {
     using namespace Eigen;
     using namespace std;
-    
-    MatrixXd sphereV;
-    MatrixXi sphereT;
-    MatrixXd sphereTC;
-    Eigen::MatrixXd bc(Handles.size(),V.cols());
+  
+    MatrixXd bc(Handles.size(),V.cols());
     for (int i=0;i<Handles.size();i++)
         bc.row(i)=HandlePoses[i].transpose();
     
@@ -53,21 +50,13 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
     sphereGreens.col(0).setZero();
     sphereGreens.col(1).setOnes();
     sphereGreens.col(2).setZero();
+  
+  MatrixXd bigV=V;
+  MatrixXi bigT=T;
+  MatrixXd bigTC=TC;
 
-    hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, sphereV, sphereT, sphereTC);
-    
-    Eigen::MatrixXd bigV(V.rows()+sphereV.rows(),3);
-    Eigen::MatrixXi bigT(T.rows()+sphereT.rows(),3);
-    Eigen::MatrixXd bigTC(TC.rows()+sphereTC.rows(),3);
-    if (sphereV.rows()!=0){
-        bigV<<V, sphereV;
-        bigT<<T, sphereT+Eigen::MatrixXi::Constant(sphereT.rows(), sphereT.cols(), V.rows());
-        bigTC<<TC, sphereTC;
-    } else{
-        bigV<<V;
-        bigT<<T;
-        bigTC<<TC;
-    }
+    hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, true, bigV, bigT, bigTC);
+  
     
     viewer.core.show_lines=false;
     Eigen::MatrixXd OrigEdgeColors(EV.rows(),3);
@@ -79,7 +68,7 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
     viewer.data.set_mesh(bigV,bigT);
     viewer.data.set_colors(bigTC);
     viewer.data.compute_normals();
-    viewer.data.set_edges(V,EV,OrigEdgeColors);
+    viewer.data.set_edges(bigV,EV,OrigEdgeColors);
     return true;
 }
 
