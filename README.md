@@ -21,7 +21,18 @@ cmake -DCMAKE_BUILD_TYPE=Release ../
 make
 ```
 
-Using the library then amounts to including the relevant header files in the `include` directory.
+libhedra will soon get a dedicated page to its tutorial, replacing the examples. The tutorial is operative, and all its examples can be compiled at once by the following:
+
+```bash
+cd tutorial
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ../
+make
+```
+
+
+Using the library mostly amounts to including the relevant header files in the `include` directory.
 
 ## Design Principles
 
