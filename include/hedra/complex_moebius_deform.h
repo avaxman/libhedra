@@ -153,6 +153,7 @@ namespace hedra{
     Coords2Complex(qh, mdata.complexConstPoses);
     
     //feeding initial solution as the previous one
+      mdata.deformTraits.complexConstPoses=mdata.complexConstPoses;
     mdata.deformTraits.currPositions=mdata.deformVc;
     mdata.deformTraits.currY=mdata.deformY;
     mdata.deformTraits.currE=mdata.deformE;

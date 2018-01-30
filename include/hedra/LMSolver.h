@@ -13,6 +13,7 @@
 #include <Eigen/Core>
 #include <string>
 #include <vector>
+#include <list>
 #include <cstdio>
 #include <iostream>
 
@@ -128,9 +129,10 @@ namespace hedra {
             {
                 int CurrTri=0;
                 using namespace Eigen;
-                std::vector<int> oIlist;
-                std::vector<int> oJlist;
-                std::vector<std::pair<int, int> > S2Dlist;
+                //std::list<int> oIlist;
+                //std::list<int> oJlist;
+                //std::list<std::pair<int, int> > S2Dlist;
+                int ISize=0, JSize=0, S2DSize=0;
                 do{
                     int CurrRow=iI(CurrTri);
                     int NumCurrTris=0;
@@ -140,33 +142,71 @@ namespace hedra {
                     for (int i=CurrTri;i<CurrTri+NumCurrTris;i++){
                         for (int j=CurrTri;j<CurrTri+NumCurrTris;j++){
                             if (iJ(j)>=iJ(i)){
-                                oIlist.push_back(iJ(i));
+                                /*oIlist.push_back(iJ(i));
                                 oJlist.push_back(iJ(j));
-                                S2Dlist.push_back(std::pair<int,int>(i,j));
+                                S2Dlist.push_back(std::pair<int,int>(i,j));*/
+                                ISize++; JSize++; S2DSize++;
                             }
                         }
                     }
                     CurrTri+=NumCurrTris;
                 }while (CurrTri!=iI.size());
                 
+                ISize+=iJ.maxCoeff()+1;
+                JSize+=iJ.maxCoeff()+1;
                 
+                oI.resize(ISize);
+                oJ.resize(JSize);
+                S2D.resize(S2DSize,2);
+                
+                CurrTri=0;
+                int ICounter=0, JCounter=0, S2DCounter=0;
+                do{
+                    int CurrRow=iI(CurrTri);
+                    int NumCurrTris=0;
+                    while ((CurrTri+NumCurrTris<iI.size())&&(iI(CurrTri+NumCurrTris)==CurrRow))
+                        NumCurrTris++;
+                    
+                    for (int i=CurrTri;i<CurrTri+NumCurrTris;i++){
+                        for (int j=CurrTri;j<CurrTri+NumCurrTris;j++){
+                            if (iJ(j)>=iJ(i)){
+                                oI(ICounter++)=iJ(i);
+                                oJ(JCounter++)=iJ(j);
+                                S2D.row(S2DCounter++)<<i,j;
+                                /*oIlist.push_back(iJ(i));
+                                 oJlist.push_back(iJ(j));
+                                 S2Dlist.push_back(std::pair<int,int>(i,j));*/
+                            }
+                        }
+                    }
+                    CurrTri+=NumCurrTris;
+                }while (CurrTri!=iI.size());
+                
+                /*int oldIlistSize=oIlist.size();
+                int oldJlistSize=oJlist.size();
+                oIlist.resize(oldIlistSize+iJ.maxCoeff()+1);
+                oJlist.resize(oldJlistSize+iJ.maxCoeff()+1);*/
                 //triplets for miu
                 for (int i=0;i<iJ.maxCoeff()+1;i++){
-                    oIlist.push_back(i);
-                    oJlist.push_back(i);
+                    oI(ICounter+i)=i;
+                    oJ(JCounter+i)=i;
                 }
                 
-                oI.resize(oIlist.size());
+                /*oI.resize(oIlist.size());
                 oJ.resize(oJlist.size());
                 S2D.resize(S2Dlist.size(),2);
                 
-                for (int i=0;i<oIlist.size();i++){
-                    oI(i)=oIlist[i];
-                    oJ(i)=oJlist[i];
-                }
-                for (int i=0;i<S2Dlist.size();i++)
-                    S2D.row(i)<<S2Dlist[i].first, S2Dlist[i].second;
+                int counter=0;
+                for (std::list<int>::const_iterator iter=oIlist.begin();iter!=oIlist.end();iter++)
+                    oI(counter++)=*iter;
                 
+                counter=0;
+                for (std::list<int>::const_iterator iter=oJlist.begin();iter!=oJlist.end();iter++)
+                    oJ(counter++)=*iter;
+                
+                counter=0;
+                for (std::list<std::pair<int, int> >::const_iterator iter=S2Dlist.begin();iter!=S2Dlist.end();iter++)
+                    S2D.row(counter++)<<iter->first, iter->second;*/
             }
             
             //returns the values of M^T*M+miu*I by multiplication and aggregating from Single2double list.

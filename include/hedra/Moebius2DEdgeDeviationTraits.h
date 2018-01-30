@@ -79,7 +79,7 @@ namespace hedra { namespace optimization {
     int rigidTriOffset, rigidRowOffset;
     int posTriOffset, posRowOffset;
     int mobTriOffset, mobRowOffset;
-    int closeTriOffset, closeRowOffset;
+    //int closeTriOffset, closeRowOffset;
     int deviationTriOffset, deviationRowOffset;
     int complexRowOffset, complexTriOffset;
     
@@ -180,7 +180,7 @@ namespace hedra { namespace optimization {
       /**************************************************Creating Gradient Pattern*******************************************/
       
       if (!isExactDC && !isExactIAP){
-        complexJRows.conservativeResize(4*EV.rows()+2*EV.rows()+xSize/2+constIndices.size()+4*origFCR.size());
+        complexJRows.conservativeResize(4*EV.rows()+2*EV.rows()/*+xSize/2*/+constIndices.size()+4*origFCR.size());
         complexJCols.conservativeResize(complexJRows.size());
         complexJVals.conservativeResize(complexJRows.size());
         
@@ -188,7 +188,7 @@ namespace hedra { namespace optimization {
         JCols.conservativeResize(4*complexJRows.size());
         JVals.conservativeResize(4*complexJRows.size());
       } else {
-        complexJRows.conservativeResize(4*EV.rows()+2*EV.rows()+xSize/2+constIndices.size()+4*origFCR.size()+5*EV.rows());
+        complexJRows.conservativeResize(4*EV.rows()+2*EV.rows()/*+xSize/2*/+constIndices.size()+4*origFCR.size()+5*EV.rows());
         complexJCols.conservativeResize(complexJRows.size());
         complexJVals.conservativeResize(complexJRows.size());
         
@@ -248,8 +248,8 @@ namespace hedra { namespace optimization {
       
       /******************Positional Soft Constraints************/
       
-      posTriOffset=closeTriOffset+xSize/2;
-      posRowOffset=closeRowOffset+xSize/2;
+      posTriOffset=rigidTriOffset+xSize/2;
+      posRowOffset=rigidRowOffset+xSize/2;
       for (int i=0;i<constIndices.size();i++){
         complexJRows(posTriOffset+i)=posRowOffset+i;
         complexJCols(posTriOffset+i)=origVc.rows()+constIndices(i);
