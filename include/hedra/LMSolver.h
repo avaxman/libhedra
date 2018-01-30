@@ -257,6 +257,7 @@ namespace hedra {
                         miu=(miu < HVals(i) ? HVals(i) : miu);
                 miu*=tau;
                 double initmiu=miu;
+               if (verbose)
                 cout<<"initial miu: "<<miu<<endl;
                 double beta=2.0;
                 double nu=beta;

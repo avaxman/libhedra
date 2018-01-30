@@ -15,7 +15,7 @@
 
 namespace hedra
 {
-    // Computes the planarity of every polygonal face. This is the norm of a vector where each element is the planarity of a consecutive four vertices (for quads it's just the planarity then.
+    // Computes the planarity of every polygonal face. This is the RMSE of a vector where each element is the planarity of a consecutive four vertices (for quads it's just the planarity then.
     
     // Inputs:
     //  V           eigen double matrix     #V by 3 - mesh coordinates

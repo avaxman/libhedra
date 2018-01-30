@@ -425,7 +425,7 @@ namespace hedra
                                        const int numIterations,
                                        Eigen::MatrixXd& q)
     {
-        q.resize(adata.VOrig.rows(), adata.VOrig.cols());
+        q.conservativeResize(adata.VOrig.rows(), adata.VOrig.cols());
         Eigen::MatrixXd A(3*adata.F.rows(),3);
         for (int i=0;i<numIterations;i++){
             getIdealAffineTransformation(adata, q, A);
