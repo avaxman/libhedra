@@ -154,7 +154,7 @@ bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
     for (int i=0;i<handles.size();i++)
         bc.row(i)=handlePoses[i].transpose();
     
-    hedra::complex_moebius_deform(cmdata, bc,1000, deformV);
+    hedra::complex_moebius_deform(cmdata, bc,150, deformV);
     hedra::edge_mesh(deformV,D,F,EV, EF, edgeDeformV, edgeT,edgeTE);
     UpdateCurrentView();
     return true;
@@ -244,6 +244,10 @@ bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
         case '2': viewingMode=(ViewingModes)(((int)viewingMode+1)%4);
             UpdateCurrentView();
             break;
+      case '3': showDeformed=!showDeformed;
+        UpdateCurrentView();
+        break;
+        
     }
     return false;
 }

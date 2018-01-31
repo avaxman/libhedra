@@ -164,6 +164,7 @@ namespace hedra{
     mdata.deformE=mdata.deformTraits.finalE;
     
     Complex2Coords(mdata.deformVc, mdata.deformV);
+    q=mdata.deformV;
   }
 }
 

@@ -248,8 +248,8 @@ namespace hedra { namespace optimization {
       
       /******************Positional Soft Constraints************/
       
-      posTriOffset=rigidTriOffset+xSize/2;
-      posRowOffset=rigidRowOffset+xSize/2;
+      posTriOffset=rigidTriOffset+2*EV.rows();//closeTriOffset+xSize/2;
+      posRowOffset=rigidRowOffset+EV.rows();//closeRowOffset+xSize/2;
       for (int i=0;i<constIndices.size();i++){
         complexJRows(posTriOffset+i)=posRowOffset+i;
         complexJCols(posTriOffset+i)=origVc.rows()+constIndices(i);
