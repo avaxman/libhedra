@@ -178,19 +178,19 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
     return false;
   int vid, fid;
   Eigen::Vector3f bc;
-  double x = viewer.current_mouse_x;
-  double y = viewer.core.viewport(3) - viewer.current_mouse_y;
   if (!choosingHandleMode){
     editing=true;
     return false;
   }
+  
+  double x = viewer.current_mouse_x;
+  double y = viewer.core.viewport(3) - viewer.current_mouse_y;
   if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view * viewer.core.model,
-                              viewer.core.proj, viewer.core.viewport, currV, F, fid, bc))
-  {
+                              viewer.core.proj, viewer.core.viewport, currV, currT, fid, bc)){
     //add the closest vertex to the handles
     Eigen::MatrixXf::Index maxRow, maxCol;
     bc.maxCoeff(&maxRow);
-    int CurrVertex=F(fid, maxRow);
+    int CurrVertex=currT(fid, maxRow);
     bool Found=false;
     for (int i=0;i<handles.size();i++)
       if (handles[i]==CurrVertex){
