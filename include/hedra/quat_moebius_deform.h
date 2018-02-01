@@ -161,10 +161,13 @@ namespace hedra{
     //Coords2Quat(qh, mdata.quatConstPoses);
     
     //feeding initial solution as the previous one
+    mdata.constPoses=qh;
     mdata.deformTraits.constPoses=mdata.constPoses;
     mdata.deformTraits.currPositions=mdata.deformV;
     mdata.deformTraits.currX=mdata.deformX;
 
+    mdata.deformTraits.smoothFactor=10.0;
+    mdata.deformTraits.posFactor=1.0;
     mdata.deformSolver.solve(true);
     mdata.deformV=mdata.deformTraits.finalPositions;
     mdata.deformX=mdata.deformTraits.finalX;

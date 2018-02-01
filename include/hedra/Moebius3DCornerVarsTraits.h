@@ -335,7 +335,7 @@ namespace hedra { namespace optimization {
       
       
       for (int i=0;i<constIndices.size();i++)
-        posVec.segment(3*i,3)<<(currPositions.row(constIndices(i))-constPoses.row(i).transpose());
+        posVec.segment(3*i,3)<<(currPositions.row(constIndices(i))-constPoses.row(i)).transpose();
       
       if (!isExactDC){
         if (posVec.size()!=0)
