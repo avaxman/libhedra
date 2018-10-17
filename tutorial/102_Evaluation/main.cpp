@@ -1,4 +1,4 @@
-#include <igl/viewer/Viewer.h>
+#include <igl/opengl/glfw/Viewer.h>
 #include <hedra/polygonal_read_OFF.h>
 #include <hedra/triangulate_mesh.h>
 #include <hedra/polygonal_edge_topology.h>
@@ -22,7 +22,7 @@ Eigen::VectorXd edgeLengths;
 double minEdgeLength, maxEdgeLength;
 
 
-bool UpdateCurrentView(igl::viewer::Viewer & viewer)
+bool UpdateCurrentView(igl::opengl::glfw::Viewer & viewer)
 {
     using namespace Eigen;
     using namespace std;
@@ -54,23 +54,23 @@ bool UpdateCurrentView(igl::viewer::Viewer & viewer)
             bigTC.row(i)=C.row(edgeTE(i));
     }
     
-    viewer.core.show_lines=false;
+    viewer.data().show_lines=false;
     Eigen::MatrixXd OrigEdgeColors(EV.rows(),3);
     OrigEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
     OrigEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
     OrigEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
     
-    viewer.data.clear();
-    viewer.data.set_mesh(bigV,bigT);
-    viewer.data.set_colors(bigTC);
-    viewer.data.compute_normals();
-    viewer.data.set_edges(V,EV,OrigEdgeColors);
+    viewer.data().clear();
+    viewer.data().set_mesh(bigV,bigT);
+    viewer.data().set_colors(bigTC);
+    viewer.data().compute_normals();
+    viewer.data().set_edges(V,EV,OrigEdgeColors);
     return true;
 }
 
 
 
-bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
+bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifiers)
 {
     switch(key)
     {
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
     maxEdgeLength=edgeLengths.maxCoeff();
     
     ViewingMode=PLANARITY;
-    igl::viewer::Viewer viewer;
+    igl::opengl::glfw::Viewer viewer;
     viewer.callback_key_down=&key_down;
     viewer.core.background_color<<0.75,0.75,0.75,1.0;
     UpdateCurrentView(viewer);

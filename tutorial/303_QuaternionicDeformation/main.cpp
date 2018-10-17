@@ -1,5 +1,5 @@
 #include <igl/unproject_onto_mesh.h>
-#include <igl/viewer/Viewer.h>
+#include <igl/opengl/glfw/Viewer.h>
 #include <igl/readDMAT.h>
 #include <igl/jet.h>
 #include <igl/per_vertex_normals.h>
@@ -22,7 +22,7 @@ using namespace Eigen;
 using namespace std;
 
 
-igl::viewer::Viewer viewer;
+igl::opengl::glfw::Viewer viewer;
 typedef enum {DC_ERROR, IA_ERROR, FACE_CONCYCLITY, QC_ERROR} ViewingModes;
 ViewingModes viewingMode=FACE_CONCYCLITY;
 
@@ -118,21 +118,21 @@ bool UpdateCurrentView()
   
   hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, true, bigV, bigT, bigTC);
   
-  viewer.core.show_lines=false;
+  viewer.data().show_lines=false;
   Eigen::MatrixXd OrigEdgeColors(EV.rows(),3);
   OrigEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
   OrigEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
   OrigEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
   
-  viewer.data.clear();
-  viewer.data.set_mesh(bigV,bigT);
-  viewer.data.set_colors(bigTC);
-  viewer.data.compute_normals();
-  viewer.data.set_edges(bigV,EV,OrigEdgeColors);
+  viewer.data().clear();
+  viewer.data().set_mesh(bigV,bigT);
+  viewer.data().set_colors(bigTC);
+  viewer.data().compute_normals();
+  viewer.data().set_edges(bigV,EV,OrigEdgeColors);
   return true;
 }
 
-bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
+bool mouse_move(igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y)
 {
   if (!editing)
     return false;
@@ -140,7 +140,7 @@ bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
   double x = viewer.current_mouse_x;
   double y = viewer.core.viewport(3) - viewer.current_mouse_y;
   Eigen::RowVector3f NewPos=igl::unproject<float>(Eigen::Vector3f(x,y,currWinZ),
-                                                  viewer.core.view * viewer.core.model,
+                                                  viewer.core.view,
                                                   viewer.core.proj,
                                                   viewer.core.viewport);
   
@@ -162,9 +162,9 @@ bool mouse_move(igl::viewer::Viewer& viewer, int mouse_x, int mouse_y)
 }
 
 
-bool mouse_up(igl::viewer::Viewer& viewer, int button, int modifier)
+bool mouse_up(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
 {
-  if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
+  if (((igl::opengl::glfw::Viewer::MouseButton)button==igl::opengl::glfw::Viewer::MouseButton::Left))
     return false;
   
   editing=false;
@@ -172,9 +172,9 @@ bool mouse_up(igl::viewer::Viewer& viewer, int button, int modifier)
   return true;
 }
 
-bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
+bool mouse_down(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
 {
-  if (((igl::viewer::Viewer::MouseButton)button==igl::viewer::Viewer::MouseButton::Left))
+  if (((igl::opengl::glfw::Viewer::MouseButton)button==igl::opengl::glfw::Viewer::MouseButton::Left))
     return false;
   int vid, fid;
   Eigen::Vector3f bc;
@@ -185,7 +185,7 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
   
   double x = viewer.current_mouse_x;
   double y = viewer.core.viewport(3) - viewer.current_mouse_y;
-  if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view * viewer.core.model,
+  if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view,
                               viewer.core.proj, viewer.core.viewport, currV, currT, fid, bc)){
     //add the closest vertex to the handles
     Eigen::MatrixXf::Index maxRow, maxCol;
@@ -204,7 +204,7 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
     }
     
     Eigen::Vector3f WinCoords=igl::project<float>(currV.row(CurrVertex).cast<float>(),
-                                                  viewer.core.view * viewer.core.model,
+                                                  viewer.core.view,
                                                   viewer.core.proj,
                                                   viewer.core.viewport);
     
@@ -223,7 +223,7 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
   return true;
 }
 
-bool key_up(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
+bool key_up(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifiers)
 {
   switch(key)
   {
@@ -234,7 +234,7 @@ bool key_up(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
   return false;
 }
 
-bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifiers)
+bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifiers)
 {
   switch(key)
   {

@@ -1,4 +1,4 @@
-#include <igl/viewer/Viewer.h>
+#include <igl/opengl/glfw/Viewer.h>
 #include <hedra/triangulate_mesh.h>
 #include <hedra/polygonal_read_OFF.h>
 #include <hedra/polygonal_edge_topology.h>
@@ -18,10 +18,10 @@ bool ShowPolygonalEdges=true;
 bool ShowVertexSpheres=false;
 bool ShowFaceNormals=false;
 
-void UpdateCurrentView(igl::viewer::Viewer& viewer)
+void UpdateCurrentView(igl::opengl::glfw::Viewer& viewer)
 {
-  viewer.data.clear();
-  viewer.data.set_face_based(true);
+  viewer.data().clear();
+  viewer.data().set_face_based(true);
   
   Eigen::MatrixXd bigV=V;
   Eigen::MatrixXi bigT=T;
@@ -37,26 +37,26 @@ void UpdateCurrentView(igl::viewer::Viewer& viewer)
   }
   
   
-  viewer.data.clear();
+  viewer.data().clear();
   if (ShowPolygonalEdges){
-    viewer.core.show_lines=false;
+    viewer.data().show_lines=false;
     std::cout<<"Showing polygonal lines"<<std::endl;
     Eigen::MatrixXd OrigEdgeColors(EV.rows(),3);
     OrigEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
     OrigEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
     OrigEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
-    viewer.data.set_edges(V,EV,OrigEdgeColors);
+    viewer.data().set_edges(V,EV,OrigEdgeColors);
   } else {
-    viewer.core.show_lines=true;
+    viewer.data().show_lines=true;
   }
   
-  viewer.data.set_mesh(bigV,bigT);
-  viewer.data.set_colors(bigTC);
+  viewer.data().set_mesh(bigV,bigT);
+  viewer.data().set_colors(bigTC);
 }
 
 
 // This function is called every time a keyboard button is pressed
-bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifier)
+bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier)
 {
   switch(key){
     case '1': ShowPolygonalEdges=!ShowPolygonalEdges; break;
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
   
   
   // Plot the mesh
-  igl::viewer::Viewer viewer;
+  igl::opengl::glfw::Viewer viewer;
   viewer.callback_key_down = &key_down;
   UpdateCurrentView(viewer);
   viewer.launch();
