@@ -79,7 +79,7 @@ where:
 
 ### 101 Loading and Visualization
 
-![([Example 101](101_Visualization/main.cpp)) Visualization example.](images/102_Visualization.png)
+![([Example 101]({{ repo_url }}/tutorial/101_Visualization/main.cpp)) Visualization example.](images/101_Visualization.png)
 
 
 Meshes can be loaded from OFF files, which have a similar data structure, with the following function:
@@ -150,7 +150,7 @@ viewer.data.set_mesh(bigV,bigT);
 
 ### 102 Evaluation
 
-![([Example 102](102_Evaluation/main.cpp)) Evaluation example.](images/102_Evaluation.png)
+![([Example 102]({{ repo_url }}/tutorial/102_Evaluation/main.cpp)) Evaluation example.](images/102_Evaluation.png)
 
 `libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
 
@@ -200,7 +200,7 @@ TBD
 
 ### 202 Modeling with Affine Maps
 
-![([Example 202](202_ModelingAffine/main.cpp)) Modeling with Affine Maps example.](images/202_ModelingAffine.png)
+![([Example 202]({{ repo_url }}/tutorial/202_ModelingAffine/main.cpp)) Modeling with Affine Maps example.](images/202_ModelingAffine.png)
 
 Modelling polyhedral meshes with affine maps was done in [^vaxman_2012] for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf). The algorithm is demonstrated in `examples\modeling_affine`.
 
