@@ -1,0 +1,1146 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+        <meta name="description" content="Polygonal and Polyhedral Mesh Processing Library">
+      
+      
+        <link rel="canonical" href="https://avaxman.github.io/libhedra/tutorial/">
+      
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="../favicon.ico">
+      <meta name="generator" content="mkdocs-1.0.1, mkdocs-material-3.0.3">
+    
+    
+      
+        <title>Tutorial - libhedra</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/application.451f80e5.css">
+      
+        <link rel="stylesheet" href="../assets/stylesheets/application-palette.22915126.css">
+      
+      
+        
+        
+        <meta name="theme-color" content="#03a9f4">
+      
+    
+    
+      <script src="../assets/javascripts/modernizr.1aa3b519.js"></script>
+    
+    
+      <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+      
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700|Roboto+Mono">
+        <style>body,input{font-family:"Roboto","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"Roboto Mono","Courier New",Courier,monospace}</style>
+      
+    
+    <link rel="stylesheet" href="../assets/fonts/material-icons.css">
+    
+      <link rel="stylesheet" href="../css/style.css">
+    
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="light-blue" data-md-color-accent="blue">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448"
+    viewBox="0 0 416 448" id="__github">
+  <path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19-18.125
+        8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19 18.125-8.5
+        18.125 8.5 10.75 19 3.125 20.5zM320 304q0 10-3.125 20.5t-10.75
+        19-18.125 8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19
+        18.125-8.5 18.125 8.5 10.75 19 3.125 20.5zM360
+        304q0-30-17.25-51t-46.75-21q-10.25 0-48.75 5.25-17.75 2.75-39.25
+        2.75t-39.25-2.75q-38-5.25-48.75-5.25-29.5 0-46.75 21t-17.25 51q0 22 8
+        38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0
+        37.25-1.75t35-7.375 30.5-15 20.25-25.75 8-38.375zM416 260q0 51.75-15.25
+        82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5-41.75
+        1.125q-19.5 0-35.5-0.75t-36.875-3.125-38.125-7.5-34.25-12.875-30.25-20.25-21.5-28.75q-15.5-30.75-15.5-82.75
+        0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25
+        30.875q36.75-8.75 77.25-8.75 37 0 70 8 26.25-20.5
+        46.75-30.25t47.25-9.75q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34
+        99.5z" />
+</svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+    
+      <a href="../#libhedra" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="https://avaxman.github.io/libhedra/" title="libhedra" class="md-header-nav__button md-logo">
+          
+            <i class="md-icon"> </i>
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          
+            
+              <span class="md-header-nav__topic">
+                libhedra
+              </span>
+              <span class="md-header-nav__topic">
+                Tutorial
+              </span>
+            
+          
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          
+            <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+            
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+          
+        
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
+
+
+  
+
+
+  <a href="https://github.com/avaxman/libhedra.git/" title="Go to repository" class="md-source" data-md-source="github">
+    
+      <div class="md-source__icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <use xlink:href="#__github" width="24" height="24"></use>
+        </svg>
+      </div>
+    
+    <div class="md-source__repository">
+      libhedra
+    </div>
+  </a>
+
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="__drawer">
+    <a href="https://avaxman.github.io/libhedra/" title="libhedra" class="md-nav__button md-logo">
+      
+        <i class="md-icon"> </i>
+      
+    </a>
+    libhedra
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+
+  <a href="https://github.com/avaxman/libhedra.git/" title="Go to repository" class="md-source" data-md-source="github">
+    
+      <div class="md-source__icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <use xlink:href="#__github" width="24" height="24"></use>
+        </svg>
+      </div>
+    
+    <div class="md-source__repository">
+      libhedra
+    </div>
+  </a>
+
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href=".." title="Home" class="md-nav__link">
+      Home
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="__toc">
+        Tutorial
+      </label>
+    
+    <a href="./" title="Tutorial" class="md-nav__link md-nav__link--active">
+      Tutorial
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" title="Installation" class="md-nav__link">
+    Installation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" title="Design Principles" class="md-nav__link">
+    Design Principles
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mesh-representation" title="Mesh representation" class="md-nav__link">
+    Mesh representation
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mesh-combinatorics" title="Mesh Combinatorics" class="md-nav__link">
+    Mesh Combinatorics
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loading-and-visualization" title="Loading and Visualization" class="md-nav__link">
+    Loading and Visualization
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#augmenting-the-viewer" title="Augmenting the viewer" class="md-nav__link">
+    Augmenting the viewer
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation" title="Evaluation" class="md-nav__link">
+    Evaluation
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#planarity" title="Planarity" class="md-nav__link">
+    Planarity
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concyclity" title="Concyclity" class="md-nav__link">
+    Concyclity
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quaternionic-cross-ratios" title="Quaternionic cross-ratios" class="md-nav__link">
+    Quaternionic cross-ratios
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modeling-with-affine-maps" title="Modeling with Affine Maps" class="md-nav__link">
+    Modeling with Affine Maps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimization" title="Optimization" class="md-nav__link">
+    Optimization
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nonlinear-least-squares" title="Nonlinear Least Squares" class="md-nav__link">
+    Nonlinear Least Squares
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-trait-classes" title="The trait classes" class="md-nav__link">
+    The trait classes
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-plans" title="Future Plans" class="md-nav__link">
+    Future Plans
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acknowledge-libhedra" title="Acknowledge libhedra" class="md-nav__link">
+    Acknowledge libhedra
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../file_formats/" title="File Formats" class="md-nav__link">
+      File Formats
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../website/" title="Website" class="md-nav__link">
+      Website
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../faq.md" title="FAQ" class="md-nav__link">
+      FAQ
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../RELEASE_HISTORY/" title="Release History" class="md-nav__link">
+      Release History
+    </a>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installation" title="Installation" class="md-nav__link">
+    Installation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" title="Design Principles" class="md-nav__link">
+    Design Principles
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mesh-representation" title="Mesh representation" class="md-nav__link">
+    Mesh representation
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mesh-combinatorics" title="Mesh Combinatorics" class="md-nav__link">
+    Mesh Combinatorics
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loading-and-visualization" title="Loading and Visualization" class="md-nav__link">
+    Loading and Visualization
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#augmenting-the-viewer" title="Augmenting the viewer" class="md-nav__link">
+    Augmenting the viewer
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation" title="Evaluation" class="md-nav__link">
+    Evaluation
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#planarity" title="Planarity" class="md-nav__link">
+    Planarity
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concyclity" title="Concyclity" class="md-nav__link">
+    Concyclity
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quaternionic-cross-ratios" title="Quaternionic cross-ratios" class="md-nav__link">
+    Quaternionic cross-ratios
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modeling-with-affine-maps" title="Modeling with Affine Maps" class="md-nav__link">
+    Modeling with Affine Maps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimization" title="Optimization" class="md-nav__link">
+    Optimization
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nonlinear-least-squares" title="Nonlinear Least Squares" class="md-nav__link">
+    Nonlinear Least Squares
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-trait-classes" title="The trait classes" class="md-nav__link">
+    The trait classes
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-plans" title="Future Plans" class="md-nav__link">
+    Future Plans
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acknowledge-libhedra" title="Acknowledge libhedra" class="md-nav__link">
+    Acknowledge libhedra
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                  <a href="https://github.com/avaxman/avaxman.github.io/edit/docs/docs/tutorial.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                
+                
+                <h1 id="libhedra">libhedra<a class="headerlink" href="#libhedra" title="Permanent link">&para;</a></h1>
+<p>libhedra is a library that targets the processing of polygonal and polyhedral meshes, that are not necessarily triangular. It supports the generation, analysis, editing, and optimization of such meshes.</p>
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<p>libhedra is a header-only library, building on <a href="http://libigl.github.io/libigl/">libigl</a> and consequently <a href="http://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen</a>. They are bundled as submodules within libhedra. As such, minimal installation is needed. Some function would require extra dependencies, and they will be mentioned in context.</p>
+<p>To get the library, use:</p>
+<div class="codehilite"><pre><span></span>git clone --recursive https://github.com/avaxman/libhedra.git
+</pre></div>
+
+<p>to compile the examples, go into the respective library (e.g., <code class="codehilite">examples/visualization</code>) and enter:</p>
+<div class="codehilite"><pre><span></span>mkdir build
+<span class="nb">cd</span> build
+cmake -DCMAKE_BUILD_TYPE<span class="o">=</span>Release ../
+make
+</pre></div>
+
+<p>libhedra will soon get a dedicated page to its tutorial, replacing the examples. The tutorial is operative, and all its examples can be compiled at once by the following:</p>
+<div class="codehilite"><pre><span></span><span class="nb">cd</span> tutorial
+mkdir build
+<span class="nb">cd</span> build
+cmake -DCMAKE_BUILD_TYPE<span class="o">=</span>Release ../
+make
+</pre></div>
+
+<p>Using the library mostly amounts to including the relevant header files in the <code class="codehilite">include</code> directory.</p>
+<h2 id="design-principles">Design Principles<a class="headerlink" href="#design-principles" title="Permanent link">&para;</a></h2>
+<p>libhedra is a header-only library; that means that no building is required to set it up. Functions are usually in single eponymous header file, but they are sometimes aggregated under one header if they strongly depend on each other. Some functions (none of the currently implemented) depend on the existence of external dependencies, and will not work otherwise; the rest of the library is not affected.</p>
+<p>There are not many classes, and no difficult data structures; much like <a href="http://libigl.github.io/libigl/">libigl</a>, simplicity is key. The library then mostly works with <a href="http://eigen.tuxfamily.org/index.php?title=Main_Page">Eigen</a> matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code.</p>
+<h2 id="mesh-representation">Mesh representation<a class="headerlink" href="#mesh-representation" title="Permanent link">&para;</a></h2>
+<p><a href="http://libigl.github.io/libigl/">libigl</a> represents triangle meshes by a pair of matrices: a matrix <code class="codehilite">V</code> that stores vertex coordinates, and a matrix <code class="codehilite">F</code> that stores oriented triangles as vertex indices into <code class="codehilite">v</code>. Polygonal meshes are characterized by an arbitrary number of vertices per face, and so the mesh representation in libhedra provides an extension of this compact representation with two matrices and a vector:</p>
+<div class="codehilite"><pre><span></span><span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXd</span> <span class="n">V</span><span class="p">;</span>
+<span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXi</span> <span class="n">D</span><span class="p">;</span>
+<span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXi</span> <span class="n">F</span><span class="p">;</span>
+</pre></div>
+
+<p>Where <code class="codehilite">V</code> is a #V by 3 coordinates matrix, <code class="codehilite">D</code> is an #F by 1 vector that stores the degree (amount of vertices or edges) in a face, and <code class="codehilite">F</code> is a #F by <code class="codehilite">max(D)</code> array of oriented polygonal faces. In every row of <code class="codehilite">F</code>, i.e. <code class="codehilite">F.row(i)</code>, only the first <code class="codehilite">D(i)</code> elements are occupied. The rest are &ldquo;don&rsquo;t care&rdquo; and are usually set to <code class="codehilite">-1</code> to avoid errors.</p>
+<p>This representation has a few advantages:</p>
+<ol>
+<li>
+<p>Triangle meshes are represented the same as in libigl, ignoring D (which is then a uniform array of 3&rsquo;s), allowing for full compatibility.</p>
+</li>
+<li>
+<p>Uniform meshes are represented compactly.</p>
+</li>
+<li>
+<p>Avoiding dynamic allocations inside array is memory friendly.</p>
+</li>
+<li>
+<p>Simple and intuitive indexing.</p>
+</li>
+</ol>
+<p>The disadvantage is when a mesh contains relatively a few high-degree faces accompanied by many low-degree ones. Then, <code class="codehilite">max(D)</code> is high, and a major part of the memory occupied by <code class="codehilite">F</code> is not used. But this type of meshes are rare in practice.</p>
+<h3 id="mesh-combinatorics">Mesh Combinatorics<a class="headerlink" href="#mesh-combinatorics" title="Permanent link">&para;</a></h3>
+<p>While <code class="codehilite">V</code> and <code class="codehilite">F</code> represent the raw information about a polygonal mesh, combinatorial information is often required. It can be obtained with the following function:</p>
+<div class="codehilite"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;hedra/polygonal_edge_topology&gt;</span><span class="cp"></span>
+
+<span class="n">hedra</span><span class="o">::</span><span class="n">polygonal_edge_topology</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span> <span class="n">EV</span><span class="p">,</span> <span class="n">FE</span><span class="p">,</span> <span class="n">EF</span><span class="p">,</span> <span class="n">EFi</span><span class="p">,</span> <span class="n">FEs</span><span class="p">,</span><span class="n">InnerEdges</span><span class="p">);</span>
+</pre></div>
+
+<p>where:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Name</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code class="codehilite">EV</code></td>
+<td align="left">$\left</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">FE</code></td>
+<td align="left">$\left</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">EF</code></td>
+<td align="left">$\left</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">EFi</code></td>
+<td align="left">The relative location of each edge <span><span class="MathJax_Preview">i</span><script type="math/tex">i</script></span> in faces <code class="codehilite">EF.row(i)</code>. That is, <code class="codehilite">FE(EF(i,0),EFi(i,0))=i</code> and <code class="codehilite">FE(EF(i,1),EFi(i,1))=i</code>. In case of a boundary edge, only the former holds (also for EF).</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">FEs</code></td>
+<td align="left"><code class="codehilite">FEs(i,j)</code> holds the sign of edge <code class="codehilite">FE(i,j)</code> in face <code class="codehilite">i</code>. That is, if the edge is oriented positively or negatively relative to the face.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">innerEdges</code></td>
+<td align="left">a vector of indices into <code class="codehilite">EV</code> of inner (non-boundary) edges.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="loading-and-visualization">Loading and Visualization<a class="headerlink" href="#loading-and-visualization" title="Permanent link">&para;</a></h2>
+<figure><img alt="Visualization example" src="visualization_screenshot.png" title="Visualization example" /><figcaption>Visualization example</figcaption>
+</figure>
+<p>Meshes can be loaded from OFF files, which have a similar data structure, with the following function:</p>
+<div class="codehilite"><pre><span></span><span class="n">polygonal_read_OFF</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">F</span><span class="p">);</span>
+</pre></div>
+
+<p>libhedra builds upon libigl viewer for visualization and interaction. libigl viewer currently only supports triangle meshes, and therefore we visualize our meshes by triangulating the faces using <code class="codehilite">hedra::triangulate_mesh</code>. Visualization can be worked out through the following code snippet from <code class="codehilite">examples\visualization</code>:</p>
+<div class="codehilite"><pre><span></span><span class="n">hedra</span><span class="o">::</span><span class="n">polygonal_read_OFF</span><span class="p">(</span><span class="n">DATA_PATH</span> <span class="s">&quot;/rhombitruncated_cubeoctahedron.off&quot;</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">F</span><span class="p">);</span>
+<span class="n">hedra</span><span class="o">::</span><span class="n">triangulate_mesh</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span><span class="n">T</span><span class="p">,</span><span class="n">TF</span><span class="p">);</span>
+<span class="n">hedra</span><span class="o">::</span><span class="n">polygonal_edge_topology</span><span class="p">(</span><span class="n">D</span><span class="p">,</span><span class="n">F</span><span class="p">,</span> <span class="n">EV</span><span class="p">,</span><span class="n">FE</span><span class="p">,</span> <span class="n">EF</span><span class="p">,</span> <span class="n">EFi</span><span class="p">,</span> <span class="n">FEs</span><span class="p">,</span> <span class="n">innerEdges</span><span class="p">);</span>
+<span class="n">igl</span><span class="o">::</span><span class="n">viewer</span><span class="o">::</span><span class="n">Viewer</span> <span class="n">viewer</span><span class="p">;</span>
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">set_mesh</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">T</span><span class="p">);</span>
+</pre></div>
+
+<p><code class="codehilite">T</code> is the resulting triangle mesh, and <code class="codehilite">TF</code> is a vector relating every triangle to the face it tesselates. In this manner, one can easily adress the set of triangles belonging to a single face for purposes of visualization (say, a uniform color).</p>
+<p>Nevertheless, the default edges in the <code class="codehilite">show overlay</code> feature of the libigl viewer will show the triangulated edges. To see the polygonal edges and nothing else, the following code from <code class="codehilite">examples\visualization</code> can be used:</p>
+<div class="codehilite"><pre><span></span><span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXd</span> <span class="n">origEdgeColors</span><span class="p">(</span><span class="n">EV</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span><span class="mi">3</span><span class="p">);</span>
+<span class="n">origEdgeColors</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">=</span><span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">::</span><span class="n">Constant</span><span class="p">(</span><span class="n">EV</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span><span class="mf">0.0</span><span class="p">);</span>
+<span class="n">origEdgeColors</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">=</span><span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">::</span><span class="n">Constant</span><span class="p">(</span><span class="n">EV</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span><span class="mf">0.0</span><span class="p">);</span>
+<span class="n">origEdgeColors</span><span class="p">.</span><span class="n">col</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">=</span><span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">::</span><span class="n">Constant</span><span class="p">(</span><span class="n">EV</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span><span class="mf">0.0</span><span class="p">);</span>
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">set_mesh</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">T</span><span class="p">);</span>
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">set_edges</span><span class="p">(</span><span class="n">V</span><span class="p">,</span><span class="n">EV</span><span class="p">,</span><span class="n">OrigEdgeColors</span><span class="p">);</span>
+</pre></div>
+
+<h3 id="augmenting-the-viewer">Augmenting the viewer<a class="headerlink" href="#augmenting-the-viewer" title="Permanent link">&para;</a></h3>
+<p>libhedra adds some extra functionality to the libigl viewer with the following functions:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Function</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code class="codehilite">Scalar2RGB</code></td>
+<td align="left">Converts a value within <span><span class="MathJax_Preview">\left[0,1\right]</span><script type="math/tex">\left[0,1\right]</script></span> into the cool/warm color map [#moreland_2009][], which can be fed to <code class="codehilite">igl::set_colors</code>. Values above or below this range are clamped.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">point_spheres</code></td>
+<td align="left">Creates spheres with configurable radius, resolution, and color that can be used, e.g., for visualizing deformation handles.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">line_cylinders</code></td>
+<td align="left">Creates cylinders that can be used to visualize vectors and lines.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">edge_mesh</code></td>
+<td align="left">Tesselates a mesh by inserting a center point within each face, and creating triangle with each edge. The purpose is to be able to visualize edge-based functions.</td>
+</tr>
+</tbody>
+</table>
+<p><code class="codehilite">line_cylinders</code> and <code class="codehilite">point_spheres</code> create new meshes, and these need to be concatenated to a given mesh in order to be visualized, as the following code (from `examples\visualization&rsquo;):</p>
+<div class="codehilite"><pre><span></span><span class="n">hedra</span><span class="o">::</span><span class="n">point_spheres</span><span class="p">(</span><span class="n">bc</span><span class="p">,</span> <span class="n">sphereRadius</span><span class="p">,</span> <span class="n">sphereGreens</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="nb">false</span><span class="p">,</span> <span class="n">sphereV</span><span class="p">,</span> <span class="n">sphereT</span><span class="p">,</span> <span class="n">sphereTC</span><span class="p">);</span>
+<span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXd</span> <span class="n">bigV</span><span class="p">(</span><span class="n">V</span><span class="p">.</span><span class="n">rows</span><span class="p">()</span><span class="o">+</span><span class="n">sphereV</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span><span class="mi">3</span><span class="p">);</span>
+<span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXi</span> <span class="n">bigT</span><span class="p">(</span><span class="n">T</span><span class="p">.</span><span class="n">rows</span><span class="p">()</span><span class="o">+</span><span class="n">sphereT</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span><span class="mi">3</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">sphereV</span><span class="p">.</span><span class="n">rows</span><span class="p">()</span><span class="o">!=</span><span class="mi">0</span><span class="p">){</span>
+    <span class="n">bigV</span><span class="o">&lt;&lt;</span><span class="n">V</span><span class="p">,</span> <span class="n">sphereV</span><span class="p">;</span>
+    <span class="n">bigT</span><span class="o">&lt;&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">sphereT</span><span class="o">+</span><span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXi</span><span class="o">::</span><span class="n">Constant</span><span class="p">(</span><span class="n">sphereT</span><span class="p">.</span><span class="n">rows</span><span class="p">(),</span> <span class="n">sphereT</span><span class="p">.</span><span class="n">cols</span><span class="p">(),</span> <span class="n">V</span><span class="p">.</span><span class="n">rows</span><span class="p">());</span>
+        <span class="n">bigTC</span><span class="o">&lt;&lt;</span><span class="n">TC</span><span class="p">,</span> <span class="n">sphereTC</span><span class="p">;</span>
+<span class="p">}</span> <span class="k">else</span><span class="p">{</span>
+    <span class="n">bigV</span><span class="o">&lt;&lt;</span><span class="n">V</span><span class="p">;</span>
+    <span class="n">bigT</span><span class="o">&lt;&lt;</span><span class="n">T</span><span class="p">;</span>
+    <span class="n">bigTC</span><span class="o">&lt;&lt;</span><span class="n">TC</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="n">viewer</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">set_mesh</span><span class="p">(</span><span class="n">bigV</span><span class="p">,</span><span class="n">bigT</span><span class="p">);</span>
+</pre></div>
+
+<p><strong>Note</strong>: <code class="codehilite">sphereT</code> indices are relative to <code class="codehilite">sphereV</code>, and therefore need to be adjusted to indices in <code class="codehilite">bigV</code> before concatenation.</p>
+<h2 id="evaluation">Evaluation<a class="headerlink" href="#evaluation" title="Permanent link">&para;</a></h2>
+<figure><img alt="Evaluation example" src="evaluation_screenshot.png" title="Evaluation example" /><figcaption>Evaluation example</figcaption>
+</figure>
+<p><code class="codehilite">libhedra</code> provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in <code class="codehilite">examples\evaluation</code></p>
+<h3 id="planarity">Planarity<a class="headerlink" href="#planarity" title="Permanent link">&para;</a></h3>
+<p>The planarity of a quadrilateral with vertex positions <span><span class="MathJax_Preview">q_1,q_2,q_3,q_4</span><script type="math/tex">q_1,q_2,q_3,q_4</script></span> is often measured by the percentage of the distance between the diagonals <span><span class="MathJax_Preview">q_3-q_1</span><script type="math/tex">q_3-q_1</script></span> and <span><span class="MathJax_Preview">q_4-q_2</span><script type="math/tex">q_4-q_2</script></span> to the average diagonal length. Planarity of higher-degree faces is measured as the root-mean-square error of all consecutive quadrilaterlas within the face. That is, for a polygonal face <span><span class="MathJax_Preview">f=q_1,\cdots,q_d</span><script type="math/tex">f=q_1,\cdots,q_d</script></span>, we get:</p>
+<p>$$
+Planarity(f)=\frac{\sqrt{Planarity(q_1,\cdots,q_4)<sup>2+\cdots+Planarity(q_{d-2},\cdots,q_1)</sup>2}}{d}
+$$
+The usual reasonable tolerance is 1%. The libhedra function is <code class="codehilite">planarity(V,D, F,p)</code>.</p>
+<h3 id="concyclity">Concyclity<a class="headerlink" href="#concyclity" title="Permanent link">&para;</a></h3>
+<p>The concyclity of a quadrilateral with vertex positions <span><span class="MathJax_Preview">q_1,q_2,q_3,q_4</span><script type="math/tex">q_1,q_2,q_3,q_4</script></span> measures how much the quad deviates from being concyclic, or \emph{circular}. Consider the two triangles <span><span class="MathJax_Preview">T_1=q_1,q_2,q_3</span><script type="math/tex">T_1=q_1,q_2,q_3</script></span> and <span><span class="MathJax_Preview">T_2=q_3, q_4, q_1</span><script type="math/tex">T_2=q_3, q_4, q_1</script></span>, and their circumcircles. Then, the concyclity of the quad can be measured as the intersection angle between the (tangents to the) circles at the intersection points <span><span class="MathJax_Preview">q_1</span><script type="math/tex">q_1</script></span> and <span><span class="MathJax_Preview">q_3</span><script type="math/tex">q_3</script></span>. A rule-of-thumb tolerance is under <span><span class="MathJax_Preview">5^{\circ}</span><script type="math/tex">5^{\circ}</script></span>. The libhedra function is <code class="codehilite">concyclity(V,D, F,c)</code>.</p>
+<h3 id="quaternionic-cross-ratios">Quaternionic cross-ratios<a class="headerlink" href="#quaternionic-cross-ratios" title="Permanent link">&para;</a></h3>
+<p>We treat coorrdinates in <span><span class="MathJax_Preview">\mathbb{R}^3</span><script type="math/tex">\mathbb{R}^3</script></span> as imaginary quaternions in <span><span class="MathJax_Preview">Im\mathbb{H}</span><script type="math/tex">Im\mathbb{H}</script></span>. That is, with zero real part. Given four coordinates <span><span class="MathJax_Preview">q_1,q_2,q_3,q_4</span><script type="math/tex">q_1,q_2,q_3,q_4</script></span> as imaginary quaternions, the quaternionic cross-ratio can be defined in several isomorphic ways. A standard one is:</p>
+<div>
+<div class="MathJax_Preview">
+cr_{1234}=(q_2-q_1)(q_3-q_2)^{-1}(q_4-q_3)(q_1-q_4)^{-1}.
+</div>
+<script type="math/tex; mode=display">
+cr_{1234}=(q_2-q_1)(q_3-q_2)^{-1}(q_4-q_3)(q_1-q_4)^{-1}.
+</script>
+</div>
+<p>The quaternionic cross-ratio encode two interesting geometric properties, that are also M&ouml;bius invariant:</p>
+<ol>
+<li>The length cross-ratio <span><span class="MathJax_Preview">\left|cr_{1234}\right|</span><script type="math/tex">\left|cr_{1234}\right|</script></span>, which is the cross ratio of the respective edge lengths.</li>
+<li>The phase cross ratio <span><span class="MathJax_Preview">arg(cr_{1234})</span><script type="math/tex">arg(cr_{1234})</script></span>, that is in fact the circle intersection angle as discussed above.</li>
+</ol>
+<p>libhedra provides the following function to compute the cross ratio:</p>
+<div class="codehilite"><pre><span></span><span class="n">hedra</span><span class="o">::</span><span class="n">quat_cross_ratio</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">Q</span><span class="p">,</span> <span class="n">cr</span><span class="p">)</span>
+</pre></div>
+
+<p>where <code class="codehilite">Q</code> is a quadruplet of indices into <code class="codehilite">V</code>, and <code class="codehilite">cr</code> is the result in <span><span class="MathJax_Preview">\left|Q\right| \times 4</span><script type="math/tex">\left|Q\right| \times 4</script></span> dimensions, representing a quaternion as <span><span class="MathJax_Preview">\left(r,\bar{v}\right)</span><script type="math/tex">\left(r,\bar{v}\right)</script></span>.</p>
+<h2 id="modeling-with-affine-maps">Modeling with Affine Maps<a class="headerlink" href="#modeling-with-affine-maps" title="Permanent link">&para;</a></h2>
+<figure><img alt="Modeling with Affine Maps example" src="modeling_affine_screenshot.png" title="Modeling with Affine Maps example" /><figcaption>Modeling with Affine Maps example</figcaption>
+</figure>
+<p>Modelling polyhedral meshes with affine maps was done in [#vaxman_2012] for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the <a href="https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf">auxiliary note</a>. The algorithm is demonstrated in <code class="codehilite">examples\modeling_affine</code>.</p>
+<p>The algorithm operates in two stages: a precompute stage that takes into account the original geometry and the handles, and a deformation stage, that takes into account the user prescription of handle positions. The precompute stage is the most computationally-expensive, as it factorizes the involved matrices, but it only has to be called once per choice of deformation handles.</p>
+<p>The functions are then:</p>
+<div class="codehilite"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;hedra/affine_maps_deform.h&gt;</span><span class="cp"></span>
+
+<span class="n">affine_maps_precompute</span><span class="p">(</span><span class="n">V</span><span class="p">,</span><span class="n">D</span><span class="p">,</span> <span class="n">F</span><span class="p">,</span><span class="n">EV</span><span class="p">,</span><span class="n">EF</span><span class="p">,</span><span class="n">EFi</span><span class="p">,</span> <span class="n">FE</span><span class="p">,</span><span class="n">h</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">adata</span><span class="p">)</span>
+<span class="n">affine_maps_deform</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">qh</span><span class="p">,</span> <span class="n">numIterations</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+</pre></div>
+
+<p>where (parameters (e.g., <code class="codehilite">EF</code>) that have been discussed before with the same name have the same description):</p>
+<table>
+<thead>
+<tr>
+<th align="left">parameter</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code class="codehilite">h</code></td>
+<td align="left">A list of handle indices into <code class="codehilite">V</code></td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">alpha, beta</code></td>
+<td align="left">Parameters controlling face map prescription vs. map smoothness (see the <a href="https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf">auxiliary note</a>)</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">adata</code></td>
+<td align="left">A struct of type hedra::affine_data computed by <code class="codehilite">affine_maps_precompute</code> and passed to <code class="codehilite">affine_maps_deform</code>. Not supposed to be edited by the user.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">qh</code></td>
+<td align="left">A list of size $\left</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">numIterations</code></td>
+<td align="left">Of the algorithm. Generally referring to the as-rigid-as-possible part of the map prescription.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">q</code></td>
+<td align="left">The full result in $\left</td>
+</tr>
+</tbody>
+</table>
+<h2 id="optimization">Optimization<a class="headerlink" href="#optimization" title="Permanent link">&para;</a></h2>
+<p>Optimization is done in libhedra by generic classes, taking templated trait classes as input. While this is a more complicated design pattern than simple functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily.</p>
+<h3 id="nonlinear-least-squares">Nonlinear Least Squares<a class="headerlink" href="#nonlinear-least-squares" title="Permanent link">&para;</a></h3>
+<p><strong>Note: the demo currently uses a more sophisticated levenberg_marquadt solver with <code class="codehilite">LMSolver</code> instead of <code class="codehilite">GNSolver</code> below. The user interface is otherwise the same, but the solution algorithm is a somewhat different. The text berlow will be updated soon.</strong></p>
+<p>libhedra support nonlinear least squares optimization by Gauss-Newton iterations through the class <code class="codehilite">GNSolver&lt;LinearSolver, SolverTraits&gt;</code> in the respective header file. This class accepts two traits classes: for linear solving, and for the least-squares objectives.</p>
+<p>The optimizer solves problems of the form:</p>
+<p>$$
+x = argmin\sum ^m _{i=0}{(E_i(x))^2},
+$$
+by taking iterations, each solving the following linear problem:</p>
+<div>
+<div class="MathJax_Preview">J^TJd = -J^tE.</div>
+<script type="math/tex; mode=display">J^TJd = -J^tE.</script>
+</div>
+<p><span><span class="MathJax_Preview">E=\left( E_1(x), E_2(x), \cdots E_m(x)\right)^T</span><script type="math/tex">E=\left( E_1(x), E_2(x), \cdots E_m(x)\right)^T</script></span> is a column vector of size <span><span class="MathJax_Preview">m</span><script type="math/tex">m</script></span> decribing the energy at iteration <span><span class="MathJax_Preview">k</span><script type="math/tex">k</script></span>, and <span><span class="MathJax_Preview">J=\left(\nabla E_m, \cdots, \nabla E_m\right)^T</span><script type="math/tex">J=\left(\nabla E_m, \cdots, \nabla E_m\right)^T</script></span> is the (sparse) <span><span class="MathJax_Preview">m \times n</span><script type="math/tex">m \times n</script></span> Jacobian matrix at that iteration, where <span><span class="MathJax_Preview">n</span><script type="math/tex">n</script></span> is the size of the solution <span><span class="MathJax_Preview">x</span><script type="math/tex">x</script></span>. Then, the variable <span><span class="MathJax_Preview">x^{k+1}</span><script type="math/tex">x^{k+1}</script></span> is updated as follows:</p>
+<div>
+<div class="MathJax_Preview">x^{k+1}=x^k+hd.</div>
+<script type="math/tex; mode=display">x^{k+1}=x^k+hd.</script>
+</div>
+<p>The step size <span><span class="MathJax_Preview">h</span><script type="math/tex">h</script></span> is determined to be such that does not increase the energy. For this, we begin with a value of <span><span class="MathJax_Preview">h=1</span><script type="math/tex">h=1</script></span>, and reduce it by half until it reaches a tolerance value <code class="codehilite">hTolerance</code>.</p>
+<p>The initial solution <span><span class="MathJax_Preview">x_0</span><script type="math/tex">x_0</script></span> is acquired from the <code class="codehilite">SolverTraits</code> instance (see below).</p>
+<p>The algorithm stops when:</p>
+<ol>
+<li><span><span class="MathJax_Preview">max(|x^{k+1}-x^{k}|) &lt; xTolerance</span><script type="math/tex">max(|x^{k+1}-x^{k}|) < xTolerance</script></span> (step size) <strong>and</strong></li>
+<li><span><span class="MathJax_Preview">max(|J^T E|) &lt; fooTolerance</span><script type="math/tex">max(|J^T E|) < fooTolerance</script></span> (first-order optimality)
+or</li>
+<li><span><span class="MathJax_Preview">h &lt; hTolerance</span><script type="math/tex">h < hTolerance</script></span>.</li>
+</ol>
+<p>Initializing the solver is done by calling the <code class="codehilite">GNSolver::init()</code> function <em>once</em> per problem setting. That means whenever the energy computation and Jacobian structures remain the same.</p>
+<div class="codehilite"><pre><span></span><span class="kt">void</span> <span class="n">init</span><span class="p">(</span><span class="n">LinearSolver</span><span class="o">*</span> <span class="n">_LS</span><span class="p">,</span>
+          <span class="n">SolverTraits</span><span class="o">*</span> <span class="n">_ST</span><span class="p">,</span>
+          <span class="kt">int</span> <span class="n">_maxIterations</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+          <span class="kt">double</span> <span class="n">_xTolerance</span><span class="o">=</span><span class="mf">10e-6</span><span class="p">,</span>
+          <span class="kt">double</span> <span class="n">_hTolerance</span><span class="o">=</span><span class="mf">10e-9</span><span class="p">,</span>
+          <span class="kt">double</span> <span class="n">_fooTolerance</span><span class="o">=</span><span class="mf">10e7</span><span class="p">).</span>
+</pre></div>
+
+<p>Solving is done by simply calling <code class="codehilite">GNSOLver::solver(bool verbose)</code>. The initial solution will be taken from <code class="codehilite">SolverTraits</code> (see below). <code class="codehilite">verbose</code> indicates a printout of the process of the optimization.</p>
+<p>Note that the first-order optimality condition is by default pretty relaxed (or rather mostly disabled).</p>
+<h4 id="the-trait-classes">The trait classes<a class="headerlink" href="#the-trait-classes" title="Permanent link">&para;</a></h4>
+<p>Any <code class="codehilite">LinearSolver</code> class must include the following functionality:</p>
+<div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">LinearSolver</span><span class="p">{</span>
+<span class="p">...</span>
+<span class="kt">bool</span> <span class="n">analyze</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXi</span><span class="o">&amp;</span> <span class="n">_rows</span><span class="p">,</span>
+                         <span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXi</span><span class="o">&amp;</span> <span class="n">_cols</span><span class="p">){...}</span>
+<span class="kt">bool</span> <span class="n">factorize</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">values</span><span class="p">){...}</span>
+<span class="kt">bool</span> <span class="n">solve</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">MatrixXd</span><span class="o">&amp;</span> <span class="n">rhs</span><span class="p">,</span><span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">x</span><span class="p">){...}</span>
+<span class="p">...</span>
+<span class="p">};</span>
+</pre></div>
+
+<p>This functionality pertains to symbolic analysis, factorization, and solution of the system. The class should be able to handle the positive semi-definite system of <span><span class="MathJax_Preview">J^TJ</span><script type="math/tex">J^TJ</script></span> that is solved in each iteration of the Gauss-Newton solver, and the analysis function is then only called once per optimization, since the structure of the Jacobian is not supposed to change.</p>
+<p>For comfort, a class <code class="codehilite">EigenSolverWrapper&lt;class EigenSparseSolver&gt;</code> that wraps the sparse linear solvers in Eigen is provided. For instance, <code class="codehilite">EigenSolverWrapper&lt;Eigen::SimplicialLDLt&gt;</code> is a good choice.</p>
+<p>Any <code class="codehilite">SolverTraits</code> class must include the following functionality:</p>
+<div class="codehilite"><pre><span></span><span class="k">class</span> <span class="nc">SolverTraits</span><span class="p">{</span>
+<span class="p">...</span>
+    <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXi</span> <span class="n">JRows</span><span class="p">,</span> <span class="n">JCols</span><span class="p">;</span>  
+    <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span> <span class="n">JVals</span><span class="p">;</span>         
+    <span class="kt">int</span> <span class="n">xSize</span><span class="p">;</span>                      
+    <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span> <span class="n">EVec</span><span class="p">;</span>         
+<span class="p">...</span>
+    <span class="kt">void</span> <span class="n">initial_solution</span><span class="p">(</span><span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">x0</span><span class="p">){...}</span>
+    <span class="kt">void</span> <span class="n">pre_iteration</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">prevx</span><span class="p">){...}</span>
+    <span class="kt">bool</span> <span class="n">post_iteration</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">x</span><span class="p">){...}</span>
+    <span class="kt">void</span> <span class="n">update_energy</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">x</span><span class="p">){...}</span>
+    <span class="kt">void</span> <span class="n">update_jacobian</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">x</span><span class="p">){...}</span>
+    <span class="kt">bool</span> <span class="n">post_optimization</span><span class="p">(</span><span class="k">const</span> <span class="n">Eigen</span><span class="o">::</span><span class="n">VectorXd</span><span class="o">&amp;</span> <span class="n">x</span><span class="p">){...}</span>
+<span class="p">...</span>
+</pre></div>
+
+<p>The functions are callbacks that will be triggered by the optimizer <code class="codehilite">GNSolver</code>, where:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Class Member</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><code class="codehilite">JRows, JCols, JVals</code></td>
+<td align="left">(row, column, value) triplets in the Jacobian. the (row, column) pairs are expected to stay constant throughout the optimization.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">xSize</code></td>
+<td align="left">The size of the solution vector <code class="codehilite">x</code>.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">EVec</code></td>
+<td align="left">The vector <span><span class="MathJax_Preview">E</span><script type="math/tex">E</script></span> of summands in the least squares.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">initial_solution()</code></td>
+<td align="left">Called before the beginning of the iterations, and needs to provide an initial solution <span><span class="MathJax_Preview">x_0</span><script type="math/tex">x_0</script></span> to the solver.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">pre_iteration()</code></td>
+<td align="left">Called before an iteration with the previous solution.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">post_iteration()</code></td>
+<td align="left">Called after an iteration with the acquired solution. If it returns <code class="codehilite">true</code>, the optimization stops after this iteration. As such, returning <code class="codehilite">false</code> wuold allow the solver to convergence &ldquo;naturally&rdquo;.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">update_energy()</code></td>
+<td align="left">Called to update the energy vector <code class="codehilite">EVec</code>. It is a staple function that is called quite often, so it should be efficient.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">update_jacobian()</code></td>
+<td align="left">Called to update the Jacobian values vector <code class="codehilite">JVals</code>. It is called at least once per iteration.</td>
+</tr>
+<tr>
+<td align="left"><code class="codehilite">post_optimization()</code></td>
+<td align="left">Called with the final result after the optimization ended. <code class="codehilite">post_optimization()</code> should return <code class="codehilite">true</code> if the optimization should cease. Otherwise, it would begin again. This callback possibility is good for when the optimization process requires several consequent full unconstrained optimization processes, for instance, in the Augmented Lagrangian method.</td>
+</tr>
+</tbody>
+</table>
+<p>An example of Nonlinear least-squares is done in <code class="codehilite">examples/gauss-newton</code>, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [#Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in <a href="http://libigl.github.io/libigl/">libigl</a>.</p>
+<h2 id="future-plans">Future Plans<a class="headerlink" href="#future-plans" title="Permanent link">&para;</a></h2>
+<p>The following functionality will soon be available in libhedra:</p>
+<ul>
+<li>Parallel and offset meshes, including evaluation of the Steiner formula for discrete curvature.</li>
+<li>Local-global iterations for shape projection.</li>
+<li>Constrained optimization using augmented Lagrangians.</li>
+<li>Conformal Mesh Deformations with M&ouml;bius Transformations: integrating the working demo <a href="https://github.com/avaxman/MoebiusCode">MoebiusCode</a> which already relies on libhedra.</li>
+<li>Polyhedral patterns parametrization and optimization.</li>
+</ul>
+<p>If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman] (<a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#97;&#118;&#97;&#120;&#109;&#97;&#110;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#97;&#118;&#97;&#120;&#109;&#97;&#110;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>) (or open an issue in the repository)</p>
+<h2 id="acknowledge-libhedra">Acknowledge libhedra<a class="headerlink" href="#acknowledge-libhedra" title="Permanent link">&para;</a></h2>
+<p>If you use libhedra in your academic projects, please cite the implemented papers appropriately. To cite the library in general, you could use this BibTeX entry:</p>
+<div class="codehilite"><pre><span></span><span class="nc">@misc</span><span class="p">{</span><span class="nl">libhedra</span><span class="p">,</span>
+  <span class="na">title</span> <span class="p">=</span> <span class="s">{{libhedra}: geometric processing and optimization of polygonal meshes,</span>
+<span class="s">  author = {Amir Vaxman and others},</span>
+<span class="s">  note = {https://github.com/avaxman/libhedra},</span>
+<span class="s">  year = {2016},</span>
+<span class="s">}</span>
+</pre></div>
+
+<p>[#moreland_2009]: Kenneth Moreland. <a href="http://www.kennethmoreland.com/color-maps">Diverging Color Maps for Scientific Visualization</a>.
+[#vaxman_2012]: Amir Vaxman. <a href="http://dl.acm.org/citation.cfm?id=2346801">Modeling Polyhedral Meshes with Affine Maps</a> , 2012
+[#Froehlich_2011]: Fr&ouml;hlich, Stefan and Botsch, Mario, <a href="http://graphics.uni-bielefeld.de/publications/cgf11.pdf">Example-Driven Deformations Based on Discrete Shells</a>, 2011.</p>
+                
+                  
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href=".." title="Home" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                Home
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../file_formats/" title="File Formats" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                File Formats
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        powered by
+        <a href="https://www.mkdocs.org">MkDocs</a>
+        and
+        <a href="https://squidfunk.github.io/mkdocs-material/">
+          Material for MkDocs</a>
+      </div>
+      
+        
+  <div class="md-footer-social">
+    <link rel="stylesheet" href="../assets/fonts/font-awesome.css">
+    
+      <a href="https://github.com/avaxman" class="md-footer-social__link fa fa-github"></a>
+    
+  </div>
+
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    
+      <script src="../assets/javascripts/application.583bbe55.js"></script>
+      
+      <script>app.initialize({version:"1.0.1",url:{base:".."}})</script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+      
+    
+    
+      
+    
+  </body>
+</html>

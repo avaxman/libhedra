@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+     <loc>https://avaxman.github.io/libhedra/</loc>
+     <lastmod>2018-11-17</lastmod>
+     <changefreq>daily</changefreq>
+    </url>
+    <url>
+     <loc>https://avaxman.github.io/libhedra/tutorial/</loc>
+     <lastmod>2018-11-17</lastmod>
+     <changefreq>daily</changefreq>
+    </url>
+    <url>
+     <loc>https://avaxman.github.io/libhedra/file_formats/</loc>
+     <lastmod>2018-11-17</lastmod>
+     <changefreq>daily</changefreq>
+    </url>
+    <url>
+     <loc>https://avaxman.github.io/libhedra/website/</loc>
+     <lastmod>2018-11-17</lastmod>
+     <changefreq>daily</changefreq>
+    </url>
+    <url>
+     <loc></loc>
+     
+     <changefreq>daily</changefreq>
+    </url>
+    <url>
+     <loc>https://avaxman.github.io/libhedra/RELEASE_HISTORY/</loc>
+     <lastmod>2018-11-17</lastmod>
+     <changefreq>daily</changefreq>
+    </url>
+</urlset>
