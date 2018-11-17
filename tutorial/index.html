@@ -943,7 +943,7 @@
 </table>
 <h2 id="chapter-1-io-and-visualization">Chapter 1: I/O and Visualization<a class="headerlink" href="#chapter-1-io-and-visualization" title="Permanent link">&para;</a></h2>
 <h3 id="101-loading-and-visualization">101 Loading and Visualization<a class="headerlink" href="#101-loading-and-visualization" title="Permanent link">&para;</a></h3>
-<figure><img alt="(Example 101) Visualization example." src="../images/101_Visualization.png" /><figcaption>(<a href="101_Visualization/main.cpp">Example 101</a>) Visualization example.</figcaption>
+<figure><img alt="(Example 101) Visualization example." src="../images/101_Visualization.png" /><figcaption>(<a href="https://github.com/avaxman/libhedra/tree/master/tutorial/101_Visualization/main.cpp">Example 101</a>) Visualization example.</figcaption>
 </figure>
 <p>Meshes can be loaded from OFF files, which have a similar data structure, with the following function:</p>
 <div class="codehilite"><pre><span></span><span class="n">polygonal_read_OFF</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">D</span><span class="p">,</span> <span class="n">F</span><span class="p">);</span>
@@ -1017,7 +1017,7 @@
 
 <p><strong>Note</strong>: <code class="codehilite">sphereT</code> indices are relative to <code class="codehilite">sphereV</code>, and therefore need to be adjusted to indices in <code class="codehilite">bigV</code> before concatenation.</p>
 <h3 id="102-evaluation">102 Evaluation<a class="headerlink" href="#102-evaluation" title="Permanent link">&para;</a></h3>
-<figure><img alt="(Example 102) Evaluation example." src="../images/102_Evaluation.png" /><figcaption>(<a href="102_Evaluation/main.cpp">Example 102</a>) Evaluation example.</figcaption>
+<figure><img alt="(Example 102) Evaluation example." src="../images/102_Evaluation.png" /><figcaption>(<a href="https://github.com/avaxman/libhedra/tree/master/tutorial/102_Evaluation/main.cpp">Example 102</a>) Evaluation example.</figcaption>
 </figure>
 <p><code class="codehilite">libhedra</code> provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in <code class="codehilite">examples\evaluation</code></p>
 <h3 id="planarity">Planarity<a class="headerlink" href="#planarity" title="Permanent link">&para;</a></h3>
@@ -1052,7 +1052,7 @@ cr_{1234}=(q_2-q_1)(q_3-q_2)^{-1}(q_4-q_3)(q_1-q_4)^{-1}.
 <h3 id="201-planarization">201 Planarization<a class="headerlink" href="#201-planarization" title="Permanent link">&para;</a></h3>
 <p>TBD</p>
 <h3 id="202-modeling-with-affine-maps">202 Modeling with Affine Maps<a class="headerlink" href="#202-modeling-with-affine-maps" title="Permanent link">&para;</a></h3>
-<figure><img alt="(Example 202) Modeling with Affine Maps example." src="../images/202_ModelingAffine.png" /><figcaption>(<a href="202_ModelingAffine/main.cpp">Example 202</a>) Modeling with Affine Maps example.</figcaption>
+<figure><img alt="(Example 202) Modeling with Affine Maps example." src="../images/202_ModelingAffine.png" /><figcaption>(<a href="https://github.com/avaxman/libhedra/tree/master/tutorial/202_ModelingAffine/main.cpp">Example 202</a>) Modeling with Affine Maps example.</figcaption>
 </figure>
 <p>Modelling polyhedral meshes with affine maps was done in <sup id="fnref:vaxman_2012"><a class="footnote-ref" href="#fn:vaxman_2012" rel="footnote">2</a></sup> for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the <a href="https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf">auxiliary note</a>. The algorithm is demonstrated in <code class="codehilite">examples\modeling_affine</code>.</p>
 <p>The algorithm operates in two stages: a precompute stage that takes into account the original geometry and the handles, and a deformation stage, that takes into account the user prescription of handle positions. The precompute stage is the most computationally-expensive, as it factorizes the involved matrices, but it only has to be called once per choice of deformation handles.</p>
