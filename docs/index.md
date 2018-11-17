@@ -1,44 +1,38 @@
-# Directional - A Directional-Field Processing Library
+# libhedra - Polygonal and Polyhedral Mesh Processing
 
 <!---[![Build Status](https://travis-ci.org/libigl/libigl.svg?branch=master)](https://travis-ci.org/libigl/libigl)
 [![Build status](https://ci.appveyor.com/api/projects/status/mf3t9rnhco0vhly8/branch/master?svg=true)](https://ci.appveyor.com/project/danielepanozzo/libigl-6hjk1/branch/master)
 ![](libigl-teaser.png)!--->
 
-<https://github.com/avaxman/Directional/>
+<https://github.com/avaxman/libhedra/>
 
-Directional is a C++ library for creating, manipulating and visualizing directional fields on 3D meshes, built as an extension to [libigl](https://www.github.com/libigl/libigl) on the foundations of [Eigen](http://eigen.tuxfamily.org/). Directional represents directional fields:  discrete sets of vectors on meshes. The content and the notations are based on the Eurographics 2016 star (adapted subsequently to SIGGRAPH Asia 2016/SIGGRAPH 2017 courses) on [Directional Field Synthesis, Design, and Processing](https://github.com/avaxman/DirectionalFieldSynthesis). Some visualization code is borrowed from the [libhedra](https://github.com/avaxman/libhedra) library. 
-
-Directional was called "libdirectional" until version 1.5. The name was shortened to avoid a clash with [libDirectional](https://github.com/libDirectional/libDirectional).
+libhedra is a C++ library for processing polygonal and polyhedral meshes, built as an extension to [libigl](https://www.github.com/libigl/libigl) on the foundations of [Eigen](http://eigen.tuxfamily.org/). Polygonal meshes are meshes whose faces are not necessarily triangular. Polyhedral meshes are polygonal meshes whose faces are additionally flat. These meshes are extensively in use in architectural and industrial geometry, and are important theoretical objects in discrete differential geometry.
 
 ## Installation
-Directional is a header-only library where each file generally includes one function. To use the library, simply add the _include_ directory to your include path and make sure Directional and its prerequisites are set up properly. After that you can include any files you need normally, using for example `#include <directional/index_prescription.h>`.
+libhedra is a header-only library where each file generally includes one function. To use the library, simply add the _include_ directory to your include path and make sure Directional and its prerequisites are set up properly. After that you can include any files you need normally, using for example `#include <libhedra/affine_maps_deform.h>`.
 
 To get the library, simply clone the repository using:
 ```git
-git clone --recursive https://github.com/avaxman/Directional.git
+git clone --recursive https://github.com/avaxman/libhedra.git
 ```
 
 ## Features
-The current version is 1.5, comprising the following features:
+The current version is 1.0, comprising the following features:
 
-1. Representation of per-face directional fields of any given degree and symmetry.
-2. Visualization using glyphs and streamline tracing.
-3. Principal and curl matching, and combing for $N$-directional fields.
-4. Computation of power fields of $N$-RoSy fields.
-5. PolyVector fields.
-6. Optimization for curl reduction.
-7. Conjugate fields.
-8. Prescription of singularity, generator, and boundary indices.
-9. Rotationally- and fully-seamless parameterization.
+1. Visualization of polygonal meshes with properties like normals and degrees.
+2. Evaluation of measurements like face planarity, concyclity, and regularity.
+3. Piecewise-affine handle-based deformation.
+4. Complex piecewise-M\"obius deformations.
+5. Polygonal subdivision meshes.
 
-Directional is **a header-only library**. You do not need to compile anything to use,
-just include directional headers (e.g. `#include <directional/index_prescription.h>`) and run.  Each
-header file contains a single function (e.g. `igl/index_prescription.h` contains
-`igl::index_prescription()`). 
+libhedra is **a header-only library**. You do not need to compile anything to use,
+just include directional headers (e.g. `#include <libhedra/affine_maps_deform.h>`) and run.  Each
+header file contains a single function (e.g. `hedra/dual_mesh.h` contains
+`hedra::dual_mesh()`). 
 
 
 ## Tutorial
-A [Tutorial](https://avaxman.github.io/Directional/tutorial/tutorial.html) that walks through the entire functionality of Directional is available. To compile it, go to the `tutorial` folder, open a shell and call:
+A [Tutorial](https://avaxman.github.io/libhedra/tutorial/) that walks through the entire functionality of libhedra is available. To compile it, go to the `tutorial` folder, open a shell and call:
 
 ```
 mkdir build
@@ -50,7 +44,7 @@ This should properly set up the tutorial project, with the individual chapters a
 
 ## Coding Guidelines and Tips
 
-Directional inherits and follows the strict coding guidelines of libigl: please take a look [here](http://libigl.github.io/libigl/style-guidelines) before submitting your pull requests.
+libhedra inherits and follows the strict coding guidelines of libigl: please take a look [here](http://libigl.github.io/libigl/style-guidelines) before submitting your pull requests.
 
 
 ## How to Contribute
@@ -62,16 +56,18 @@ Directional is primarily [MPL2](http://www.mozilla.org/MPL/2.0/) licensed ([FAQ]
 
 ## Attribution
 
-If you use Directional in your academic projects, please cite the implemented papers directly, and/or the EG STAR 2016 when appropriate. To cite the library in general, you could use this BibTeX entry:
+If you use libhedra in your academic projects, please cite the implemented papers appropriately. To cite the library in general, you could use this BibTeX entry:
 
-```
-@misc{Directional,
-title = {{Directional}: directional field synthesis, design, and processing,
+```bibtex
+@misc{libhedra,
+title = {{libhedra}: geometric processing and optimization of polygonal meshes,
 author = {Amir Vaxman and others},
-note = {https://github.com/avaxman/Directional},
+note = {https://github.com/avaxman/libhedra},
 year = {2017},
 }
 ```
+
+If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman] (mailto:avaxman@gmail.com) (or open an issue in the repository)
 
 ## Contact
 
@@ -81,18 +77,17 @@ If you're using libirectional in your projects, quickly [drop me a note](mailto:
 
 ## Future Plans
 
-The following functionality is still in workds for Directional:
+The following functionality is planned for libhedra:
 
-1. Other discretizations: discrete exterior calculus, vector-based fields.
-2. 3D fields.
-3. Discrete vector calculus: operators and Hodge decomposition.
-4. Line-integral convolution visualization.
-5. N-Symmetry seamless parameterization (for hexagonal and triangle remeshing).
-6. Subdivision fields.
-
+* Parallel and offset meshes, including evaluation of the Steiner formula for discrete curvature.
+* Constrained optimization using augmented Lagrangians.
+* Conformal Mesh Deformations with M&ouml;bius Transformations: integrating the working demo [MoebiusCode](https://github.com/avaxman/MoebiusCode) which already relies on libhedra.
+* Polyhedral patterns parametrization and optimization.
+* Polyhedral patterns
+* Canonical M\"{o}bius subdivision
 If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman](avaxman@gmail.com) (or open an issue in the repository).
 
 ## Copyright
-2017 Amir Vaxman, Sam de Redelijkheid, Daniele Panozzo, Olga Diamanti, Olga Sorkine-Hornung, and others.
+2017 Amir Vaxman and others.
 
 Please see individual files for appropriate copyright notices.

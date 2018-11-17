@@ -1,6 +1,4 @@
-# Directional version tracking
-
-
+# libhedra version tracking
 
 
 
