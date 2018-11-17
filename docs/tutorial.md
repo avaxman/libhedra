@@ -1,50 +1,36 @@
-# libhedra
+
+# libhedra tutorial notes
+
+## Introduction
 
 libhedra is a library that targets the processing of polygonal and polyhedral meshes, that are not necessarily triangular. It supports the generation, analysis, editing, and optimization of such meshes.
 
-## Installation
+The underlying structure extends the general philosophy of [libigl](http://libigl.github.io/libigl/): the library is header only, where each header contains a set of functions closely related. For the most part, one header contains only one function. The data structures are, for the most part, simple matrices in [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page), and the library avoids complicated and nested structures, relying instead on standalone functions. The visualization is done on the basis of [libigl](http://libigl.github.io/libigl/) viewer, with some extended options that allow the representation and rendering of polygonal meshes.
 
-libhedra is a header-only library, building on [libigl](http://libigl.github.io/libigl/) and consequently [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page). They are bundled as submodules within libhedra. As such, minimal installation is needed. Some function would require extra dependencies, and they will be mentioned in context.
+The header files contain documentation of the parameters to each function and their required composition; in this tutorial we will mostly tie the functionality of libhedra to the theoretical concepts of polygonal mesh processing and representation.
 
-To get the library, use:
+### Installing the tutorial examples
 
-```bash
-git clone --recursive https://github.com/avaxman/libhedra.git
-```
+This tutorial comprises an exhaustive set of examples that demonstrates the capabilities of libhedra, where every subchapter entails a single concept. The tutorial code can be installed by going into the `tutorial` folder from the main libhedra folder, and typing the following instructions in a terminal:
 
-to compile the examples, go into the respective library (e.g., `examples/visualization`) and enter:
 
-```bash
+```cpp
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ../
 make
 ```
 
-libhedra will soon get a dedicated page to its tutorial, replacing the examples. The tutorial is operative, and all its examples can be compiled at once by the following:
+This will build all tutorial chapters in the `build` folder. The necessary dependencies will be appended and built automatically. To build in windows, use the `cmake-gui ..` options instead of the last two commands, and create the project using Visual Studio, with the proper tutorial subchapter as the "startup project".
 
-```bash
-cd tutorial
-mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ../
-make
-```
+To access a single example, say ``202_ModelingAffine``, go to the ``build`` subfolder, and the executable will be there. Command-line arguments are never required; the data is read from the ``shared`` folder directly for each example.
+
+Most examples require a modest amount of user interaction; the instructions of what to do are given in the command-line output upon execution.
 
 
-Using the library mostly amounts to including the relevant header files in the `include` directory.
+### Polygonal mesh representation
 
-## Design Principles
-
-libhedra is a header-only library; that means that no building is required to set it up. Functions are usually in single eponymous header file, but they are sometimes aggregated under one header if they strongly depend on each other. Some functions (none of the currently implemented) depend on the existence of external dependencies, and will not work otherwise; the rest of the library is not affected.
-
-There are not many classes, and no difficult data structures; much like [libigl](http://libigl.github.io/libigl/), simplicity is key. The library then mostly works with [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) matrices passed as arguments to functions. This allows for fast protoyping, and also quick transitions from MATLAB- and Python-based code.
-
-
-
-## Mesh representation
-
-[libigl](http://libigl.github.io/libigl/) represents triangle meshes by a pair of matrices: a matrix `V` that stores vertex coordinates, and a matrix ``F`` that stores oriented triangles as vertex indices into ``v``. Polygonal meshes are characterized by an arbitrary number of vertices per face, and so the mesh representation in libhedra provides an extension of this compact representation with two matrices and a vector:
+[libigl](http://libigl.github.io/libigl/) represents triangle meshes by a pair of matrices: a matrix `V` that stores vertex coordinates, and a matrix ``F`` that stores oriented triangles as vertex indices into the rows of ``V``. Polygonal meshes are characterized by an arbitrary number of vertices per face (face valence, or degree), and so the mesh representation in libhedra provides an extension of this compact representation with two matrices and a vector:
 
 ```cpp
 Eigen::MatrixXd V;
@@ -56,15 +42,15 @@ Where `V` is a #V by 3 coordinates matrix, `D` is an #F by 1 vector that stores 
 
 This representation has a few advantages:
 
-1. Triangle meshes are represented the same as in libigl, ignoring D (which is then a uniform array of 3's), allowing for full compatibility.
+1. Triangle meshes are represented the same as in libigl, when one can ignore `D` (which would then be an array of constant 3), allowing for full compatibility.
 
-2. Uniform meshes are represented compactly.
+2. Uniform (all faces are with the same valence) meshes are represented compactly.
 
 3. Avoiding dynamic allocations inside array is memory friendly.
 
 4. Simple and intuitive indexing.
 
-The disadvantage is when a mesh contains relatively a few high-degree faces accompanied by many low-degree ones. Then, `max(D)` is high, and a major part of the memory occupied by `F` is not used. But this type of meshes are rare in practice.
+The disadvantage is when a mesh contains relatively a few high-degree faces accompanied by many low-degree ones. Then, `max(D)` is high, and a major part of the memory occupied by `F` is not used. However, this type of meshes are rare in practice.
 
 ### Mesh Combinatorics
 
@@ -80,18 +66,20 @@ where:
 
 | Name                     | Description                                                                         |
 | :----------------------- | :---------------------------------------------------------------------------------- |
-| `EV`            | $\left|E\right| \times 2$ of edge endpoints (into `V`)                                             |
-| `FE`               | $\left|F\right| \times max(D)$ consecutive edges per face, where `EV.row(FE(i,j))` contains `F(i,j)` as one of its endpoints.|
-| `EF`              | $\left|E\right| \times 2$ of indices into `F` of the adjacent faces.|
+| `EV`            | $2$ elements per row of edge endpoints (into `V`)                                             |
+| `FE`               | $max(D)$ consecutive edges per face, where `EV.row(FE(i,j))` contains `F(i,j)` as one of its endpoints.|
+| `EF`              | Indices into `F` of the (up to) two adjacent faces per edge.|
 | `EFi`            | The relative location of each edge $i$ in faces `EF.row(i)`. That is, `FE(EF(i,0),EFi(i,0))=i` and `FE(EF(i,1),EFi(i,1))=i`. In case of a boundary edge, only the former holds (also for EF).
 | `FEs`             | `FEs(i,j)` holds the sign of edge `FE(i,j)` in face `i`. That is, if the edge is oriented positively or negatively relative to the face. |
 | `innerEdges`             | a vector of indices into `EV` of inner (non-boundary) edges. |
 
 
+## Chapter 1: I/O and Visualization
 
-## Loading and Visualization
 
-![Visualization example](visualization_screenshot.png "Visualization example")
+### 101 Loading and Visualization
+
+![([Example 101](101_Visualization/main.cpp)) Visualization example.](images/102_Visualization.png)
 
 
 Meshes can be loaded from OFF files, which have a similar data structure, with the following function:
@@ -124,12 +112,14 @@ viewer.data.clear();
 viewer.data.set_mesh(V, T);
 viewer.data.set_edges(V,EV,OrigEdgeColors);
 ```
-### Augmenting the viewer
+
+#### Augmenting the libigl viewer
+
 libhedra adds some extra functionality to the libigl viewer with the following functions:
 
 | Function   | Description       |
 | :----------------------- | :---------------------------------------------------------------------------------- |
-| `Scalar2RGB`            | Converts a value within $\left[0,1\right]$ into the cool/warm color map [#moreland_2009][], which can be fed to `igl::set_colors`. Values above or below this range are clamped. |               
+| `Scalar2RGB`            | Converts a value within $\left[0,1\right]$ into the cool/warm color map [^moreland_2009][], which can be fed to `igl::set_colors`. Values above or below this range are clamped. |               
 | `point_spheres`               | Creates spheres with configurable radius, resolution, and color that can be used, e.g., for visualizing deformation handles.|
 | `line_cylinders`               | Creates cylinders that can be used to visualize vectors and lines. |
 | `edge_mesh`                 | Tesselates a mesh by inserting a center point within each face, and creating triangle with each edge. The purpose is to be able to visualize edge-based functions. |
@@ -158,9 +148,9 @@ viewer.data.set_mesh(bigV,bigT);
 **Note**: `sphereT` indices are relative to `sphereV`, and therefore need to be adjusted to indices in `bigV` before concatenation.
 
 
-## Evaluation
+### 102 Evaluation
 
-![Evaluation example](evaluation_screenshot.png "Evaluation example")
+![([Example 102](102_Evaluation/main.cpp)) Evaluation example.](images/102_Evaluation.png)
 
 `libhedra` provides functionality to evaluate common properties on meshes. They can be face-, edge-, or vertex- based. The evaluation functions are demonstrated in `examples\evaluation`
 
@@ -201,12 +191,18 @@ hedra::quat_cross_ratio(V, Q, cr)
 
 where `Q` is a quadruplet of indices into `V`, and `cr` is the result in $\left|Q\right| \times 4$ dimensions, representing a quaternion as $\left(r,\bar{v}\right)$.
 
+## Chapter 2: Polyhedral Mesh Processing
 
-## Modeling with Affine Maps
 
-![Modeling with Affine Maps example](modeling_affine_screenshot.png "Modeling with Affine Maps example")
+### 201 Planarization
 
-Modelling polyhedral meshes with affine maps was done in [#vaxman_2012] for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf). The algorithm is demonstrated in `examples\modeling_affine`.
+TBD
+
+### 202 Modeling with Affine Maps
+
+![([Example 202](202_ModelingAffine/main.cpp)) Modeling with Affine Maps example.](images/202_ModelingAffine.png)
+
+Modelling polyhedral meshes with affine maps was done in [^vaxman_2012] for the purpose of shape handle-based deformation, interpolation, and shape-space exploration. They use a single affine map per face to preserve planarity. The space of valid space is then linear. libhedra implements the deformation algorithm according the version detailed in the [auxiliary note](https://www.staff.science.uu.nl/~vaxma001/AffineMapsNote.pdf). The algorithm is demonstrated in `examples\modeling_affine`.
 
 The algorithm operates in two stages: a precompute stage that takes into account the original geometry and the handles, and a deformation stage, that takes into account the user prescription of handle positions. The precompute stage is the most computationally-expensive, as it factorizes the involved matrices, but it only has to be called once per choice of deformation handles.
 
@@ -233,11 +229,13 @@ where (parameters (e.g., `EF`) that have been discussed before with the same nam
 | `q`             | The full result in $\left|V\right| \times 3$ vertices (including the handles).|
 
 
-## Optimization
+
+
+#### Optimization
 
 Optimization is done in libhedra by generic classes, taking templated trait classes as input. While this is a more complicated design pattern than simple functions, it does provide an elegant way to plug in linear solvers, objectives, and constraints quite easily.
 
-### Nonlinear Least Squares
+#### Nonlinear Least Squares
 
 **Note: the demo currently uses a more sophisticated levenberg_marquadt solver with `LMSolver` instead of `GNSolver` below. The user interface is otherwise the same, but the solution algorithm is a somewhat different. The text berlow will be updated soon.**
 
@@ -336,7 +334,39 @@ The functions are callbacks that will be triggered by the optimizer `GNSolver`, 
 `update_jacobian()`    |Called to update the Jacobian values vector `JVals`. It is called at least once per iteration. |
 | `post_optimization()` | Called with the final result after the optimization ended. `post_optimization()` should return `true` if the optimization should cease. Otherwise, it would begin again. This callback possibility is good for when the optimization process requires several consequent full unconstrained optimization processes, for instance, in the Augmented Lagrangian method. |
 
-An example of Nonlinear least-squares is done in `examples/gauss-newton`, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [#Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in [libigl](http://libigl.github.io/libigl/).
+An example of Nonlinear least-squares is done in `examples/gauss-newton`, implementing a handle-based deformation algorithm, minimizing the length and dihedral angle deviations (similar to [^Froehlich_2011]), and with an initial solution based on biharmonic deformation fields in [libigl](http://libigl.github.io/libigl/).
+
+### 203 Polyhedral Patterns
+
+TBD
+
+## Chapter 3: M&ouml;bius Geometry Processing
+
+### 301 Complex PCM deformation
+
+TBD
+
+### 302 Complex PCM interpolation
+
+TBD
+
+### 303 Quaternionic PCM deformation
+
+TBD
+
+### 304 Regular meshes
+
+TBD
+
+## Chapter 4: Subdivision Meshes
+
+### 401 Polygonal subdivision
+
+TBD
+
+### 402 Canonical M&ouml;bius subdivision
+
+TBD
 
 
 
@@ -348,7 +378,6 @@ The following functionality will soon be available in libhedra:
 * Parallel and offset meshes, including evaluation of the Steiner formula for discrete curvature.
 * Local-global iterations for shape projection.
 * Constrained optimization using augmented Lagrangians.
-* Conformal Mesh Deformations with M&ouml;bius Transformations: integrating the working demo [MoebiusCode](https://github.com/avaxman/MoebiusCode) which already relies on libhedra.
 * Polyhedral patterns parametrization and optimization.
 
 If you would like to suggest further topics, would like to collaborate in implementation, complain about bugs or ask questions, please address [Amir Vaxman] (avaxman@gmail.com) (or open an issue in the repository)
@@ -366,6 +395,6 @@ If you use libhedra in your academic projects, please cite the implemented paper
 }
 ```
 
-[#moreland_2009]: Kenneth Moreland. [Diverging Color Maps for Scientific Visualization](http://www.kennethmoreland.com/color-maps).
-[#vaxman_2012]: Amir Vaxman. [Modeling Polyhedral Meshes with Affine Maps](http://dl.acm.org/citation.cfm?id=2346801) , 2012
-[#Froehlich_2011]: Fr&ouml;hlich, Stefan and Botsch, Mario, [Example-Driven Deformations Based on Discrete Shells](http://graphics.uni-bielefeld.de/publications/cgf11.pdf), 2011.
+[^moreland_2009]: Kenneth Moreland. [Diverging Color Maps for Scientific Visualization](http://www.kennethmoreland.com/color-maps).
+[^vaxman_2012]: Amir Vaxman. [Modeling Polyhedral Meshes with Affine Maps](http://dl.acm.org/citation.cfm?id=2346801) , 2012
+[^Froehlich_2011]: Fr&ouml;hlich, Stefan and Botsch, Mario, [Example-Driven Deformations Based on Discrete Shells](http://graphics.uni-bielefeld.de/publications/cgf11.pdf), 2011.
