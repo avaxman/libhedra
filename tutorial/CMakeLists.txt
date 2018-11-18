@@ -12,10 +12,18 @@ option(LIBIGL_WITH_OPENGL      "Use OpenGL"         ON)
 option(LIBIGL_WITH_OPENGL_GLFW "Use GLFW"           ON)
 option(LIBIGL_WITH_EMBREE      "Use Embree"         ON)
 
+### libhedra options
+option(LIBHEDRA_WITH_CERES      "Use Ceres"         ON)
+
 
 ### Adding libIGL and libhedra: choose the path to your local copy
 find_package(LIBIGL REQUIRED QUIET)
 include(libhedra)
+
+if (LIBHEDRA_WITH_CERES)
+find_package(Ceres REQUIRED)
+include_directories(${CERES_INCLUDE_DIRS})
+endif()
 
 ### Output directories
 if(MSVC)
@@ -53,7 +61,7 @@ if(TUTORIALS_CHAPTER2)
 endif()
 
 # Chapter 3
-if(TUTORIALS_CHAPTER3)
+if(TUTORIALS_CHAPTER3 AND LIBHEDRA_WITH_CERES)
   add_subdirectory("301_ComplexDeformation")
   add_subdirectory("302_ComplexInterpolation")
   add_subdirectory("303_QuaternionicDeformation")
