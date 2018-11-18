@@ -31,7 +31,7 @@ namespace directional
   //  singV:          The vertices of the singularity spheres.
   //  singF:          The faces of the singularity spheres.
   //  singC:         The colors of the singularity spheres.
-  void IGL_INLINE singularity_spheres(const Eigen::MatrixXd& V,
+  void IGL_INLINE vertex_spheres(const Eigen::MatrixXd& V,
                                       const Eigen::MatrixXi& F,
                                       const int N,
                                       const Eigen::VectorXi& singVertices,
@@ -63,37 +63,6 @@ namespace directional
     directional::point_spheres(points, radius, colors, 8, singV, singF, singC);
   
   }
-  
-
-  //version that provides all vertex indices instead of only singularities
-  /*void IGL_INLINE singularity_spheres(const Eigen::MatrixXd& V,
-                                      const Eigen::MatrixXi& F,
-                                      const int N,
-                                      const Eigen::VectorXi& fullIndices,
-                                      Eigen::MatrixXd& singV,
-                                      Eigen::MatrixXi& singF,
-                                      Eigen::MatrixXd& singC)
-  
-  {
-    
-    Eigen::MatrixXd singularityColors=directional::default_singularity_colors(N);
-    std::vector<int> singVerticesList;
-    std::vector<int> singIndicesList;
-    for (int i=0;i<V.rows();i++)
-      if (fullIndices(i)!=0){
-        singVerticesList.push_back(i);
-        singIndicesList.push_back(fullIndices(i));
-      }
-    
-    Eigen::VectorXi singVertices(singVerticesList.size());
-    Eigen::VectorXi singIndices(singIndicesList.size());
-    for (int i=0;i<singVerticesList.size();i++){
-      singVertices(i)=singVerticesList[i];
-      singIndices(i)=singIndicesList[i];
-    }
-    
-    singularity_spheres(V,F, singVertices,singIndices,singularityColors,singV, singF, singC);
-  }*/
   
 }
 
