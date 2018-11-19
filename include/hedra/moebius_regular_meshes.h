@@ -97,6 +97,253 @@ namespace hedra
     //optimization operators
     CeresMRSolver CSolver;
     
+    
+    //Computes the normal ratio for every FaceTriad entry
+    
+   
+    //assuming the angle is [0, pi] always.
+    void factorize_quaternion(const Eigen::RowVector4d& q, double& length, double& angle, Eigen::RowVector3d& vec)
+    {
+      length=q.norm();
+      if (length==0.0){
+        std::cout<<"Zero quaternion! "<<std::endl;
+        vec<<0.0,0.0,0.0;
+        angle=M_PI/2;
+        return;
+      }
+      double cosangle=q(0)/length;
+      cosangle=(cosangle>1.0 ? 1.0 : cosangle);
+      cosangle=(cosangle<-1.0 ? -1.0 : cosangle);
+      angle=acos(cosangle);
+      if (abs(sin(angle))>10e-6)
+        vec=q.tail(3)/(length*sin(angle));
+      else
+        vec<<0.0,0.0,0.0;
+      if ((isnan(vec(0)))||(isnan(vec(1)))||(isnan(vec(2)))){
+        std::cout<<"nan in vec!!: "<<q<<std::endl;
+        exit(0);
+      }
+    }
+    
+    double cot(double x){
+      if (abs(sin(x))>10e-5)
+        return cos(x)/sin(x);
+      else return 0.0;
+    }
+    
+    void compute_mean_curvature(const Eigen::MatrixXi& VValences,
+                                const Eigen::MatrixXi& QuadVertexIndices,
+                                const Eigen::MatrixXd& Vq,
+                                Eigen::VectorXd& H)
+    {
+      using namespace Eigen;
+      H.resize(Vq.rows());
+      H.setZero();
+      VectorXd VertCotWeights(Vq.rows());
+      VertCotWeights.setZero();
+      for (int i=0;i<QuadVertexIndices.rows();i++){
+        RowVector4d qi=Vq.row(QuadVertexIndices(i,0));
+        RowVector4d qj=Vq.row(QuadVertexIndices(i,1));
+        RowVector4d qk=Vq.row(QuadVertexIndices(i,2));
+        RowVector4d ql=Vq.row(QuadVertexIndices(i,3));
+        
+        
+        RowVector4d Nj=QMult(qj-qi, QInv(qk-qj));
+        RowVector4d Nl=QMult(ql-qk, QInv(qi-ql));
+        
+        
+        RowVector4d qCommutator=QMult(Nj,Nl)-QMult(Nl,Nj);
+        double lambda=qCommutator.norm()/(qi-qk).norm();
+        lambda*=(qCommutator.dot(qi-qk)>0 ? 1 : -1);
+        
+        double Cosj=Nj(0)/Nj.norm();
+        double Cosl=Nl(0)/Nl.norm();
+        
+        lambda*=(Nj.tail(3).dot(QMult(Nj,Nl).tail(3))> 0.0 ? -1.0 : 1.0);
+        Cosj=(Cosj>1.0 ? 1.0 : Cosj);
+        Cosj=(Cosj<-1.0 ? -1.0 : Cosj);
+        Cosl=(Cosl>1.0 ? 1.0 : Cosl);
+        Cosl=(Cosl<-1.0 ? -1.0 : Cosl);
+        double CotWeight=cot(M_PI-acos(Cosj))+cot(M_PI-acos(Cosl));
+        VertCotWeights(QuadVertexIndices(i,0))+=CotWeight;
+        if(isnan(VertCotWeights(QuadVertexIndices(i,0))))
+          exit(0);
+        
+        H(QuadVertexIndices(i,0))+=CotWeight*lambda/QMult(Nj,Nl).tail(3).norm();
+        
+      }
+      
+      H=H.cwiseQuotient(VertCotWeights);
+      for (int i=0;i<H.size();i++)
+        if (isnan(H(i))) H(i)=0;  //TODO: fix isolated vertices!
+    }
+    
+    
+    //Compute the energy of quaternionic differences of ratios around a loop indicated by OneRings (unless it's a boundary).
+    //the difference is factored with the proper lengths and angles per ratio, so we are measuring the difference from a prescribed 1-ring.
+    void compute_ratio_diff_energy(const Eigen::VectorXi& VValences,
+                                   const Eigen::MatrixXd& Ratios,
+                                   const Eigen::MatrixXi&OneRings,
+                                   const Eigen::VectorXi& BoundaryMask,
+                                   const Eigen::VectorXd& Lengths,
+                                   const Eigen::VectorXd& Angles,
+                                   Eigen::VectorXd& W,
+                                   bool isDirection)
+    {
+      using namespace Eigen;
+      W.setZero();
+      for (int i=0;i<OneRings.rows();i++){
+        int NumFlaps=VValences(i)-2*BoundaryMask(i);
+        for (int j=0;j<NumFlaps-1;j++){
+          double length1, length2, angle1, angle2;
+          RowVector3d vec1, vec2;
+
+          factorize_quaternion(Ratios.row(OneRings(i,j)),length1, angle1, vec1);
+          factorize_quaternion(Ratios.row(OneRings(i,j+1)), length2, angle2, vec2);
+        
+          RowVector4d CompRatio1; CompRatio1<<length1/Lengths(OneRings(i,j))*cos(angle1-Angles(OneRings(i,j))), length1/Lengths(OneRings(i,j))*sin(angle1-Angles(OneRings(i,j)))*vec1;
+          RowVector4d CompRatio2; CompRatio2<<length2/Lengths(OneRings(i,j+1))*cos(angle2-Angles(OneRings(i,j+1))), length2/Lengths(OneRings(i,j+1))*sin(angle2-Angles(OneRings(i,j+1)))*vec2;
+          
+          if (isDirection)
+            W(i)+=(vec1.cross(vec2)).norm()/(NumFlaps-1);
+          else
+            W(i)+=(CompRatio1-CompRatio2).norm();
+          
+        }
+      }
+    }
+    
+    
+    //averages the ratio vectors to find the common one. Factors out the given lengths and angles
+    
+    void estimate_common_ratio_vectors(const Eigen::VectorXi& VValences,
+                                       const Eigen::MatrixXd& Ratios,
+                                       const Eigen::MatrixXi& OneRings,
+                                       const Eigen::VectorXi& BoundaryMask,
+                                       Eigen::MatrixXd& CommonRatios)
+    {
+      using namespace Eigen;
+      CommonRatios.resize(OneRings.rows(),3); CommonRatios.setZero();
+      for (int i=0;i<OneRings.rows();i++){
+        int NumFlaps=VValences(i)-2*BoundaryMask(i);
+        for (int j=0;j<NumFlaps;j++){
+          double length, angle;
+          RowVector3d vec;
+          factorize_quaternion(Ratios.row(OneRings(i,j)),length, angle, vec);
+          CommonRatios.row(i)+=vec;
+          if ((isnan(CommonRatios(i,0)))||(isnan(CommonRatios(i,1)))||(isnan(CommonRatios(i,2)))){
+            std::cout<<"isnan CommonRatios: "<<vec<<CommonRatios.row(i)<<std::endl;
+            exit(0);
+          }
+        }
+        if (CommonRatios.row(i).lpNorm<Infinity>()<10e-6)
+          CommonRatios(i,0)=1.0;  //just random
+      }
+      CommonRatios.rowwise().normalize();
+    }
+    
+    
+    //getting the radius of the unique circumcircle for the polygon with these edge lengths
+    double get_radius_from_lengths(Eigen::VectorXd& lengths,
+                                   double AngleSum)
+    {
+      double Precision=10e-5;
+      double MinRadius=lengths.maxCoeff()/2;
+      double MaxRadius=MinRadius*100;
+     
+      double MidAngleSum=1000.0;
+      while (abs(MidAngleSum/(AngleSum/2.0)-1.0)>Precision){
+        double MidRadius=(MaxRadius+MinRadius)/2.0;
+        MidAngleSum=asin(lengths.array()/(2.0*MidRadius)).matrix().sum();
+        
+        if (MidAngleSum<(AngleSum/2.0))
+          MaxRadius=MidRadius;
+        else
+          MinRadius=MidRadius;
+        
+      }
+      return (MinRadius+MaxRadius)/2.0;
+    }
+    
+    void estimate_combinatorial_intrinsics(const Eigen::MatrixXd& Vq,
+                                           const Eigen::VectorXi& D,
+                                           const Eigen::VectorXi& VValences,
+                                           const Eigen::MatrixXi& QuadVertexIndices,
+                                           const Eigen::MatrixXi& OneRings,
+                                           const Eigen::VectorXi& BoundaryMask,
+                                           Eigen::VectorXd& Lengths,
+                                           Eigen::VectorXd& Angles,
+                                           bool Smooth)
+    {
+      using namespace Eigen;
+      using namespace std;
+      Lengths.resize(QuadVertexIndices.rows()); Lengths.setZero();
+      Angles=Lengths;
+      for (int i=0;i<OneRings.rows();i++){
+        int NumFlaps=VValences(i)-2*BoundaryMask(i);
+        if (NumFlaps==0)  //an "ear" of the mesh, sitting on a single face. no given intrinsics
+          continue;
+        
+        set<int> SetFaces;
+        VectorXd NewSectorAngles;
+        double NaturalSum=0;
+        for (int j=0;j<NumFlaps;j++){
+          SetFaces.insert(QuadVertexIndices(OneRings(i,j),4));
+          SetFaces.insert(QuadVertexIndices(OneRings(i,j),5));
+        }
+        
+        VectorXi Faces(SetFaces.size());
+        int SetCounter=0;
+        for (set<int>::iterator si=SetFaces.begin();si!=SetFaces.end();si++)
+          Faces(SetCounter++)=*si;
+        
+        //cout<<"Faces Degrees: ";
+        VectorXd RingLengths(Faces.size());
+        for (int k=0;k<Faces.size();k++){
+          //cout<<D(Faces(k))<<","<<endl;
+          double RegAngle=(D(Faces(k))-2.0)*M_PI/(double)D(Faces(k));
+          RingLengths(k)=2*sin(RegAngle/2.0);
+        }
+        
+        
+        double Radius=get_radius_from_lengths(RingLengths, (2-BoundaryMask(i))*M_PI);
+        
+        
+        for (int j=0;j<NumFlaps;j++){
+          
+          double RegAngle1=(D(QuadVertexIndices(OneRings(i,j),4))-2)*M_PI/(double)D(QuadVertexIndices(OneRings(i,j),4));
+          double RegAngle2=(D(QuadVertexIndices(OneRings(i,j),5))-2)*M_PI/(double)D(QuadVertexIndices(OneRings(i,j),5));
+         
+          double lf=2*sin(RegAngle1/2.0);
+          double lg=2*sin(RegAngle2/2.0);
+          
+          double SectorAnglef=2*asin(lf/(2*Radius));
+          double SectorAngleg=2*asin(lg/(2*Radius));
+          
+          Lengths(OneRings(i,j))= lg/lf; //Lengths(OneRings(i,j)+1)=
+         
+          Angles(OneRings(i,j))=M_PI-(SectorAnglef+SectorAngleg)/2;
+         
+          RowVector4d qi=Vq.row(QuadVertexIndices(OneRings(i,j),0));
+          RowVector4d qj=Vq.row(QuadVertexIndices(OneRings(i,j),1));
+          RowVector4d qk=Vq.row(QuadVertexIndices(OneRings(i,j),2));
+          RowVector4d ql=Vq.row(QuadVertexIndices(OneRings(i,j),3));
+          
+          RowVector4d LocalCR=QMult(QMult(qj-qi, QInv(qk-qj)),QMult(ql-qk, QInv(qi-ql)));
+          
+        }
+        
+        //testing
+        double SumAngles=0;
+        double ProdLengths=1.0;
+        for (int j=0;j<NumFlaps;j++){
+          ProdLengths*=Lengths(OneRings(i,j));
+          SumAngles+=Angles(OneRings(i,j));
+        }
+      }
+    }
+
+    
   };
   
   IGL_INLINE bool setup_moebius_regular(const Eigen::MatrixXd& VOrig,
@@ -199,15 +446,15 @@ namespace hedra
         MRData.vertexValences(F(i,j))++;
     
     //computing one-rings - currently not with any order (do I need it?)
-    MRData.oneRings.resize(VOrig.rows(), MRDATA.vertexValences.maxCoeff());
+    MRData.oneRings.resize(VOrig.rows(), MRData.vertexValences.maxCoeff());
     MRData.oneRings.setConstant(-1);
     VectorXi ringIndices(VOrig.rows()); ringIndices.setZero();
     for (int i=0;i<MRData.quadVertexIndices.rows();i++){
-      MRData.oneRings(MRData.quadVertexIndices(i,0),ringIndices(MRDATA.quadVertexIndices(i,0)))=i;
+      MRData.oneRings(MRData.quadVertexIndices(i,0),ringIndices(MRData.quadVertexIndices(i,0)))=i;
       ringIndices(MRData.quadVertexIndices(i,0))++;
     }
   
-    MRDATA.oneRingVertices.resize(VOrig.rows(), MRDATA.vertexValences.maxCoeff()+1);
+    MRData.oneRingVertices.resize(VOrig.rows(), MRData.vertexValences.maxCoeff()+1);
     ringIndices.setZero();
     for (int i=0;i<EV.rows();i++){
       //cout<<"RingIndices(E2V(i,0)): "<<RingIndices(E2V(i,0))<<endl;
@@ -221,35 +468,35 @@ namespace hedra
     vector<vector<int> > boundaryList;
     igl::boundary_loop(T, boundaryList);
     
-    MRDATA.boundaryMask.resize(VOrig.rows()); MRDATA.boundaryMask.setZero();
+    MRData.boundaryMask.resize(VOrig.rows()); MRData.boundaryMask.setZero();
     for (int i=0;i<boundaryList.size();i++)
       for (int j=0;j<boundaryList[i].size();j++)
-        MRDATA.boundaryMask(boundaryList[i][j])=1;
+        MRData.boundaryMask(boundaryList[i][j])=1;
     
-    MRData.vertexValences+=boundaryMask;  //VValences is about vertices
+    MRData.vertexValences+=MRData.boundaryMask;  //VValences is about vertices
     
     MRData.constMask=VectorXi::Zero(VOrig.rows());
     
     MRData.boundaryVertices.resize(MRData.boundaryMask.sum());
     int currBoundVertex=0;
-    for (int i=0;i<OrigV.rows();i++)
-      if (boundaryMask[i]==1)
+    for (int i=0;i<VOrig.rows();i++)
+      if (MRData.boundaryMask(i)==1)
         MRData.boundaryVertices[currBoundVertex++]=i;
     
   
     /***************Estimating original CR and FN values*********************/
-    MRDATA.VCR.resize(VOrig.rows(),3);
-    MRDATA.FN.resize(F.rows(),3);
-    hedra::quat_cross_ratio(MRData.QOrig,QuadVertexIndices, MRData.origECR);
+    MRData.VCR.resize(VOrig.rows(),3);
+    MRData.FN.resize(F.rows(),3);
+    hedra::quat_cross_ratio(MRData.QOrig,MRData.quadVertexIndices, MRData.origECR);
     //ComputeCR(OrigVq, QuadVertexIndices, OrigECR);
-    hedra::quat_normals(MRData.QOrig, MRData.FaceTriads, MRData.OrigCFN);
+    hedra::quat_normals(MRData.QOrig, MRData.faceTriads, MRData.origCFN);
     //ComputeFN(OrigVq, FaceTriads, OrigCFN);
     
     
-    MRData.estimate_combinatorial_intrinsics(OrigVq, D, VValences, QuadVertexIndices, OneRings, BoundaryMask, PatternCRLengths, PatternCRAngles, true);
+    MRData.estimate_combinatorial_intrinsics(MRData.QOrig, D, MRData.vertexValences, MRData.quadVertexIndices, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, true);
     
-    MRData.estimate_common_ratio_vectors(VValences, OrigECR, OneRings, BoundaryMask, VCR);
-    MRData.estimate_common_ratio_vectors(D, OrigCFN, CornerF, VectorXi::Zero(D.size()), FN);
+    MRData.estimate_common_ratio_vectors(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.VCR);
+    MRData.estimate_common_ratio_vectors(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.FN);
     
     //completing "ear" vertices VCR
     for (int i=0;i<D.rows();i++){
@@ -271,9 +518,9 @@ namespace hedra
     MRData.patternFNLengths.resize(MRData.faceTriads.rows()); MRData.patternFNLengths.setOnes();
     MRData.patternFNAngles.resize(MRData.faceTriads.rows());
     for (int i=0;i<MRData.cornerF.rows();i++){
-      double angle=igl::M_PI*((double)D(i)-2.0)/(double)D(i);
+      double angle=igl::PI*((double)D(i)-2.0)/(double)D(i);
       for (int j=0;j<D(i);j++)
-        MRData.patternFNAngles(MRData.cornerF(i,j))=igl::M_PI-angle;
+        MRData.patternFNAngles(MRData.cornerF(i,j))=igl::PI-angle;
       
     }
     
@@ -282,11 +529,11 @@ namespace hedra
     MRData.patternFaceCRLengths.resize(MRData.quadFaceIndices.rows());
     MRData.patternFaceCRAngles=MRData.patternFaceCRLengths;
     for (int i=0;i<F.rows();i++){
-      double angle=igl::M_PI*((double)D(i)-2.0)/(double)D(i);
-      double oppositeLength=1+2*sin(angle-igl::M_PI/2);
+      double angle=igl::PI*((double)D(i)-2.0)/(double)D(i);
+      double oppositeLength=1+2*sin(angle-igl::PI/2);
       for (int j=0;j<D(i)-3;j++){
-        MRData.patternFaceCRLengths(currFaceQuad)=1.0/pppositeLength;
-        MRData.patternFaceCRAngles(currFaceQuad++)=igl::M_PI;
+        MRData.patternFaceCRLengths(currFaceQuad)=1.0/oppositeLength;
+        MRData.patternFaceCRAngles(currFaceQuad++)=igl::PI;
       }
       
     }
@@ -304,21 +551,21 @@ namespace hedra
     MRData.origMR.resize(VOrig.rows());
     MRData.origW=MRData.origMR;
     MRData.origER.resize(F.rows());
-    MRData.compute_ratio_diff_energy(VValences, OrigECR, OneRings, BoundaryMask, PatternCRLengths, PatternCRAngles, OrigMR, false);
+    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origMR, false);
     
-    MRData.compute_ratio_diff_energy(VValences, OrigECR, OneRings, BoundaryMask, PatternCRLengths, PatternCRAngles, OrigW, true);
+    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origW, true);
     
-    MRData.compute_ratio_diff_energy(D, OrigCFN, CornerF, VectorXi::Zero(D.size()), PatternFNLengths, PatternFNAngles, OrigER, false);
-    MRData.deformMR=OrigMR;
-    MRData.deformER=OrigER;
-    MRData.deformW=OrigW;
+    MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER, false);
+    MRData.deformMR=MRData.origMR;
+    MRData.deformER=MRData.origER;
+    MRData.deformW=MRData.origW;
     
     //ComputeMeanCurvature(VValences, QuadVertexIndices, OrigVq, H);
     
-    CSolver.Init(MRData.QOrig, D, F, EV, MRData.quadVertexIndices, MRData.quadFaceIndices, MRData.faceTriads);
+    MRData.CSolver.Init(MRData.QOrig, D, F, EV, MRData.quadVertexIndices, MRData.quadFaceIndices, MRData.faceTriads);
     
     MRData.constIndices = constIndices;
-    CSolver.set_constant_handles(constIndices);
+    MRData.CSolver.set_constant_handles(constIndices);
     return true;
   }
   
