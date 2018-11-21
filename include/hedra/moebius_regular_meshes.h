@@ -12,6 +12,7 @@
 #include <hedra/quaternionic_operations.h>
 #include <hedra/quat_cross_ratio.h>
 #include <hedra/quat_normals.h>
+#include <hedra/regularity.h>
 
 namespace hedra
 {
@@ -554,7 +555,9 @@ namespace hedra
     
     MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origW, true);
     
-    MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER, false);
+    /*MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER, false);*/
+    
+    hedra::regularity(VOrig,MRData.D,MRData.F,MRData.origER);
     MRData.deformMR=MRData.origMR;
     MRData.deformER=MRData.origER;
     MRData.deformW=MRData.origW;
@@ -631,7 +634,9 @@ namespace hedra
     
     MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformMR, false);
     MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformW, true);
-    MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER, false);
+    
+    hedra::regularity(VRegular,MRData.D,MRData.F,MRData.deformER);
+   /* MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER, false);*/
     
     return true;
     
