@@ -30,12 +30,8 @@ Eigen::MatrixXi EV, FE, EF, EFi;
 Eigen::VectorXi constIndices;
 Eigen::MatrixXd constPoses;
 
-Eigen::VectorXd origMoebRegularity, optMoebRegularity;
-Eigen::VectorXd origEucRegularity, optEucRegularity;
-Eigen::VectorXd origWillmore, optWillmore;
-
 double MRCoeff=1.0;
-double ERCoeff=0.01;
+double ERCoeff=0.05;
 
 hedra::MoebiusRegularData MRData;
 
@@ -51,13 +47,21 @@ void update_mesh(igl::opengl::glfw::Viewer& viewer)
   Eigen::MatrixXd C;  //color
   switch (viewingMode){
     case STANDARD: C = hedra::default_mesh_color(); break;
-    case MOEBIUS_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? origMoebRegularity : optMoebRegularity), 0.0,1.0,C);
-    case EUCLIDEAN_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? origEucRegularity : optEucRegularity), 0.0,1.0, C);
-    case WILLMORE_ENERGY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? origWillmore : optWillmore), 0.0,1.0, C);
+    case MOEBIUS_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origMR : MRData.deformMR), MRData.origMR.minCoeff(),MRData.origMR.maxCoeff(),C);
+    case EUCLIDEAN_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origER : MRData.deformER), MRData.origER.minCoeff(),MRData.origER.maxCoeff(), C);
+    case WILLMORE_ENERGY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origW : MRData.deformW), MRData.origW.minCoeff(),MRData.origW.maxCoeff(), C);
   }
   
   viewer.data_list[0].set_mesh((meshMode==ORIGINAL_MESH ? VOrig : VRegular), T);
-  viewer.data_list[0].set_colors(C);
+  if (viewingMode==EUCLIDEAN_REGULARITY){
+    Eigen::MatrixXd TC(T.rows(),3);
+    for (int i=0;i<T.rows();i++)
+      TC.row(i)=C.row(TF(i));
+    viewer.data_list[0].set_colors(TC);
+  } else
+    viewer.data_list[0].set_colors(C);
+  
+  //viewer.data_list[0].set_colors(TC);
   viewer.data_list[0].set_edges((meshMode==ORIGINAL_MESH ? VOrig : VRegular),EV,hedra::default_edge_color());
   
   double radius = 0.25*igl::avg_edge_length(VOrig, T);
@@ -76,11 +80,14 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
   {
     default:
       return false;
-    case '1': {meshMode=(MeshModes)((meshMode+1)%4); break;}
-    case '2': {viewingMode=(ViewingModes)((viewingMode+1)%2); break;}
-    case '3': {ERCoeff+=0.1; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
-    case '4': {ERCoeff-=0.1; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
+    case '1': {meshMode=(MeshModes)((meshMode+1)%2); break;}
+    case '2': {viewingMode=(ViewingModes)((viewingMode+1)%4); break;}
+    case '3': {ERCoeff+=0.05; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
+    case '4': {ERCoeff=(ERCoeff-0.05>=0.0 ? ERCoeff-0.05 : 0.0); hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
   }
+  
+  update_mesh(viewer);
+  return true;
 }
 
 int main(int argc, char *argv[])
@@ -90,8 +97,8 @@ int main(int argc, char *argv[])
   
   cout<<"1  Show original/Moebius regular mesh"<<endl<<
   "2  Toggle measurements "<<endl<<
-  "+  Increase Euclidean Regularity "<<endl<<
-  "-  Decrease Euclidean Regularity "<<endl;
+  "3  Increase Euclidean Regularity "<<endl<<
+  "4  Decrease Euclidean Regularity "<<endl;
   hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/intersection.off", VOrig, D, F);
   hedra::polygonal_edge_topology(D, F, EV, FE, EF, EFi, FEs, innerEdges);
   hedra::triangulate_mesh(D,F,T, TF);
@@ -116,8 +123,10 @@ int main(int argc, char *argv[])
   }
   
   
-  hedra::setup_moebius_regular(VOrig, D, F, EV, FE, EF, EFi, FEs, innerEdges, constIndices, MRData);
+  hedra::setup_moebius_regular(VOrig, D, F, T, EV, FE, EF, EFi, FEs, innerEdges, constIndices, MRData);
   hedra::compute_moebius_regular(MRData,  MRCoeff, ERCoeff, constPoses, VRegular);
+  
+  
   
   igl::opengl::glfw::Viewer viewer;
   //viewer.callback_mouse_down = &mouse_down;
@@ -128,10 +137,10 @@ int main(int argc, char *argv[])
   //viewer.callback_init = &init;
   viewer.core.background_color<<0.75,0.75,0.75,1.0;
   
-
+  
   
   viewer.append_mesh();
-    viewer.selected_data_index=0;
+  viewer.selected_data_index=0;
   update_mesh(viewer);
   viewer.launch();
   

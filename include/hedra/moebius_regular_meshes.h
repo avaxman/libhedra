@@ -97,7 +97,6 @@ namespace hedra
     //optimization operators
     CeresMRSolver CSolver;
     
-    
     //Computes the normal ratio for every FaceTriad entry
     
    
@@ -487,7 +486,7 @@ namespace hedra
     /***************Estimating original CR and FN values*********************/
     MRData.VCR.resize(VOrig.rows(),3);
     MRData.FN.resize(F.rows(),3);
-    hedra::quat_cross_ratio(MRData.QOrig,MRData.quadVertexIndices, MRData.origECR);
+    hedra::quat_cross_ratio(MRData.VOrig,MRData.quadVertexIndices, MRData.origECR);
     //ComputeCR(OrigVq, QuadVertexIndices, OrigECR);
     hedra::quat_normals(MRData.QOrig, MRData.faceTriads, MRData.origCFN);
     //ComputeFN(OrigVq, FaceTriads, OrigCFN);
@@ -560,9 +559,16 @@ namespace hedra
     MRData.deformER=MRData.origER;
     MRData.deformW=MRData.origW;
     
+    MRData.CSolver.CRLengths=MRData.patternCRLengths;
+    MRData.CSolver.CRAngles=MRData.patternCRAngles;
+    MRData.CSolver.FNLengths=MRData.patternFNLengths;
+    MRData.CSolver.FNAngles=MRData.patternFNAngles;
+    MRData.CSolver.faceCRLengths=MRData.patternFaceCRLengths;
+    MRData.CSolver.faceCRAngles=MRData.patternFaceCRAngles;
+    
     //ComputeMeanCurvature(VValences, QuadVertexIndices, OrigVq, H);
     
-    MRData.CSolver.Init(MRData.QOrig, D, F, EV, MRData.quadVertexIndices, MRData.quadFaceIndices, MRData.faceTriads);
+    MRData.CSolver.init(MRData.QOrig, D, F, EV, MRData.quadVertexIndices, MRData.quadFaceIndices, MRData.faceTriads);
     
     MRData.constIndices = constIndices;
     MRData.CSolver.set_constant_handles(constIndices);
@@ -570,7 +576,7 @@ namespace hedra
   }
   
   
-  IGL_INLINE bool compute_moebius_regular(const MoebiusRegularData& MRData,
+  IGL_INLINE bool compute_moebius_regular(MoebiusRegularData& MRData,
                                           const double MRCoeff,
                                           const double ERCoeff,
                                           const Eigen::MatrixXd& constPoses,
@@ -592,45 +598,40 @@ namespace hedra
       for (int j=0;j<3;j++)
         MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*i+j]=MRData.VCR(i,j);
     
-    for (int i=0;i<F.rows();i++)
+    for (int i=0;i<MRData.F.rows();i++)
       for (int j=0;j<3;j++)
         MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*MRData.QOrig.rows()+3*i+j]=MRData.FN(i,j);
     
     
     for (int i=0;i<MRData.constIndices.size();i++)
       for (int j=0;j<3;j++)
-        MRData.CSolver.currSolution[3*ConstPosIndices(i)+j]=ConstPoses(i,j);
+        MRData.CSolver.currSolution[3*MRData.constIndices(i)+j]=constPoses(i,j);
     
     
-    MRData.CSolver.CRLengths<<MRData.patternCRLengths;
-    MRData.CSolver.CRAngles<<MRData.patternCRAngles;
-    MRData.CSolver.FNLengths<<MRData.patternFNLengths;
-    MRData.CSolver.FNAngles<<MRData.patternFNAngles;
-    MRData.CSolver.faceCRLengths<<MRData.patternFaceCRLengths;
-    MRData.CSolver.faceCRAngles<<MRData.patternFaceCRAngles;
-  
-    MRData.CSolver.Solve(MRFactor, ERFactor);
+    MRData.CSolver.solve(MRCoeff, ERCoeff);
     
     for (int i=0;i<MRData.QOrig.rows();i++)
       MRData.VDeform.row(i)<<MRData.CSolver.currSolution[3*i],MRData.CSolver.currSolution[3*i+1],MRData.CSolver.currSolution[3*i+2];
     
+    VRegular = MRData.VDeform;
+    
     for (int i=0;i<MRData.QOrig.rows();i++)
       MRData.VCR.row(i)<<MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*i],MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*i+1],MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*i+2];
     
-    for (int i=0;i<F.rows();i++)
+    for (int i=0;i<MRData.F.rows();i++)
       MRData.FN.row(i)<<MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*MRData.QOrig.rows()+3*i],MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*MRData.QOrig.rows()+3*i+1],MRData.CSolver.currSolution[3*MRData.QOrig.rows()+3*MRData.QOrig.rows()+3*i+2];
     
-    Coords2Quat(ConstPoses, QuatConstPoses);
-    Coords2Quat(DeformV, DeformVq);
+    Coords2Quat(constPoses, MRData.quatConstPoses);
+    Coords2Quat(MRData.VDeform, MRData.QDeform);
     //ComputeCR(DeformVq, QuadVertexIndices, DeformECR);
     //ComputeFN(DeformVq, FaceTriads, DeformCFN);
     
-    hedra::quat_cross_ratio(MRData.QDeform,QuadVertexIndices, MRData.deformECR);
-    hedra::quat_normals(MRData.QDeform, MRData.FaceTriads, MRData.deformCFN);
+    hedra::quat_cross_ratio(MRData.VDeform,MRData.quadVertexIndices, MRData.deformECR);
+    hedra::quat_normals(MRData.QDeform, MRData.faceTriads, MRData.deformCFN);
     
-    MRData.compute_ratio_diff_energy(VValences, DeformECR, OneRings, BoundaryMask, PatternCRLengths, PatternCRAngles, DeformMR, false);
-    MRData.compute_ratio_diff_energy(VValences, DeformECR, OneRings, BoundaryMask, PatternCRLengths, PatternCRAngles, DeformW, true);
-    MRData.compute_ratio_diff_energy(D, DeformCFN, CornerF, VectorXi::Zero(D.size()), PatternFNLengths, PatternFNAngles, DeformER, false);
+    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformMR, false);
+    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformW, true);
+    MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER, false);
     
     return true;
     

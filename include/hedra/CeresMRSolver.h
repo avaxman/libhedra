@@ -177,113 +177,109 @@ public:
 class CeresMRSolver{
 public:
     
-    CeresMRSolver():problem(NULL), CurrSolution(NULL){}
-    ~CeresMRSolver(){if (problem!=NULL) delete problem; if (CurrSolution!=NULL) delete[] CurrSolution;}
+    CeresMRSolver():currSolution(NULL),problem(NULL){}
+    ~CeresMRSolver(){if (problem!=NULL) delete problem; if (currSolution!=NULL) delete[] currSolution;}
     
     Eigen::MatrixXi D, F;
     
-    Eigen::MatrixXd OrigVq;
-    Eigen::MatrixXi E2V;
-    Eigen::MatrixXi QuadVertexIndices;        //rows of wi,wj,wk,wl,CR (CR belongs to wi)
-    Eigen::MatrixXi QuadFaceIndices;          //rows of wi, wj, wk, wl
-    Eigen::MatrixXi FaceTriads;               //rows of wi, wj, wk, FN (N belongs to wj)
-    
-    double* CurrSolution;   //3*|V| (vertex positions) + 3*|V| (vertex cross-ratio vectors) + 3*|F| (face normals).
+    Eigen::MatrixXd QOrig;
+    Eigen::MatrixXi EV;
+    Eigen::MatrixXi quadVertexIndices;        //rows of wi,wj,wk,wl,CR (CR belongs to wi)
+    Eigen::MatrixXi quadFaceIndices;          //rows of wi, wj, wk, wl
+    Eigen::MatrixXi faceTriads;               //rows of wi, wj, wk, FN (N belongs to wj)
+  
+    double* currSolution;   //3*|V| (vertex positions) + 3*|V| (vertex cross-ratio vectors) + 3*|F| (face normals).
 
     //prescribed variables
     Eigen::VectorXd CRLengths;
     Eigen::VectorXd CRAngles;  //angles of cross-ratios, arranged by QuadvertexIndices
     Eigen::VectorXd FNLengths;
     Eigen::VectorXd FNAngles;    //angles of normal ratios, arranged by FaceTriads
-    Eigen::VectorXd FaceCRLengths;
-    Eigen::VectorXd FaceCRAngles;
-    Eigen::VectorXd H;    //prescribed "mean curvature"
-    Eigen::VectorXi ConstPosIndices;
+    Eigen::VectorXd faceCRLengths;
+    Eigen::VectorXd faceCRAngles;
+    Eigen::VectorXi constPosIndices;
     
     double CRFactor;
     double FNFactor;
-    double HFactor;
-    
+  
     ceres::Problem* problem;
 
-    
-    void Init(const Eigen::MatrixXd& inOrigVq,
+    void init(const Eigen::MatrixXd& inQOrig,
               const Eigen::MatrixXi& inD,
               const Eigen::MatrixXi& inF,
-              const Eigen::MatrixXi& inE2V,
+              const Eigen::MatrixXi& inEV,
               const Eigen::MatrixXi& inQuadVertexIndices,
               const Eigen::MatrixXi& inQuadFaceIndices,
               const Eigen::MatrixXi& inFaceTriads)
     {
         
         F=inF; D=inD;
-        E2V=inE2V;
-        QuadVertexIndices=inQuadVertexIndices;
-        QuadFaceIndices=inQuadFaceIndices;
-        FaceTriads=inFaceTriads;
-        OrigVq=inOrigVq;
+        EV=inEV;
+        quadVertexIndices=inQuadVertexIndices;
+        quadFaceIndices=inQuadFaceIndices;
+        faceTriads=inFaceTriads;
+        QOrig=inQOrig;
         
-        CRLengths.resize(QuadVertexIndices.rows());
-        CRAngles.resize(QuadVertexIndices.rows());
-        FaceCRLengths.resize(QuadFaceIndices.rows());
-        FaceCRAngles.resize(QuadFaceIndices.rows());
-        FNLengths.resize(FaceTriads.rows());
-        FNAngles.resize(FaceTriads.rows());
-        H.resize(QuadVertexIndices.rows());
-        
-        if (CurrSolution!=NULL)
-            delete[] CurrSolution;
+        CRLengths.conservativeResize(quadVertexIndices.rows());
+        CRAngles.conservativeResize(quadVertexIndices.rows());
+        faceCRLengths.conservativeResize(quadFaceIndices.rows());
+        faceCRAngles.conservativeResize(quadFaceIndices.rows());
+        FNLengths.conservativeResize(faceTriads.rows());
+        FNAngles.conservativeResize(faceTriads.rows());
+    
+        if (currSolution!=NULL)
+            delete[] currSolution;
         
         if (problem!=NULL)
             delete[] problem;
         
         problem=new ceres::Problem;
         
-        CurrSolution=new double[3*OrigVq.rows()+3*OrigVq.rows()+3*F.rows()];
+        currSolution=new double[3*QOrig.rows()+3*QOrig.rows()+3*F.rows()];
         
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->AddParameterBlock(CurrSolution+3*i, 3);
+        for (int i=0;i<QOrig.rows();i++)
+            problem->AddParameterBlock(currSolution+3*i, 3);
         
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->AddParameterBlock(CurrSolution+3*OrigVq.rows()+3*i, 3, new ceres::HomogeneousVectorParameterization(3));
+        for (int i=0;i<QOrig.rows();i++)
+            problem->AddParameterBlock(currSolution+3*QOrig.rows()+3*i, 3, new ceres::HomogeneousVectorParameterization(3));
         
         for (int i=0;i<F.rows();i++)
-            problem->AddParameterBlock(CurrSolution+3*OrigVq.rows()+3*OrigVq.rows()+3*i, 3,new ceres::HomogeneousVectorParameterization(3));
+            problem->AddParameterBlock(currSolution+3*QOrig.rows()+3*QOrig.rows()+3*i, 3,new ceres::HomogeneousVectorParameterization(3));
         
  
         //Vertex CR
-        for (int i = 0; i <QuadVertexIndices.rows(); ++i) {
+        for (int i = 0; i <quadVertexIndices.rows(); ++i) {
             ceres::CostFunction* cost_function=new AutoDiffCostFunction<FullCRError, 4, 3, 3, 3, 3, 3>(new FullCRError(&CRLengths(i), &CRAngles(i), &CRFactor));
             problem->AddResidualBlock(cost_function,
                                       NULL, // TODO: update with coefficients somehow,
-                                      CurrSolution+3*QuadVertexIndices(i,0),
-                                      CurrSolution+3*QuadVertexIndices(i,1),
-                                      CurrSolution+3*QuadVertexIndices(i,2),
-                                      CurrSolution+3*QuadVertexIndices(i,3),
-                                      CurrSolution+3*OrigVq.rows()+3*QuadVertexIndices(i,0));
+                                      currSolution+3*quadVertexIndices(i,0),
+                                      currSolution+3*quadVertexIndices(i,1),
+                                      currSolution+3*quadVertexIndices(i,2),
+                                      currSolution+3*quadVertexIndices(i,3),
+                                      currSolution+3*QOrig.rows()+3*quadVertexIndices(i,0));
         }
         
         //Face CR
-        for (int i = 0; i<QuadFaceIndices.rows(); ++i) {
-            ceres::CostFunction* cost_function=new AutoDiffCostFunction<LengthCRError, 4, 3, 3, 3, 3>(new LengthCRError(&FaceCRLengths(i), &CRFactor));
+        for (int i = 0; i<quadFaceIndices.rows(); ++i) {
+            ceres::CostFunction* cost_function=new AutoDiffCostFunction<LengthCRError, 4, 3, 3, 3, 3>(new LengthCRError(&faceCRLengths(i), &CRFactor));
             problem->AddResidualBlock(cost_function,
                                       NULL, // TODO: update with coefficients somehow,
-                                      CurrSolution+3*QuadFaceIndices(i,0),
-                                      CurrSolution+3*QuadFaceIndices(i,1),
-                                      CurrSolution+3*QuadFaceIndices(i,2),
-                                      CurrSolution+3*QuadFaceIndices(i,3));
+                                      currSolution+3*quadFaceIndices(i,0),
+                                      currSolution+3*quadFaceIndices(i,1),
+                                      currSolution+3*quadFaceIndices(i,2),
+                                      currSolution+3*quadFaceIndices(i,3));
                                       //CurrSolution+3*OrigVq.rows()+3*OrigVq.rows()+3*QuadFaceIndices(i,4));
         }
         
         //Face FN
-        for (int i = 0; i <FaceTriads.rows(); ++i) {
+        for (int i = 0; i <faceTriads.rows(); ++i) {
             ceres::CostFunction* cost_function=new AutoDiffCostFunction<FullFNError, 4, 3, 3, 3, 3>(new FullFNError(&FNLengths(i), &FNAngles(i), &FNFactor));
             problem->AddResidualBlock(cost_function,
                                       NULL, // TODO: update with coefficients somehow,
-                                      CurrSolution+3*FaceTriads(i,0),
-                                      CurrSolution+3*FaceTriads(i,1),
-                                      CurrSolution+3*FaceTriads(i,2),
-                                      CurrSolution+3*OrigVq.rows()+3*OrigVq.rows()+3*FaceTriads(i,3));
+                                      currSolution+3*faceTriads(i,0),
+                                      currSolution+3*faceTriads(i,1),
+                                      currSolution+3*faceTriads(i,2),
+                                      currSolution+3*QOrig.rows()+3*QOrig.rows()+3*faceTriads(i,3));
         }
         
         //Unit Vertex CR
@@ -304,7 +300,7 @@ public:
         }*/
         
         //H Prescription energy
-        for (int i=0;i<QuadVertexIndices.rows();i++){
+        /*for (int i=0;i<quadVertexIndices.rows();i++){
             ceres::CostFunction* cost_function=new AutoDiffCostFunction<MeanCurvatureError, 4, 3,3,3,3 >(new MeanCurvatureError(&H(i), &HFactor));
             problem->AddResidualBlock(cost_function,
                                       NULL, // TODO: update with coefficients somehow,
@@ -313,56 +309,56 @@ public:
                                       CurrSolution+3*QuadVertexIndices(i,2),
                                       CurrSolution+3*QuadVertexIndices(i,3));
 
-        }
+        }*/
     }
     
     
-    void SetConstantHandles(const Eigen::VectorXi& _ConstPosIndices)
+    void set_constant_handles(const Eigen::VectorXi& _constPosIndices)
     {
         
-        ConstPosIndices=_ConstPosIndices;
+        constPosIndices=_constPosIndices;
         //clearing constantness //TODO: check if this can be done all at once
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->SetParameterBlockVariable(CurrSolution+3*i);
+        for (int i=0;i<QOrig.rows();i++)
+            problem->SetParameterBlockVariable(currSolution+3*i);
         
-        for (int i=0;i<ConstPosIndices.size();i++)
-            problem->SetParameterBlockConstant(CurrSolution+3*ConstPosIndices(i));
+        for (int i=0;i<constPosIndices.size();i++)
+            problem->SetParameterBlockConstant(currSolution+3*constPosIndices(i));
         
     }
     
     
     //Every position is constant
-    void SetConstantPositions()
+    void set_constant_positions()
     {
         
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->SetParameterBlockConstant(CurrSolution+3*i);
+        for (int i=0;i<QOrig.rows();i++)
+            problem->SetParameterBlockConstant(currSolution+3*i);
         
         //set the ratios as variable
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->SetParameterBlockVariable(CurrSolution+3*OrigVq.rows()+3*i);
+        for (int i=0;i<QOrig.rows();i++)
+            problem->SetParameterBlockVariable(currSolution+3*QOrig.rows()+3*i);
         
         for (int i=0;i<F.rows();i++)
-            problem->SetParameterBlockVariable(CurrSolution+3*OrigVq.rows()+3*OrigVq.rows()+3*i);
+            problem->SetParameterBlockVariable(currSolution+3*QOrig.rows()+3*QOrig.rows()+3*i);
         
     }
     
-    void SetConstantCR()
+    void set_constant_CR()
     {
         
         //setting only the handles as positional constraints, and the rest free
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->SetParameterBlockVariable(CurrSolution+3*i);
+        for (int i=0;i<QOrig.rows();i++)
+            problem->SetParameterBlockVariable(currSolution+3*i);
         
-        for (int i=0;i<ConstPosIndices.size();i++)
-            problem->SetParameterBlockConstant(CurrSolution+3*ConstPosIndices(i));
+        for (int i=0;i<constPosIndices.size();i++)
+            problem->SetParameterBlockConstant(currSolution+3*constPosIndices(i));
         
         //set the ratios as constant
-        for (int i=0;i<OrigVq.rows();i++)
-            problem->SetParameterBlockConstant(CurrSolution+3*OrigVq.rows()+3*i);
+        for (int i=0;i<QOrig.rows();i++)
+            problem->SetParameterBlockConstant(currSolution+3*QOrig.rows()+3*i);
         
         for (int i=0;i<F.rows();i++)
-            problem->SetParameterBlockConstant(CurrSolution+3*OrigVq.rows()+3*OrigVq.rows()+3*i);
+            problem->SetParameterBlockConstant(currSolution+3*QOrig.rows()+3*QOrig.rows()+3*i);
         
         
     }
@@ -370,11 +366,10 @@ public:
     
     //previous solution is always the current solution
     //user is responsible to initalize both
-    void Solve(const double& _CRFactor, const double& _FNFactor, const double& _HFactor){
+    void solve(const double& _CRFactor, const double& _FNFactor){
         
         CRFactor=_CRFactor;
         FNFactor=_FNFactor;
-        HFactor=_HFactor;
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
         options.sparse_linear_algebra_library_type=ceres::SUITE_SPARSE;
