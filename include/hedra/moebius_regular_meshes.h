@@ -13,6 +13,8 @@
 #include <hedra/quat_cross_ratio.h>
 #include <hedra/quat_normals.h>
 #include <hedra/regularity.h>
+#include <hedra/dcel.h>
+#include <hedra/planarity.h>
 
 namespace hedra
 {
@@ -43,6 +45,9 @@ namespace hedra
     Eigen::VectorXi boundaryVertices;
     Eigen::VectorXi boundaryMask;
     Eigen::MatrixXi cornerF;  //enumerating corners for FN
+    
+    Eigen::VectorXi HV, HF, HE, VH, nextH, prevH, twinH;
+    Eigen::MatrixXi EH, FH;
     
     Eigen::MatrixXi cornerPairs;  //neighboring corner pairs (f, if, g, ig, v)
     Eigen::MatrixXi oneRings;  //entries into corner pairs of one rings in progression (to compute willmore energy) #V x max(valence)
@@ -178,40 +183,164 @@ namespace hedra
         if (isnan(H(i))) H(i)=0;  //TODO: fix isolated vertices!
     }
     
+    void compute_willmore_energy(const Eigen::MatrixXd& V,
+                                 const Eigen::VectorXi& VH,
+                                 const Eigen::VectorXi& HV,
+                                 const Eigen::VectorXi& HE,
+                                 const Eigen::VectorXi& HF,
+                                 const Eigen::VectorXi& twinH,
+                                 const Eigen::VectorXi& nextH,
+                                 const Eigen::VectorXi& prevH,
+                                 Eigen::VectorXd& W)
+    {
+      using namespace Eigen;
+      using namespace std;
+      W.conservativeResize(V.rows()); W.setZero();
+      VectorXd MR(V.rows()); MR.setZero();
+      for (int i=0;i<V.rows();i++){
+        int beginH=VH(i);
+        int currH=beginH;
+        bool isBoundaryVertex=true;
+        
+        
+        while ((twinH(currH)!=-1)){
+          currH=nextH(twinH(currH));
+          if (currH==beginH) {isBoundaryVertex=false; break;}
+        }
+        
+        beginH=currH;
+        
+        vector<int> vertexStarList;
+        MatrixXd vertexStar;
+        do{
+          vertexStarList.push_back(HV(nextH(currH)));
+          if(twinH(prevH(currH))==-1){  //last edge on the boundary should be accounted for
+            vertexStarList.push_back(HV(prevH(currH)));
+          }
+          currH=twinH(prevH(currH));
+        }while ((beginH!=currH)&&(currH!=-1));
+        
+        vertexStar.conservativeResize(vertexStarList.size(),4);
+        for (int j=0;j<vertexStarList.size();j++)
+          vertexStar.row(j)<<0.0,V.row(vertexStarList[j]);
+        
+        //computing tangent polygon
+        RowVector4d qu; qu<<0.0, V.row(i);
+        MatrixXd tangentPolygon(vertexStar.rows(),4);
+        for (int j=0;j<vertexStar.rows();j++)
+          tangentPolygon.row(j)<<QInv(vertexStar.row(j)-qu);
+        
+        //finding minimum vertex which is by definition convex
+        int minXIndex, maxXIndex;
+        double minX = tangentPolygon.col(0).minCoeff(&minXIndex);
+        double maxX = tangentPolygon.col(0).maxCoeff(&maxXIndex);
+        int minYIndex, maxYIndex;
+        double minY = tangentPolygon.col(1).minCoeff(&minYIndex);
+        double maxY = tangentPolygon.col(1).maxCoeff(&maxYIndex);
+        int minZIndex, maxZIndex;
+        double minZ = tangentPolygon.col(2).minCoeff(&minZIndex);
+        double maxZ = tangentPolygon.col(2).maxCoeff(&maxZIndex);
+        RowVector3d span; span<<maxX-minX, maxY-minY, maxZ-minZ;
+        RowVector3i indices; indices<<minXIndex, minYIndex, minZIndex;
+        
+        int domDim;
+        span.maxCoeff(&domDim);
+        int startIndex=indices(domDim);
+        double angleSum=0.0;
+        RowVector4d CR0=QMult(tangentPolygon.row((startIndex+2)%vertexStar.rows())-tangentPolygon.row((startIndex+1)%vertexStar.rows()), QInv(tangentPolygon.row(startIndex)-tangentPolygon.row((startIndex+1)%vertexStar.rows())));
+        double CR0angle, CR0length;
+        RowVector3d CR0vec;
+        factorize_quaternion(CR0, CR0length, CR0angle, CR0vec);
+        for (int j=0;j<vertexStar.rows();j++){
+          int v0=(j+startIndex)%vertexStar.rows();
+          int v1=(j+1+startIndex)%vertexStar.rows();
+          int v2=(j+2+startIndex)%vertexStar.rows();
+          RowVector4d CR=QMult(tangentPolygon.row(v2)-tangentPolygon.row(v1), QInv(tangentPolygon.row(v0)-tangentPolygon.row(v1)));
+          double CRangle, CRlength;
+          RowVector3d CRvec;
+          factorize_quaternion(CR, CRlength, CRangle, CRvec);
+          angleSum+=(CRvec.tail(3).dot(CR0vec)>=0 ? CRangle : M_PI-CRangle);
+        }
+        
+        //W(i)=abs(M_PI-angleSum/((double)vertexStar.rows()-2.0));
+        VectorXi Dtp(1); Dtp(0)=vertexStar.rows();
+        RowVectorXi Ftp(vertexStar.rows());
+        for (int j=0;j<vertexStar.rows();j++)
+          Ftp(j)=j;
+        VectorXd planarity, regularity;
+        hedra::planarity(tangentPolygon.block(0,1,tangentPolygon.rows(),3),Dtp, Ftp, planarity);
+        hedra::regularity(tangentPolygon.block(0,1,tangentPolygon.rows(),3),Dtp, Ftp, regularity);
+        W(i)=planarity(0);
+        MR(i)=planarity(0);
+      }
+      
+      //cout<<"W: "<<W<<endl;
+      
+    }
+    
     
     //Compute the energy of quaternionic differences of ratios around a loop indicated by OneRings (unless it's a boundary).
     //the difference is factored with the proper lengths and angles per ratio, so we are measuring the difference from a prescribed 1-ring.
     void compute_ratio_diff_energy(const Eigen::VectorXi& VValences,
                                    const Eigen::MatrixXd& Ratios,
-                                   const Eigen::MatrixXi&OneRings,
+                                   const Eigen::MatrixXi& OneRings,
                                    const Eigen::VectorXi& BoundaryMask,
                                    const Eigen::VectorXd& Lengths,
                                    const Eigen::VectorXd& Angles,
-                                   Eigen::VectorXd& W,
-                                   bool isDirection)
+                                   Eigen::VectorXd& W)
     {
       using namespace Eigen;
+      
       W.setZero();
       for (int i=0;i<OneRings.rows();i++){
         int NumFlaps=VValences(i)-2*BoundaryMask(i);
-        for (int j=0;j<NumFlaps-1;j++){
+        //double avgAngle=((double)numFlaps-2.0)*M_PI/(double)numFlaps;
+        for (int j=0;j<NumFlaps;j++){
           double length1, length2, angle1, angle2;
           RowVector3d vec1, vec2;
-
+          //cout<<"Ratios.row(OneRings(i,j)): "<<Ratios.row(OneRings(i,j))<<endl;
           factorize_quaternion(Ratios.row(OneRings(i,j)),length1, angle1, vec1);
-          factorize_quaternion(Ratios.row(OneRings(i,j+1)), length2, angle2, vec2);
-        
-          RowVector4d CompRatio1; CompRatio1<<length1/Lengths(OneRings(i,j))*cos(angle1-Angles(OneRings(i,j))), length1/Lengths(OneRings(i,j))*sin(angle1-Angles(OneRings(i,j)))*vec1;
-          RowVector4d CompRatio2; CompRatio2<<length2/Lengths(OneRings(i,j+1))*cos(angle2-Angles(OneRings(i,j+1))), length2/Lengths(OneRings(i,j+1))*sin(angle2-Angles(OneRings(i,j+1)))*vec2;
+          //cout<<"length1, angle1, vec1: "<<length1<<","<<angle1<<","<<vec1<<endl;
+          //cout<<"Ratios.row(OneRings(i,j+1)): "<<Ratios.row(OneRings(i,j+1))<<endl;
+          factorize_quaternion(Ratios.row(OneRings(i,(j+1)%NumFlaps)), length2, angle2, vec2);
+          //cout<<"length2, angle2, vec2: "<<length2<<","<<angle2<<","<<vec2<<endl;
           
-          if (isDirection)
-            W(i)+=(vec1.cross(vec2)).norm()/(NumFlaps-1);
-          else
-            W(i)+=(CompRatio1-CompRatio2).norm();
+          //cout<<"lengths(oneRings(i,j)): "<<Lengths(OneRings(i,j))<<endl;
+          //cout<<"Angles(oneRings(i,j)): "<<Angles(OneRings(i,j))<<endl;
+          //cout<<"lengths(oneRings(i,j+1)): "<<Lengths(OneRings(i,j+1))<<endl;
+          //cout<<"Angles(oneRings(i,j+1)): "<<Angles(OneRings(i,j+1))<<endl;
+          
+          RowVector4d CompRatio1; CompRatio1<<length1/Lengths(OneRings(i,j))*cos(angle1-Angles(OneRings(i,j))), length1/Lengths(OneRings(i,j))*sin(angle1-Angles(OneRings(i,j)))*vec1;
+          RowVector4d CompRatio2; CompRatio2<<length2/Lengths(OneRings(i,(j+1)%NumFlaps))*cos(angle2-Angles(OneRings(i,(j+1)%NumFlaps))), length2/Lengths(OneRings(i,(j+1)%NumFlaps))*sin(angle2-Angles(OneRings(i,(j+1)%NumFlaps)))*vec2;
+          
+          //cout<<"CompRatio1: "<<CompRatio1<<endl;
+          //cout<<"CompRatio2: "<<CompRatio2<<endl;
+          
+          
+          //if (isDirection)
+          //  W(i)+=avgAngle-angle//(vec1.cross(vec2)).norm()/(NumFlaps-1);
+          //else
+          W(i)+=(CompRatio1-CompRatio2).squaredNorm();
+          
+          //cout<<"Curr W("<<i<<"): "<<W(i)<<endl;
+          
+          /*RowVector4d Inv1; Inv1<<cos(M_PI/2-Angles(OneRings(i,j))), sin(M_PI/2-Angles(OneRings(i,j)))*CornerCR.row(OneRings(i,j)).tail(3).normalized();
+           RowVector4d Inv2; Inv2<<cos(M_PI/2-Angles(OneRings(i,j+1))), sin(M_PI/2-Angles(OneRings(i,j+1)))*CornerCR.row(OneRings(i,j+1)).tail(3).normalized();
+           Inv1/=Lengths(OneRings(i,j));
+           Inv2/=Lengths(OneRings(i,j+1));
+           if (!isDirection)
+           W(i)+=(QMult1(CornerCR.row(OneRings(i,j+1)),Inv2)-QMult1(CornerCR.row(OneRings(i,j)),Inv1)).norm()/(NumFlaps-1);
+           else
+           W(i)=(CornerCR.row(OneRings(i,j)).tail(3).normalized().array().square()-CornerCR.row(OneRings(i,j+1)).tail(3).normalized().array().square()).matrix().norm()/(NumFlaps-1);*/
           
         }
+        W(i)=sqrt(W(i));
       }
+      
+      //cout<<"Total W: "<<W<<endl;
     }
+    
+    
     
     
     //averages the ratio vectors to find the common one. Factors out the given lengths and angles
@@ -546,18 +675,21 @@ namespace hedra
     for (int i=0;i<EV.rows();i++)
       MRData.prescribedLengths(i)=(VOrig.row(EV(i,0))-VOrig.row(EV(i,1))).norm();
     
+    
+    hedra::dcel(MRData.D, MRData.F,MRData.EV,MRData.EF,MRData.EFi,MRData.innerEdges,MRData.VH,MRData.EH,MRData.FH,MRData.HV,MRData.HE,MRData.HF,MRData.nextH, MRData.prevH,MRData.twinH);
+    
     /****************Computing initial energies**************************/
     
     MRData.origMR.resize(VOrig.rows());
     MRData.origW=MRData.origMR;
     MRData.origER.resize(F.rows());
-    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origMR, false);
+    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origMR);
+    MRData.compute_willmore_energy(MRData.VOrig, MRData.VH, MRData.HV, MRData.HE, MRData.HF, MRData.twinH, MRData.nextH, MRData.prevH, MRData.origW);
+    //MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origW);
     
-    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origW, true);
+    MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER);
     
-    /*MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER, false);*/
-    
-    hedra::regularity(VOrig,MRData.D,MRData.F,MRData.origER);
+    //hedra::regularity(VOrig,MRData.D,MRData.F,MRData.origER);
     MRData.deformMR=MRData.origMR;
     MRData.deformER=MRData.origER;
     MRData.deformW=MRData.origW;
@@ -632,11 +764,12 @@ namespace hedra
     hedra::quat_cross_ratio(MRData.VDeform,MRData.quadVertexIndices, MRData.deformECR);
     hedra::quat_normals(MRData.QDeform, MRData.faceTriads, MRData.deformCFN);
     
-    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformMR, false);
-    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformW, true);
+    MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformMR);
+    //MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformW, true);
+    MRData.compute_willmore_energy(MRData.VDeform, MRData.VH, MRData.HV, MRData.HE, MRData.HF, MRData.twinH, MRData.nextH, MRData.prevH, MRData.deformW);
     
-    hedra::regularity(VRegular,MRData.D,MRData.F,MRData.deformER);
-   /* MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER, false);*/
+    //hedra::regularity(VRegular,MRData.D,MRData.F,MRData.deformER);
+   MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER);
     
     return true;
     

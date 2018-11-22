@@ -31,7 +31,7 @@ Eigen::VectorXi constIndices;
 Eigen::MatrixXd constPoses;
 
 double MRCoeff=1.0;
-double ERCoeff=0.05;
+double ERCoeff=0.1;
 
 hedra::MoebiusRegularData MRData;
 
@@ -82,8 +82,8 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       return false;
     case '1': {meshMode=(MeshModes)((meshMode+1)%2); break;}
     case '2': {viewingMode=(ViewingModes)((viewingMode+1)%4); break;}
-    case '3': {ERCoeff+=0.05; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
-    case '4': {ERCoeff=(ERCoeff-0.05>=0.0 ? ERCoeff-0.05 : 0.0); hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
+    case '3': {ERCoeff+=0.1; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
+    case '4': {ERCoeff=(ERCoeff-0.1>=0.0 ? ERCoeff-0.1 : 0.0); hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
   }
   
   update_mesh(viewer);
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
   "2  Toggle measurements "<<endl<<
   "3  Increase Euclidean Regularity "<<endl<<
   "4  Decrease Euclidean Regularity "<<endl;
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/intersection.off", VOrig, D, F);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/YasIsland.off", VOrig, D, F);
   hedra::polygonal_edge_topology(D, F, EV, FE, EF, EFi, FEs, innerEdges);
   hedra::triangulate_mesh(D,F,T, TF);
   
@@ -125,8 +125,6 @@ int main(int argc, char *argv[])
   
   hedra::setup_moebius_regular(VOrig, D, F, T, EV, FE, EF, EFi, FEs, innerEdges, constIndices, MRData);
   hedra::compute_moebius_regular(MRData,  MRCoeff, ERCoeff, constPoses, VRegular);
-  
-  
   
   igl::opengl::glfw::Viewer viewer;
   //viewer.callback_mouse_down = &mouse_down;

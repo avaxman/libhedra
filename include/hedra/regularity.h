@@ -15,7 +15,7 @@
 
 namespace hedra
 {
-    // Computes the regularity of every polygonal face. This is done by taking the coefficient of variation of both face angles and lengthsd independently, and returning their RMSE in percentage. The coefficient of variation is the (std dev)/mean, so the errors are normalized.
+    // Computes the regularity of every polygonal face. This is done by taking the coefficient of variation of both face angles and lengths independently, and returning their RMSE in percentage. The coefficient of variation is the (std dev)/mean, so the errors are normalized.
     //the faces are not assumed to be polyhedral (planar), but there is a mild assumption that nearby corner normals are well-defined to have angles less than PI between them.
     // Inputs:
     //  V           eigen double matrix     #V by 3 - mesh coordinates

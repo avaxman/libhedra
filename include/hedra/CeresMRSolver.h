@@ -12,7 +12,7 @@
 
 #include "ceres/ceres.h"
 #include "glog/logging.h"
-#include <Eigen/core>
+
 using ceres::AutoDiffCostFunction;
 using ceres::CostFunction;
 using ceres::Problem;
