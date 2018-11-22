@@ -47,10 +47,16 @@ void update_mesh(igl::opengl::glfw::Viewer& viewer)
   Eigen::MatrixXd C;  //color
   switch (viewingMode){
     case STANDARD: C = hedra::default_mesh_color(); break;
-    case MOEBIUS_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origMR : MRData.deformMR), MRData.origMR.minCoeff(),MRData.origMR.maxCoeff(),C);
-    case EUCLIDEAN_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origER : MRData.deformER), MRData.origER.minCoeff(),MRData.origER.maxCoeff(), C);
-    case WILLMORE_ENERGY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origW : MRData.deformW), MRData.origW.minCoeff(),MRData.origW.maxCoeff(), C);
+    case MOEBIUS_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origMR : MRData.deformMR), 0,MRData.origMR.maxCoeff()/2.5,C); break;
+    case EUCLIDEAN_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origER : MRData.deformER), 0,MRData.origER.maxCoeff()/2.5, C); break;
+    case WILLMORE_ENERGY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origW : MRData.deformW), 0,MRData.origW.maxCoeff()/2.5, C); break;
   }
+  
+  /*std::cout<<"MRData.deformER.minCoeff(): "<<MRData.deformER.minCoeff()<<std::endl;
+   std::cout<<"MRData.deformER.maxCoeff(): "<<MRData.deformER.maxCoeff()<<std::endl;
+  std::cout<<"MRData.origER.minCoeff(): "<<MRData.origER.minCoeff()<<std::endl;
+  std::cout<<"MRData.origER.maxCoeff(): "<<MRData.origER.maxCoeff()<<std::endl;
+  std::cout<<"C: "<<C<<std::endl;*/
   
   viewer.data_list[0].set_mesh((meshMode==ORIGINAL_MESH ? VOrig : VRegular), T);
   if (viewingMode==EUCLIDEAN_REGULARITY){
@@ -84,8 +90,10 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     case '2': {viewingMode=(ViewingModes)((viewingMode+1)%4); break;}
     case '3': {ERCoeff+=0.1; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
     case '4': {ERCoeff=(ERCoeff-0.1>=0.0 ? ERCoeff-0.1 : 0.0); hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
+      
   }
-  
+
+  //std::cout<<"MRData.deformER: "<<MRData.deformER.maxCoeff()<<std::endl;
   update_mesh(viewer);
   return true;
 }
@@ -99,7 +107,7 @@ int main(int argc, char *argv[])
   "2  Toggle measurements "<<endl<<
   "3  Increase Euclidean Regularity "<<endl<<
   "4  Decrease Euclidean Regularity "<<endl;
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/YasIsland.off", VOrig, D, F);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/intersection.off", VOrig, D, F);
   hedra::polygonal_edge_topology(D, F, EV, FE, EF, EFi, FEs, innerEdges);
   hedra::triangulate_mesh(D,F,T, TF);
   
