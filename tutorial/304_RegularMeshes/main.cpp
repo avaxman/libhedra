@@ -39,6 +39,20 @@ hedra::MoebiusRegularData MRData;
 void update_mesh(igl::opengl::glfw::Viewer& viewer)
 {
   
+  double maxMR = MRData.origMR.maxCoeff()/2.5;
+  double maxER = MRData.origER.maxCoeff()/2.5;
+  double maxW = MRData.origW.maxCoeff()/2.5;
+  switch(meshMode){
+    case ORIGINAL_MESH: std::cout<<"Original Mesh"<<std::endl; break;
+    case REGULAR_MESH: std::cout<<"Regular Mesh"<<std::endl; break;
+  }
+  switch(viewingMode){
+    case STANDARD: std::cout<<"Standard coloring"<<std::endl; break;
+    case MOEBIUS_REGULARITY: std::cout<<"Moebius Regularity between [0,"<<maxMR<<"]"<<std::endl; break;
+    case EUCLIDEAN_REGULARITY: std::cout<<"Euclidean Regularity between [0,"<<maxER<<"]"<<std::endl; break;
+    case WILLMORE_ENERGY: std::cout<<"Willmore Energy between [0,"<<maxW<<"]"<<std::endl; break;
+  }
+  
   //mesh
   viewer.data_list[0].clear();
   viewer.data_list[0].set_face_based(true);
@@ -47,16 +61,10 @@ void update_mesh(igl::opengl::glfw::Viewer& viewer)
   Eigen::MatrixXd C;  //color
   switch (viewingMode){
     case STANDARD: C = hedra::default_mesh_color(); break;
-    case MOEBIUS_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origMR : MRData.deformMR), 0,MRData.origMR.maxCoeff()/2.5,C); break;
-    case EUCLIDEAN_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origER : MRData.deformER), 0,MRData.origER.maxCoeff()/2.5, C); break;
-    case WILLMORE_ENERGY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origW : MRData.deformW), 0,MRData.origW.maxCoeff()/2.5, C); break;
+    case MOEBIUS_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origMR : MRData.deformMR), 0,maxMR,C); break;
+    case EUCLIDEAN_REGULARITY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origER : MRData.deformER), 0,maxER, C); break;
+    case WILLMORE_ENERGY: hedra::scalar2RGB((meshMode==ORIGINAL_MESH ? MRData.origW : MRData.deformW), 0,maxW, C); break;
   }
-  
-  /*std::cout<<"MRData.deformER.minCoeff(): "<<MRData.deformER.minCoeff()<<std::endl;
-   std::cout<<"MRData.deformER.maxCoeff(): "<<MRData.deformER.maxCoeff()<<std::endl;
-  std::cout<<"MRData.origER.minCoeff(): "<<MRData.origER.minCoeff()<<std::endl;
-  std::cout<<"MRData.origER.maxCoeff(): "<<MRData.origER.maxCoeff()<<std::endl;
-  std::cout<<"C: "<<C<<std::endl;*/
   
   viewer.data_list[0].set_mesh((meshMode==ORIGINAL_MESH ? VOrig : VRegular), T);
   if (viewingMode==EUCLIDEAN_REGULARITY){
@@ -67,7 +75,6 @@ void update_mesh(igl::opengl::glfw::Viewer& viewer)
   } else
     viewer.data_list[0].set_colors(C);
   
-  //viewer.data_list[0].set_colors(TC);
   viewer.data_list[0].set_edges((meshMode==ORIGINAL_MESH ? VOrig : VRegular),EV,hedra::default_edge_color());
   
   double radius = 0.25*igl::avg_edge_length(VOrig, T);
@@ -88,12 +95,21 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       return false;
     case '1': {meshMode=(MeshModes)((meshMode+1)%2); break;}
     case '2': {viewingMode=(ViewingModes)((viewingMode+1)%4); break;}
-    case '3': {ERCoeff+=0.1; hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
-    case '4': {ERCoeff=(ERCoeff-0.1>=0.0 ? ERCoeff-0.1 : 0.0); hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, VRegular); break;}
+    case '3': {
+      ERCoeff+=0.1;
+      hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, false, VRegular);
+      std::cout<<"Euclidean Regularity Coefficient: "<<ERCoeff<<std::endl;
+      break;
+      
+    }
+    case '4': {
+      ERCoeff=(ERCoeff-0.1>=0.0 ? ERCoeff-0.1 : 0.0);
+      hedra::compute_moebius_regular(MRData, MRCoeff, ERCoeff, constPoses, false, VRegular);
+      std::cout<<"Euclidean Regularity Coefficient: "<<ERCoeff<<std::endl;
+      break;}
       
   }
-
-  //std::cout<<"MRData.deformER: "<<MRData.deformER.maxCoeff()<<std::endl;
+  
   update_mesh(viewer);
   return true;
 }
@@ -132,18 +148,12 @@ int main(int argc, char *argv[])
   
   
   hedra::setup_moebius_regular(VOrig, D, F, T, EV, FE, EF, EFi, FEs, innerEdges, constIndices, MRData);
-  hedra::compute_moebius_regular(MRData,  MRCoeff, ERCoeff, constPoses, VRegular);
+  hedra::compute_moebius_regular(MRData,  MRCoeff, ERCoeff, constPoses, false, VRegular);
   
   igl::opengl::glfw::Viewer viewer;
-  //viewer.callback_mouse_down = &mouse_down;
-  //viewer.callback_mouse_up = &mouse_up;
-  //viewer.callback_mouse_move = &mouse_move;
   viewer.callback_key_down = &key_down;
-  //viewer.callback_key_up = &key_up;
-  //viewer.callback_init = &init;
+
   viewer.core.background_color<<0.75,0.75,0.75,1.0;
-  
-  
   
   viewer.append_mesh();
   viewer.selected_data_index=0;

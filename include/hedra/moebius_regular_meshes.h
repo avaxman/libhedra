@@ -15,6 +15,7 @@
 #include <hedra/regularity.h>
 #include <hedra/dcel.h>
 #include <hedra/planarity.h>
+#include <hedra/willmore_energy.h>
 
 namespace hedra
 {
@@ -103,9 +104,7 @@ namespace hedra
     //optimization operators
     CeresMRSolver CSolver;
     
-    //Computes the normal ratio for every FaceTriad entry
-    
-   
+ 
     //assuming the angle is [0, pi] always.
     void factorize_quaternion(const Eigen::RowVector4d& q, double& length, double& angle, Eigen::RowVector3d& vec)
     {
@@ -130,13 +129,13 @@ namespace hedra
       }
     }
     
-    double cot(double x){
+    /*double cot(double x){
       if (abs(sin(x))>10e-5)
         return cos(x)/sin(x);
       else return 0.0;
-    }
+    }*/
     
-    void compute_mean_curvature(const Eigen::MatrixXi& VValences,
+    /*void compute_mean_curvature(const Eigen::MatrixXi& VValences,
                                 const Eigen::MatrixXi& QuadVertexIndices,
                                 const Eigen::MatrixXd& Vq,
                                 Eigen::VectorXd& H)
@@ -181,102 +180,9 @@ namespace hedra
       H=H.cwiseQuotient(VertCotWeights);
       for (int i=0;i<H.size();i++)
         if (isnan(H(i))) H(i)=0;  //TODO: fix isolated vertices!
-    }
+    }*/
     
-    void compute_willmore_energy(const Eigen::MatrixXd& V,
-                                 const Eigen::VectorXi& VH,
-                                 const Eigen::VectorXi& HV,
-                                 const Eigen::VectorXi& HE,
-                                 const Eigen::VectorXi& HF,
-                                 const Eigen::VectorXi& twinH,
-                                 const Eigen::VectorXi& nextH,
-                                 const Eigen::VectorXi& prevH,
-                                 Eigen::VectorXd& W)
-    {
-      using namespace Eigen;
-      using namespace std;
-      W.conservativeResize(V.rows()); W.setZero();
-      VectorXd MR(V.rows()); MR.setZero();
-      for (int i=0;i<V.rows();i++){
-        int beginH=VH(i);
-        int currH=beginH;
-        bool isBoundaryVertex=true;
-        
-        
-        while ((twinH(currH)!=-1)){
-          currH=nextH(twinH(currH));
-          if (currH==beginH) {isBoundaryVertex=false; break;}
-        }
-        
-        beginH=currH;
-        
-        vector<int> vertexStarList;
-        MatrixXd vertexStar;
-        do{
-          vertexStarList.push_back(HV(nextH(currH)));
-          if(twinH(prevH(currH))==-1){  //last edge on the boundary should be accounted for
-            vertexStarList.push_back(HV(prevH(currH)));
-          }
-          currH=twinH(prevH(currH));
-        }while ((beginH!=currH)&&(currH!=-1));
-        
-        vertexStar.conservativeResize(vertexStarList.size(),4);
-        for (int j=0;j<vertexStarList.size();j++)
-          vertexStar.row(j)<<0.0,V.row(vertexStarList[j]);
-        
-        //computing tangent polygon
-        RowVector4d qu; qu<<0.0, V.row(i);
-        MatrixXd tangentPolygon(vertexStar.rows(),4);
-        for (int j=0;j<vertexStar.rows();j++)
-          tangentPolygon.row(j)<<QInv(vertexStar.row(j)-qu);
-        
-        //finding minimum vertex which is by definition convex
-        int minXIndex, maxXIndex;
-        double minX = tangentPolygon.col(0).minCoeff(&minXIndex);
-        double maxX = tangentPolygon.col(0).maxCoeff(&maxXIndex);
-        int minYIndex, maxYIndex;
-        double minY = tangentPolygon.col(1).minCoeff(&minYIndex);
-        double maxY = tangentPolygon.col(1).maxCoeff(&maxYIndex);
-        int minZIndex, maxZIndex;
-        double minZ = tangentPolygon.col(2).minCoeff(&minZIndex);
-        double maxZ = tangentPolygon.col(2).maxCoeff(&maxZIndex);
-        RowVector3d span; span<<maxX-minX, maxY-minY, maxZ-minZ;
-        RowVector3i indices; indices<<minXIndex, minYIndex, minZIndex;
-        
-        int domDim;
-        span.maxCoeff(&domDim);
-        int startIndex=indices(domDim);
-        double angleSum=0.0;
-        RowVector4d CR0=QMult(tangentPolygon.row((startIndex+2)%vertexStar.rows())-tangentPolygon.row((startIndex+1)%vertexStar.rows()), QInv(tangentPolygon.row(startIndex)-tangentPolygon.row((startIndex+1)%vertexStar.rows())));
-        double CR0angle, CR0length;
-        RowVector3d CR0vec;
-        factorize_quaternion(CR0, CR0length, CR0angle, CR0vec);
-        for (int j=0;j<vertexStar.rows();j++){
-          int v0=(j+startIndex)%vertexStar.rows();
-          int v1=(j+1+startIndex)%vertexStar.rows();
-          int v2=(j+2+startIndex)%vertexStar.rows();
-          RowVector4d CR=QMult(tangentPolygon.row(v2)-tangentPolygon.row(v1), QInv(tangentPolygon.row(v0)-tangentPolygon.row(v1)));
-          double CRangle, CRlength;
-          RowVector3d CRvec;
-          factorize_quaternion(CR, CRlength, CRangle, CRvec);
-          angleSum+=(CRvec.tail(3).dot(CR0vec)>=0 ? CRangle : M_PI-CRangle);
-        }
-        
-        //W(i)=abs(M_PI-angleSum/((double)vertexStar.rows()-2.0));
-        VectorXi Dtp(1); Dtp(0)=vertexStar.rows();
-        RowVectorXi Ftp(vertexStar.rows());
-        for (int j=0;j<vertexStar.rows();j++)
-          Ftp(j)=j;
-        VectorXd planarity, regularity;
-        hedra::planarity(tangentPolygon.block(0,1,tangentPolygon.rows(),3),Dtp, Ftp, planarity);
-        hedra::regularity(tangentPolygon.block(0,1,tangentPolygon.rows(),3),Dtp, Ftp, regularity);
-        W(i)=planarity(0);
-        MR(i)=planarity(0);
-      }
-      
-      //cout<<"W: "<<W<<endl;
-      
-    }
+    
     
     
     //Compute the energy of quaternionic differences of ratios around a loop indicated by OneRings (unless it's a boundary).
@@ -339,9 +245,6 @@ namespace hedra
       
       //cout<<"Total W: "<<W<<endl;
     }
-    
-    
-    
     
     //averages the ratio vectors to find the common one. Factors out the given lengths and angles
     
@@ -684,12 +587,12 @@ namespace hedra
     MRData.origW=MRData.origMR;
     MRData.origER.resize(F.rows());
     MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origMR);
-    MRData.compute_willmore_energy(MRData.VOrig, MRData.VH, MRData.HV, MRData.HE, MRData.HF, MRData.twinH, MRData.nextH, MRData.prevH, MRData.origW);
+    hedra::willmore_energy(MRData.VOrig, MRData.VH, MRData.HV, MRData.HE, MRData.HF, MRData.twinH, MRData.nextH, MRData.prevH, MRData.origW);
     //MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.origECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.origW);
     
-    MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER);
+    //MRData.compute_ratio_diff_energy(D, MRData.origCFN, MRData.cornerF, VectorXi::Zero(D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.origER);
     
-    //hedra::regularity(VOrig,MRData.D,MRData.F,MRData.origER);
+    hedra::regularity(VOrig,MRData.D,MRData.F,MRData.origER);
     MRData.deformMR=MRData.origMR;
     MRData.deformER=MRData.origER;
     MRData.deformW=MRData.origW;
@@ -715,14 +618,10 @@ namespace hedra
                                           const double MRCoeff,
                                           const double ERCoeff,
                                           const Eigen::MatrixXd& constPoses,
+                                          const bool outputProgress,
                                           Eigen::MatrixXd& VRegular)
   {
     
-    /*MatrixXd ConstPoses(InConstPoses.size(),3);
-    for (int i=0;i<InConstPoses.size();i++)
-      ConstPoses.row(i)=InConstPoses[i];*/
-    
-
     //composing initial solution
     
     for (int i=0;i<MRData.QOrig.rows();i++)
@@ -743,7 +642,7 @@ namespace hedra
         MRData.CSolver.currSolution[3*MRData.constIndices(i)+j]=constPoses(i,j);
     
     
-    MRData.CSolver.solve(MRCoeff, ERCoeff);
+    MRData.CSolver.solve(MRCoeff, ERCoeff, outputProgress);
     
     for (int i=0;i<MRData.QOrig.rows();i++)
       MRData.VDeform.row(i)<<MRData.CSolver.currSolution[3*i],MRData.CSolver.currSolution[3*i+1],MRData.CSolver.currSolution[3*i+2];
@@ -758,18 +657,17 @@ namespace hedra
     
     Coords2Quat(constPoses, MRData.quatConstPoses);
     Coords2Quat(MRData.VDeform, MRData.QDeform);
-    //ComputeCR(DeformVq, QuadVertexIndices, DeformECR);
-    //ComputeFN(DeformVq, FaceTriads, DeformCFN);
     
     hedra::quat_cross_ratio(MRData.VDeform,MRData.quadVertexIndices, MRData.deformECR);
     hedra::quat_normals(MRData.QDeform, MRData.faceTriads, MRData.deformCFN);
     
     MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformMR);
     //MRData.compute_ratio_diff_energy(MRData.vertexValences, MRData.deformECR, MRData.oneRings, MRData.boundaryMask, MRData.patternCRLengths, MRData.patternCRAngles, MRData.deformW, true);
-    MRData.compute_willmore_energy(MRData.VDeform, MRData.VH, MRData.HV, MRData.HE, MRData.HF, MRData.twinH, MRData.nextH, MRData.prevH, MRData.deformW);
+    hedra::willmore_energy(MRData.VDeform, MRData.VH, MRData.HV, MRData.HE, MRData.HF, MRData.twinH, MRData.nextH, MRData.prevH, MRData.deformW);
     
-    //hedra::regularity(VRegular,MRData.D,MRData.F,MRData.deformER);
-   MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER);
+    //hedra::moebius_regularity(VRegular, MRData.F, MRData)
+    hedra::regularity(VRegular,MRData.D,MRData.F,MRData.deformER);
+   //MRData.compute_ratio_diff_energy(MRData.D, MRData.deformCFN, MRData.cornerF, Eigen::VectorXi::Zero(MRData.D.size()), MRData.patternFNLengths, MRData.patternFNAngles, MRData.deformER);
     
     return true;
     
