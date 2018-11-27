@@ -49,12 +49,12 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       break;}
       
     case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
-    case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
+    /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '4': hedra::simplest(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '6': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '7': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
-    case '8': hedra::operator_1246(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
+    case '8': hedra::operator_1246(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;*/
   }
   
   if ((key >='2')&&( key<='8')){

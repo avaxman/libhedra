@@ -20,6 +20,13 @@ inline Eigen::RowVector4d QConj(const Eigen::RowVector4d& q)
     return newq;
 }
 
+inline Eigen::MatrixXd QConjN(const Eigen::MatrixXd& q)
+{
+  Eigen::MatrixXd newq(q.rows(), q.cols());
+  newq<<q.col(0), -q.block(0,1,q.rows(),3);
+  return newq;
+}
+
 
 inline Eigen::RowVector4d QMult(const Eigen::RowVector4d& q1, const Eigen::RowVector4d& q2)
 {
@@ -32,13 +39,28 @@ inline Eigen::RowVector4d QMult(const Eigen::RowVector4d& q1, const Eigen::RowVe
     return newq;
 }
 
+inline Eigen::MatrixXd QMultN(const Eigen::MatrixXd& q1, const Eigen::MatrixXd& q2)
+{
+  Eigen::MatrixXd newq;
+  Eigen::VectorXd r1=q1.col(0);
+  Eigen::VectorXd r2=q2.col(0);
+  Eigen::MatrixXd v1=q1.tail(3);
+  Eigen::MatrixXd v2=q2.tail(3);
+  newq<<r1.array()*r2.array()-(v1.array()*v2.array()).rowwise().sum(), v2.rowwise()*r1.array()+v1.rowwise()*r2.array()+v1.rowwise().cross(v2);
+  return newq;
+}
+
 inline Eigen::RowVector4d QInv(const Eigen::RowVector4d& q)
 {
     return(QConj(q)/q.squaredNorm());
 }
 
+inline Eigen::MatrixXd QInvN(const Eigen::MatrixXd& q)
+{
+  return(QConjN(q).rowwise().cwiseQuotient(q.rowwise().squaredNorm().array()));
+}
 
-inline Eigen::MatrixXd QLog(const Eigen::MatrixXd& q)
+inline Eigen::MatrixXd QLogN(const Eigen::MatrixXd& q)
 {
     Eigen::VectorXd nq=q.rowwise().norm();
     Eigen::VectorXd nv=q.block(0,1,q.rows(),q.cols()-1).rowwise().norm();
@@ -54,7 +76,7 @@ inline Eigen::MatrixXd QLog(const Eigen::MatrixXd& q)
     return logq;
 }
 
-inline Eigen::MatrixXd QExp(const Eigen::MatrixXd& q)
+inline Eigen::MatrixXd QExpN(const Eigen::MatrixXd& q)
 {
     Eigen::VectorXd nv=q.block(0,1,q.rows(),q.cols()-1).rowwise().norm();
     Eigen::VectorXd exp1=exp(q.col(0).array());
