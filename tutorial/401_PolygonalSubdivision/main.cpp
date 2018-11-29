@@ -43,8 +43,13 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
   {
     default:
       return false;
-    case '1': {
+    case 'A': {
       currViewLevel=std::min(currViewLevel+1,subdLevel);
+      std::cout<<"Viewing Level "<<currViewLevel<<std::endl;
+      break;}
+      
+    case 'S': {
+      currViewLevel=std::max(currViewLevel-1,0);
       std::cout<<"Viewing Level "<<currViewLevel<<std::endl;
       break;}
       
@@ -74,6 +79,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     D.push_back(DNext);
     T.push_back(TNext);
     TF.push_back(TFNext);
+    subdLevel++;
 
   }
   
@@ -93,7 +99,9 @@ int main(int argc, char *argv[])
   "5  Dual Truncation "<<endl<<
   "6  Dual Mesh "<<endl<<
   "7  Vertex Insertion "<<endl<<
-  "8  1246 Operator "<<endl;
+  "8  1246 Operator "<<endl<<
+  "A  show Next Level"<<endl<<
+  "S  show previous level"<<endl;
   
   Eigen::MatrixXd V0;
   Eigen::MatrixXi F0, T0;
