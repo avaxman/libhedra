@@ -59,12 +59,12 @@ namespace hedra
                                                       const Eigen::MatrixXd& vn)
   {
     using namespace Eigen;
-    MatrixXd qi(vi.rows(),4); qi<<0.0,vi;
-    MatrixXd qj(vi.rows(),4); qj<<0.0,vj;
-    MatrixXd qk(vi.rows(),4); qk<<0.0,vk;
-    MatrixXd ql(vi.rows(),4); ql<<0.0,vl;
-    MatrixXd qm(vi.rows(),4); qm<<0.0,vm;
-    MatrixXd qn(vi.rows(),4); qn<<0.0,vn;
+    MatrixXd qi(vi.rows(),4); qi<<VectorXd::Zero(vi.rows()),vi;
+    MatrixXd qj(vi.rows(),4); qj<<VectorXd::Zero(vj.rows()),vj;
+    MatrixXd qk(vi.rows(),4); qk<<VectorXd::Zero(vk.rows()),vk;
+    MatrixXd ql(vi.rows(),4); ql<<VectorXd::Zero(vl.rows()),vl;
+    MatrixXd qm(vi.rows(),4); qm<<VectorXd::Zero(vm.rows()),vm;
+    MatrixXd qn(vi.rows(),4); qn<<VectorXd::Zero(vn.rows()),vn;
     
     VectorXd qjmNorm=(qj-qm).rowwise().norm();
     
@@ -100,12 +100,12 @@ namespace hedra
     
     VectorXd normab=(va-vb).rowwise().squaredNorm();
     VectorXd normcd=(vc-vd).rowwise().squaredNorm();
-    MatrixXd qa(va.rows(),4); qa<<0.0,va;
-    MatrixXd qb(vb.rows(),4); qb<<0.0,vb;
-    MatrixXd qc(vc.rows(),4); qc<<0.0,vc;
-    MatrixXd qd(vd.rows(),4); qd<<0.0,vd;
+    MatrixXd qa(va.rows(),4); qa<<VectorXd::Zero(va.rows()),va;
+    MatrixXd qb(vb.rows(),4); qb<<VectorXd::Zero(va.rows()),vb;
+    MatrixXd qc(vc.rows(),4); qc<<VectorXd::Zero(va.rows()),vc;
+    MatrixXd qd(vd.rows(),4); qd<<VectorXd::Zero(va.rows()),vd;
     
-    MatrixXd cabd=QMult(QMultN(qa-qc, QInvN(qb-qa)), QMultN((qd-qb), QInvN(qc-qd)));
+    MatrixXd cabd=QMultN(QMultN(qa-qc, QInvN(qb-qa)), QMultN((qd-qb), QInvN(qc-qd)));
     
     RowVector4d minusOneQuat; minusOneQuat<<-1.0,0.0,0.0,0.0;
     
@@ -173,14 +173,19 @@ namespace hedra
       do{
         starVertices(i,currCounter)=HV(nextH(currH));
         ringFaces(i,currCounter)=HF(currH);
-        starHalfedges(i,currCounter++)=HE(currH);
+        starHalfedges(i,currCounter++)=currH;
         if(twinH(prevH(currH))==-1){  //last edge on the boundary should be accounted for
           starVertices(i,currCounter)=HV(prevH(currH));
-          starHalfedges(i,currCounter++)=HE(prevH(currH));
+          starHalfedges(i,currCounter++)=prevH(currH);
         }
         currH=twinH(prevH(currH));
       }while ((beginH!=currH)&&(currH!=-1));
     }
+    
+    /*std::cout<<"vertexValences: "<<vertexValences<<std::endl;
+    std::cout<<"starVertices: "<<starVertices<<std::endl;
+    std::cout<<"ringFaces: "<<ringFaces<<std::endl;
+    std::cout<<"starHalfedges: "<<starHalfedges<<std::endl;*/
     
     return true;
   }
@@ -308,7 +313,7 @@ namespace hedra
         
         for (int j=0;j<vertexValences(i);j++){
           Eigen::RowVector4d qki; qki<<0.0,V.row(i)-V.row(starVertices(i,j));
-          qce.row(i)<<QInv(qki);
+          qce.row(j)<<QInv(qki);
         }
         
         //cout<<"qce after initial inversion: "<<qce<<endl;
@@ -408,8 +413,8 @@ namespace hedra
         int startIndex=0;
         for (int j=0;j<D(i);j++){
           RowVector4d qa; qa<<0.0,V.row(F(i,j));
-          RowVector4d qb; qb<<0.0,candidateFacePoints.block(F(i,j), 3*j,1,3);
-          RowVector4d qc; qc<<0.0,candidateFacePoints.block(F(i,j), 3*((j+D(i)/2)%D(i)),1,3) ;
+          RowVector4d qb; qb<<0.0,candidateFacePoints.block(i, 3*j,1,3);
+          RowVector4d qc; qc<<0.0,candidateFacePoints.block(i, 3*((j+D(i)/2)%D(i)),1,3) ;
           RowVector4d qd; qd<<0.0,V.row(((j+D(i)/2)%D(i)));
           RowVector4d cabd=QMult(QMult(qa-qc, QInv(qb-qa)), QMult((qd-qb), QInv(qc-qd)));
           double currNonCirularity=abs(cabd(1)/cabd.norm()-1.0);
@@ -421,7 +426,7 @@ namespace hedra
         
         MatrixXd oppositePoints(D(i),3);
         for (int j=0;j<D(i);j++)
-          oppositePoints.row(j)=moebius_four_points_blend(V.row(F(i,j)), candidateFacePoints.block(F(i,j), 3*j,1,3), candidateFacePoints.block(F(i,j), 3*((j+D(i)/2)%D(i)),1,3), V.row(((j+D(i)/2)%D(i))));
+          oppositePoints.row(j)=moebius_four_points_blend(V.row(F(i,j)), candidateFacePoints.block(i, 3*j,1,3), candidateFacePoints.block(i, 3*((j+D(i)/2)%D(i)),1,3), V.row(F(i,(j+D(i)/2)%D(i))));
         
         //sequentially computing six points
         MatrixXd seqFacePoint=oppositePoints.row(1);
@@ -508,10 +513,13 @@ namespace hedra
         MatrixXd canonFaceVertices;
         canonFaceVertices=sd.original2Canonical(i,origFaceVertices);
         canonFacePoints.row(j)=canonFaceVertices.colwise().mean();
+        //std::cout<<"canonFacePoints.row(j): "<<canonFacePoints.row(j)<<std::endl;
         
         //Lifting to candidate points
         candidateFacePoints.block(sd.ringFaces(i,j), 3*currVertexinFace,1,3)=sd.canonical2Original(i,canonFacePoints.row(j));  //not entirely optimized
       }
+      
+      //std::cout<<"candidateFacePoints: "<<candidateFacePoints<<std::endl;
       
       //candidate edge points
       MatrixXd canonEdgePoints(sd.vertexValences(i),3);
@@ -527,9 +535,11 @@ namespace hedra
       MatrixXd localCandidateEdgePoints;
       localCandidateEdgePoints=sd.canonical2Original(i,canonEdgePoints);
       for (int j=sd.isBoundaryVertex(i);j<sd.vertexValences(i)-sd.isBoundaryVertex(i);j++){
-        int onEdge=sd.HE(sd.starHalfedges(j));
+        int onEdge=sd.HE(sd.starHalfedges(i,j));
+       // std::cout<<"sd.starHalfedges(i,j): "<<sd.starHalfedges(i,j)<<std::endl;
+       // std::cout<<"onEdge: "<<onEdge<<std::endl;
         int inEdge = (sd.EV(onEdge,0)==i ? 0 : 1);
-        candidateEdgePoints.block(i,3*inEdge,1,3)=localCandidateEdgePoints.row(j);  //WRONG!!!
+        candidateEdgePoints.block(onEdge,3*inEdge,1,3)=localCandidateEdgePoints.row(j);  //WRONG!!!
       }
       
       //vertex points
@@ -550,6 +560,8 @@ namespace hedra
       fineVertexPoints.row(i)=sd.canonical2Original(i,canonFineCenter);
     }
     
+    //std::cout<<"candidateFacePoints: "<<candidateFacePoints<<std::endl;
+    //std::cout<<"candidateEdgePoints: "<<candidateEdgePoints<<std::endl;
     
     //Blending face points from candidates
     fineFacePoints = sd.facePointBlend(candidateFacePoints);

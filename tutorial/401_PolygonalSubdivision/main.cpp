@@ -53,7 +53,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       std::cout<<"Viewing Level "<<currViewLevel<<std::endl;
       break;}
       
-    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '4': hedra::simplest(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
@@ -63,9 +63,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
   }
   
   if ((key >='2')&&( key<='8')){
-    V.push_back(VNext);
-    F.push_back(FNext);
-    
+ 
     Eigen::MatrixXi TNext;
     Eigen::VectorXi TFNext, innerEdgesNext;
     Eigen::MatrixXi EVNext, FENext, EFNext, EFiNext;
@@ -79,7 +77,9 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     D.push_back(DNext);
     T.push_back(TNext);
     TF.push_back(TFNext);
+    EV.push_back(EVNext);
     subdLevel++;
+    currViewLevel=subdLevel;
 
   }
   

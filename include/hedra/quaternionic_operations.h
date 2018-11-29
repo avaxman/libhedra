@@ -78,7 +78,7 @@ inline Eigen::RowVector4d QInv(const Eigen::RowVector4d& q)
 
 inline Eigen::MatrixXd QInvN(const Eigen::MatrixXd& q)
 {
-  return(QConjN(q).cwiseQuotient(q.rowwise().squaredNorm().replicate(1,3)));
+  return(QConjN(q).cwiseQuotient(q.rowwise().squaredNorm().replicate(1,4)));
 }
 
 inline Eigen::MatrixXd QLogN(const Eigen::MatrixXd& q)
