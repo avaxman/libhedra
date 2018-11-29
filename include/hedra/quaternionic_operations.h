@@ -39,14 +39,35 @@ inline Eigen::RowVector4d QMult(const Eigen::RowVector4d& q1, const Eigen::RowVe
     return newq;
 }
 
-inline Eigen::MatrixXd QMultN(const Eigen::MatrixXd& q1, const Eigen::MatrixXd& q2)
-{
+
+/*{
   Eigen::MatrixXd newq;
   Eigen::VectorXd r1=q1.col(0);
   Eigen::VectorXd r2=q2.col(0);
-  Eigen::MatrixXd v1=q1.tail(3);
-  Eigen::MatrixXd v2=q2.tail(3);
+  Eigen::MatrixXd v1=q1.block(0,1,q1.rows(),3);
+  Eigen::MatrixXd v2=q2.block(0,1,q2.rows(),3);
   newq<<r1.array()*r2.array()-(v1.array()*v2.array()).rowwise().sum(), v2.rowwise()*r1.array()+v1.rowwise()*r2.array()+v1.rowwise().cross(v2);
+  return newq;
+}*/
+
+inline Eigen::MatrixXd QMultN(const Eigen::MatrixXd& q1, const Eigen::MatrixXd& q2)
+{
+  Eigen::MatrixXd newq(q1.rows(),4);
+  Eigen::VectorXd r1=q1.col(0);
+  Eigen::VectorXd r2=q2.col(0);
+  Eigen::MatrixXd v1=q1.block(0,1,q1.rows(), 3);
+  Eigen::MatrixXd v2=q2.block(0,1,q2.rows(), 3);
+  Eigen::MatrixXd r1mat; r1mat.resize(r1.rows(),3); r1mat<<r1, r1, r1;
+  Eigen::MatrixXd r2mat; r2mat.resize(r2.rows(),3); r2mat<<r2, r2, r2;
+  newq.col(0)=r1.cwiseProduct(r2)-(v1.cwiseProduct(v2)).rowwise().sum();
+  Eigen::MatrixXd v1cv2; v1cv2.resize(v1.rows(),3);
+  for (int i=0;i<v1.rows();i++){
+    Eigen::Vector3d vv1=v1.row(i);
+    Eigen::Vector3d vv2=v2.row(i);
+    v1cv2.row(i)=vv1.cross(vv2);
+    
+  }
+  newq.block(0,1,newq.rows(),newq.cols()-1)=v1.cwiseProduct(r2mat)+v2.cwiseProduct(r1mat)+v1cv2;
   return newq;
 }
 
@@ -57,7 +78,7 @@ inline Eigen::RowVector4d QInv(const Eigen::RowVector4d& q)
 
 inline Eigen::MatrixXd QInvN(const Eigen::MatrixXd& q)
 {
-  return(QConjN(q).rowwise().cwiseQuotient(q.rowwise().squaredNorm().array()));
+  return(QConjN(q).cwiseQuotient(q.rowwise().squaredNorm().replicate(1,3)));
 }
 
 inline Eigen::MatrixXd QLogN(const Eigen::MatrixXd& q)

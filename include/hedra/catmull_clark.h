@@ -22,10 +22,11 @@
 namespace hedra
 {
   
+  typedef enum {LINEAR_SUBDIVISION, CANONICAL_MOEBIUS_SUBDIVISION} SubdivisionType;
   void vertex_valences(const Eigen::MatrixXi& EV,
                        Eigen::VectorXi& vertexValences)
   {
-    vertexValences.conservativeResize(EV.maxCoeff());
+    vertexValences.conservativeResize(EV.maxCoeff()+1);
     vertexValences.setZero();
     for (int i=0;i<EV.rows();i++){
       vertexValences(EV(i,0))++;
@@ -125,19 +126,76 @@ namespace hedra
       if (normcd(i)<10e-14)
         p.row(i)<<0.0,vd.row(i);
       
-      return p.block(0,1,p.rows(),3);
+      
     }
+    return p.block(0,1,p.rows(),3);
   }
   
-
+  IGL_INLINE bool vertex_stars(const Eigen::MatrixXi& EV,
+                               const Eigen::VectorXi& VH,
+                               const Eigen::MatrixXi& EH,
+                               const Eigen::MatrixXi& FH,
+                               const Eigen::VectorXi& HV,
+                               const Eigen::VectorXi& HE,
+                               const Eigen::VectorXi& HF,
+                               const Eigen::VectorXi& nextH,
+                               const Eigen::VectorXi& prevH,
+                               const Eigen::VectorXi& twinH,
+                               Eigen::VectorXi& vertexValences,
+                               Eigen::MatrixXi& starVertices,
+                               Eigen::MatrixXi& starHalfedges,
+                               Eigen::MatrixXi& ringFaces,
+                               Eigen::VectorXi& isBoundaryVertex)
+  {
+    
+    using namespace Eigen;
+    hedra::vertex_valences(EV,vertexValences);
+    
+    int maxValence =vertexValences.maxCoeff();
+    starVertices.conservativeResize(vertexValences.rows(),maxValence);
+    starHalfedges.conservativeResize(vertexValences.rows(),maxValence);
+    ringFaces.conservativeResize(vertexValences.rows(),maxValence);
+    isBoundaryVertex.conservativeResize(vertexValences.rows());
+    
+    for (int i=0;i<vertexValences.rows();i++){
+      int beginH=VH(i);
+      int currH=beginH;
+      isBoundaryVertex(i)=1;
+      
+      int currCounter=0;
+      while ((twinH(currH)!=-1)){
+        currH=nextH(twinH(currH));
+        if (currH==beginH) {isBoundaryVertex(i)=0; break;}
+      }
+      
+      beginH=currH;
+      
+      do{
+        starVertices(i,currCounter)=HV(nextH(currH));
+        ringFaces(i,currCounter)=HF(currH);
+        starHalfedges(i,currCounter++)=HE(currH);
+        if(twinH(prevH(currH))==-1){  //last edge on the boundary should be accounted for
+          starVertices(i,currCounter)=HV(prevH(currH));
+          starHalfedges(i,currCounter++)=HE(prevH(currH));
+        }
+        currH=twinH(prevH(currH));
+      }while ((beginH!=currH)&&(currH!=-1));
+    }
+    
+    return true;
+  }
+  
+  
+  
+  
   class OneRingSubdivisionData{
   public:
     Eigen::MatrixXd V;
-    Eigen::MatrixXd F;
+    Eigen::MatrixXi F;
     Eigen::VectorXi D;
-    Eigen::MatrixXi EV, FE, FEi;
-    Eigen::VectorXi EF;
-    Eigen::VectorXi VH;
+    Eigen::MatrixXi EV, FE, EFi, EF;
+    Eigen::MatrixXd FEs;
+    Eigen::VectorXi VH, innerEdges;
     Eigen::MatrixXi EH;
     Eigen::MatrixXi FH;
     Eigen::VectorXi HV;
@@ -152,12 +210,18 @@ namespace hedra
     Eigen::MatrixXi ringFaces;
     Eigen::VectorXi isBoundaryVertex;
     
-    virtual void setupCanonicalEmbeddings(){}
-    virtual Eigen::MatrixXd original2Canonical(const int, const Eigen::MatrixXd&){}
-    virtual Eigen::MatrixXd canonical2Original(const int, const Eigen::MatrixXd&){}
-    virtual Eigen::MatrixXd threePointsExtrapolation(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&){}
-    virtual Eigen::MatrixXd fourPointsInterpolation(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&){}
-    virtual Eigen::MatrixXd facePointInterpolation(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&){}
+    virtual void setup(const Eigen::MatrixXd&, const Eigen::VectorXi&, const Eigen::MatrixXi&)=0;
+    virtual Eigen::MatrixXd original2Canonical(const int, const Eigen::MatrixXd&)=0;
+    virtual Eigen::MatrixXd canonical2Original(const int, const Eigen::MatrixXd&)=0;
+    virtual Eigen::MatrixXd threePointsExtrapolation(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&)=0;
+    virtual Eigen::MatrixXd fourPointsInterpolation(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&)=0;
+    virtual Eigen::MatrixXd facePointBlend(const Eigen::MatrixXd&)=0;
+    //virtual Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd&){}
+    virtual Eigen::RowVector3d innerVertexCanonicalBlend(const Eigen::RowVector3d&, const Eigen::MatrixXd&, const Eigen::MatrixXd&)=0;
+    virtual Eigen::MatrixXd boundaryVertexPoint(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&)=0;
+    
+    //virtual OneRingSubdivisionData()=0;
+    //virtual ~OneRingSubdivisionData()=0;
     
   };
   
@@ -167,18 +231,27 @@ namespace hedra
     Eigen::MatrixXd centers;
     Eigen::VectorXd radii;
     
-    void setupCanonicalEmbeddings(){};
+    void setup(const Eigen::MatrixXd& _V, const Eigen::VectorXi& _D, const Eigen::MatrixXi& _F){
+      V=_V; D=_D; F=_F;
+      hedra::polygonal_edge_topology(D, F, EV, FE, EF, EFi, FEs, innerEdges);
+      hedra::dcel(D, F, EV,EF,EFi,innerEdges,VH,EH,FH,HV,HE,HF,nextH, prevH,twinH);
+      hedra::vertex_stars(EV,VH,EH,FH,HV,HE,HF,nextH,prevH,twinH,vertexValences,starVertices,starHalfedges,ringFaces,isBoundaryVertex);
+    }
     //there is no special canonical forms for linear subdivision
     Eigen::MatrixXd original2Canonical(const int, const Eigen::MatrixXd& origPoints){return origPoints;}
     Eigen::MatrixXd canonical2Original(const int, const Eigen::MatrixXd& origPoints){return origPoints;}
     Eigen::MatrixXd threePointsExtrapolation(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b , const Eigen::MatrixXd& c){
-        return c*2.0-b;
+      return c*2.0-b;
     }
     Eigen::MatrixXd boundaryEdgePoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
       return (b+c)/2.0;
     }
     Eigen::MatrixXd boundaryVertexPoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& p, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
-        return ((a+d).array()/8.0+p.array()*3.0/4.0);
+      return ((a+d).array()/8.0+p.array()*3.0/4.0);
+    }
+    
+    Eigen::MatrixXd fourPointsInterpolation(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
+      return (b+c)/2.0;
     }
     Eigen::MatrixXd facePointBlend(const Eigen::MatrixXd& candidateFacePoints)
     {
@@ -193,12 +266,24 @@ namespace hedra
       return fineFacePoints;
     }
     
-    Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd& candidateEdgePoints)
+    /*Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd& candidateEdgePoints)
+     {
+     //these points are anyhow equal and this is also the boundary formula from the vertex stars function, so no special treatment needed.
+     return(candidateEdgePoints.block(0,0,candidateEdgePoints.rows(),3)+candidateEdgePoints.block(0,3,candidateEdgePoints.rows(),3))/2.0;
+     }*/
+    
+    Eigen::RowVector3d innerVertexCanonicalBlend(const Eigen::RowVector3d& canonCenter,
+                                                 const Eigen::MatrixXd& canonEdgePoints,
+                                                 const Eigen::MatrixXd& canonFacePoints)
     {
-      //these points are anyhow equal and this is also the boundary formula from the vertex stars function, so no special treatment needed.
-      return(candidateEdgePoints.block(0,0,candidateEdgePoints.rows(),3)+candidateEdgePoints.block(0,3,candidateEdgePoints.rows(),3))/2.0;
+      
+      Eigen::RowVector3d F = canonFacePoints.colwise().mean();
+      Eigen::RowVector3d E = canonEdgePoints.colwise().mean();
+      return((F+E*4.0-F*2.0+(double)(canonEdgePoints.rows()-3)*canonCenter)/(double)canonEdgePoints.rows());
     }
     
+    LinearCCSubdivisionData(){}
+    ~LinearCCSubdivisionData(){}
     
   };
   
@@ -207,12 +292,84 @@ namespace hedra
     Eigen::MatrixXd centers;
     Eigen::VectorXd radii;
     
-    void setupCanonicalEmbeddings(){};
-    //there is no special canonical forms for linear subdivision
-    Eigen::MatrixXd original2Canonical(const int, const Eigen::MatrixXd& origPoints){
+    void setup(const Eigen::MatrixXd& _V, const Eigen::VectorXi& _D, const Eigen::MatrixXi& _F){
+      V=_V; D=_D; F=_F;
+      hedra::polygonal_edge_topology(D, F, EV, FE, EF, EFi, FEs, innerEdges);
+      hedra::dcel(D, F, EV,EF,EFi,innerEdges,VH,EH,FH,HV,HE,HF,nextH, prevH,twinH);
+      hedra::vertex_stars(EV,VH,EH,FH,HV,HE,HF,nextH,prevH,twinH,vertexValences,starVertices,starHalfedges,ringFaces,isBoundaryVertex);
       
+      //creating Canonical Moebius forms
+      //first creating the q_{ki}^{-1} form
+      centers.conservativeResize(V.rows(),3);
+      radii.conservativeResize(V.rows());
+      for (int i=0;i<V.rows();i++){
+        Eigen::MatrixXd qce; qce.resize(vertexValences(i),4);
+        
+        
+        for (int j=0;j<vertexValences(i);j++){
+          Eigen::RowVector4d qki; qki<<0.0,V.row(i)-V.row(starVertices(i,j));
+          qce.row(i)<<QInv(qki);
+        }
+        
+        //cout<<"qce after initial inversion: "<<qce<<endl;
+        
+        if (vertexValences(i)<=2){  //an ear; the canonical embedding is not well defined anyhow
+          centers.row(i).setZero();
+          
+          radii(i)=2.0/((V.row(starVertices(i,0))-V.row(i)).norm()+(V.row(starVertices(i,1))-V.row(i)).norm());
+          std::cout<<"trying to compute canonical embedding for an ear!!"<<std::endl;
+          return;
+        }
+        
+        
+        //computing best fit circle
+        Eigen::RowVector3d currCenter;
+        
+        hedra::average_circle(qce.block(0,1,qce.rows(),3), isBoundaryVertex(i), currCenter, radii(i));
+        centers.row(i)=currCenter;
+      }
     }
-    Eigen::MatrixXd canonical2Original(const int, const Eigen::MatrixXd& origPoints){
+    //there is no special canonical forms for linear subdivision
+    Eigen::MatrixXd original2Canonical(const int v0, const Eigen::MatrixXd& origPoints){
+      Eigen::MatrixXd qop1(origPoints.rows(),4);
+      Eigen::MatrixXd qop2(origPoints.rows(),4);
+      
+      //inverting B->T
+      for (int i=0;i<origPoints.rows();i++){
+        Eigen::RowVector4d qki; qki<<0.0,V.row(v0)-origPoints.row(i);
+        qop1.row(i)<<QInv(qki);
+      }
+      
+      //cout<<"qop1: "<<qop1<<endl;
+      
+      Eigen::RowVector4d qc; qc<<0.0,centers.row(v0);
+      
+      //inverting T->T'
+      for (int i=0;i<origPoints.rows();i++){
+        if ((origPoints.row(i)-V.row(v0)).squaredNorm()<10e-10)
+          qop2.row(i)<<0.0,centers.row(v0);
+        else qop2.row(i)<<radii(v0)*radii(v0)*QInv(qc-qop1.row(i))+qc;
+      }
+      
+      //cout<<"qop2: "<<qop1<<endl;
+      return (qop2.block(0,1,qop2.rows(),3));
+    }
+    Eigen::MatrixXd canonical2Original(const int v0, const Eigen::MatrixXd& origPoints){
+      Eigen::MatrixXd qop1(origPoints.rows(),4);
+      Eigen::MatrixXd qop(origPoints.rows(),4);
+      
+      Eigen::RowVector4d qc; qc<<0.0,centers.row(v0);
+      Eigen::RowVector4d qv0; qv0<<0.0,V.row(v0);
+      for (int i=0;i<origPoints.rows();i++){
+        Eigen::RowVector4d qep; qep<<0.0, origPoints.row(i);
+        if ((qep-qc).squaredNorm()>10e-10){
+          qep=qc-radii(v0)*radii(v0)*QInv(qep-qc);
+          
+          qop.row(i)=qv0-QInv(qep);
+        } else qop.row(i)=qv0;
+      }
+      
+      return (qop.block(0,1,qop.rows(),3));
       
     }
     Eigen::MatrixXd threePointsExtrapolation(const Eigen::MatrixXd& va, const Eigen::MatrixXd& vb , const Eigen::MatrixXd& vc){
@@ -228,11 +385,14 @@ namespace hedra
       RowVector4d d=QMultN(QInvN(Unit+QMultN(QMultN(qc-qb,QInvN(qb-qa)),abcd)),qc+QMultN(QMultN(qc-qb,QInvN(qb-qa)),QMultN(abcd,qa)));
       
       return d.block(0,1,d.rows(),3);
-     
+      
     }
     Eigen::MatrixXd boundaryEdgePoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
       return moebius_four_points_blend(a,b,c,d);
-      
+    }
+    
+    Eigen::MatrixXd fourPointsInterpolation(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
+      return moebius_four_points_blend(a,b,c,d);
     }
     Eigen::MatrixXd boundaryVertexPoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& p, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
       return moebius_four_points_blend(a,b,c,d);
@@ -273,231 +433,30 @@ namespace hedra
       return fineFacePoints;
     }
     
-    Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd& candidateEdgePoints)
-    {
-     
+    Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
+      return moebius_four_points_blend(a,b,c,d);
     }
     
+    Eigen::RowVector3d innerVertexCanonicalBlend(const Eigen::RowVector3d& canonCenter,
+                                              const Eigen::MatrixXd& canonEdgePoints,
+                                              const Eigen::MatrixXd& canonFacePoints)
+    {
+      
+      Eigen::RowVector3d F = canonFacePoints.colwise().mean();
+      Eigen::RowVector3d E = canonEdgePoints.colwise().mean();
+      return((F+E*4.0-F*2.0+(double)(canonEdgePoints.rows()-3)*canonCenter)/(double)canonEdgePoints.rows());
+    }
     
+    MoebiusCCSubdivisionData(){}
+    ~MoebiusCCSubdivisionData(){}
+
   };
   
-
-  
-  
-  
-  IGL_INLINE bool vertex_stars(const Eigen::MatrixXi& EV,
-                               const Eigen::VectorXi& VH,
-                               const Eigen::MatrixXi& EH,
-                               const Eigen::MatrixXi& FH,
-                               const Eigen::VectorXi& HV,
-                               const Eigen::VectorXi& HE,
-                               const Eigen::VectorXi& HF,
-                               const Eigen::VectorXi& nextH,
-                               const Eigen::VectorXi& prevH,
-                               const Eigen::VectorXi& twinH,
-                               Eigen::VectorXi vertexValences,
-                               Eigen::MatrixXi& starVertices,
-                               Eigen::MatrixXi& starHalfedges,
-                               Eigen::MatrixXi& ringFaces,
-                               Eigen::VectorXi& isBoundaryVertex)
-  {
-    
-    using namespace Eigen;
-    hedra::vertex_valences(EV,vertexValences);
-    
-    int maxValence =vertexValences.maxCoeff();
-    starVertices.conservativeResize(vertexValences.rows(),maxValence);
-    starHalfedges.conservativeResize(vertexValences.rows(),maxValence);
-    ringFaces.conservativeResize(vertexValences.rows(),maxValence);
-    isBoundaryVertex.conservativeResize(vertexValences.rows());
-    
-    for (int i=0;i<vertexValences.rows();i++){
-      int beginH=VH(i);
-      int currH=beginH;
-      isBoundaryVertex(i)=1;
-      
-      int currCounter;
-      while ((twinH(currH)!=-1)){
-        currH=nextH(twinH(currH));
-        if (currH==beginH) {isBoundaryVertex(i)=0; break;}
-      }
-      
-      beginH=currH;
-      
-      do{
-        starVertices(i,currCounter)=HV(nextH(currH));
-        ringFaces(i,currCounter)=HF(currH);
-        starHalfedges(i,currCounter++)=HE(currH);
-        if(twinH(prevH(currH))==-1){  //last edge on the boundary should be accounted for
-          starVertices(i,currCounter)=HV(prevH(currH));
-          starHalfedges(i,currCounter++)=HE(prevH(currH));
-        }
-        currH=twinH(prevH(currH));
-      }while ((beginH!=currH)&&(currH!=-1));
-    }
-  }
-  
- 
-  
-
-  IGL_INLINE bool edge_point_moebius_average(const Eigen::MatrixXd& V,
-                                             const Eigen::VectorXi& VH,
-                                             const Eigen::MatrixXi& EH,
-                                             const Eigen::MatrixXi& FH,
-                                             const Eigen::VectorXi& HV,
-                                             const Eigen::VectorXi& HE,
-                                             const Eigen::VectorXi& HF,
-                                             const Eigen::VectorXi& nextH,
-                                             const Eigen::VectorXi& prevH,
-                                             const Eigen::VectorXi& twinH,
-                                             const Eigen::MatrixXd& candidateEdgePoints,
-                                             Eigen::MatrixXd& fineEdgePoints)
-  {
-    
-    Eigen::MatrixXd a(EH.rows(),3), b(EH.rows(),3), c(EH.rows(),3), d(EH.rows(),3);
-    
-    //default values for inner edges
-    b=candidateEdgePoints.block(0,0,candidateEdgePoints.rows(),3);
-    c=candidateEdgePoints.block(0,3,candidateEdgePoints.rows(),3);
-    
-    //for inner vertices: V->candidateedgepoints->V blending (already encoded from the vertex stars function)
-    //for boundary vertices: like a 4-points curve (need to be modified as follows)
-    
-    for (int i=0;i<EH.rows();i++){
-      int currH;
-      if (EH(i,0)==-1)
-        currH=EH(i,1);
-      else currH=EH(i,0);
-      int ix2=HV(currH);
-      int ix3=HV(nextH(currH));
-      
-      Eigen::RowVector3d x2; x2<<V.row(ix2);
-      Eigen::RowVector3d x3; x3<<V.row(ix3);
-      
-      if (twinH(currH)!=-1){  //inner edge
-        a.row(i)=x2;
-        d.row(i)=x3;
-        continue;
-      }
-      
-      bool x1Ear=(twinH(prevH(currH))==-1);
-      bool x4Ear=(twinH(nextH(currH))==-1);
-      Eigen::RowVector3d x1, x4;
-      
-      if (!x1Ear){
-        int otherBoundH=currH;
-        do{
-          otherBoundH=twinH(prevH(otherBoundH));
-        }while(twinH(prevH(otherBoundH))!=-1);
-        int ix1=HV(prevH(otherBoundH));
-        x1=V.row(ix1);
-      }
-      
-      if (!x4Ear){
-        int otherBoundH=currH;
-        do{
-          otherBoundH=twinH(nextH(otherBoundH));
-        }while(twinH(nextH(otherBoundH))!=-1);
-        int ix4=HV(nextH(nextH(otherBoundH)));
-        x4=V.row(ix4);
-      }
-      
-      if (x1Ear)
-        x1=moebius_extrapolation(x4, x3, x2);
-      if (x4Ear)
-        x4=moebius_extrapolation(x1, x2, x3);
-      
-      a.row(i)=x1;
-      b.row(i)=x2;
-      c.row(i)=x3;
-      d.row(i)=x4;
-    }
-    
-    fineEdgePoints=moebius_four_points_blend(a,b,c,d);
-    
-  }
-  
-  IGL_INLINE bool boundary_vertex_moebius_average(const Eigen::MatrixXd& V,
-                                                  const Eigen::VectorXi& VH,
-                                                  const Eigen::MatrixXi& EH,
-                                                  const Eigen::MatrixXi& FH,
-                                                  const Eigen::VectorXi& HV,
-                                                  const Eigen::VectorXi& HE,
-                                                  const Eigen::VectorXi& HF,
-                                                  const Eigen::VectorXi& nextH,
-                                                  const Eigen::VectorXi& prevH,
-                                                  const Eigen::VectorXi& twinH,
-                                                  const Eigen::MatrixXd edgePoints,
-                                                  Eigen::MatrixXi& fineV){
-    
-    using namespace Eigen;
-    for (int i=0;i<EH.rows();i++){
-      int currH;
-      if (EH(i,0)==-1)
-        currH=EH(i,1);
-      else currH=EH(i,0);
-      
-      if (twinH(currH)!=-1)
-        continue;  //not a boundary
-      
-      int ix2=HV(currH);
-      int ix3=HV(nextH(currH));
-      RowVector3d x2; x2<<V.row(ix2);
-      RowVector3d x3; x3<<V.row(ix3);
-      bool x1Ear=(twinH(prevH(currH))==-1);
-      RowVector3d x1;
-      if (!x1Ear){
-        int otherBoundH=currH;
-        do{
-          otherBoundH=twinH(prevH(otherBoundH));
-        }while(twinH(prevH(otherBoundH))!=-1);
-        int ix1=HV(prevH(otherBoundH));
-        x1=V.row(ix1);
-        
-        fineV.row(ix2)=moebius_four_points_blend(x1,edgePoints.row(HE(prevH(otherBoundH))), edgePoints.row(i), x3);
-      } else {
-        fineV.row(ix2) = V.row(ix2);
-      }
-    }
-    
-  }
   
   
   
   
-  IGL_INLINE bool canonical_star_subdivision_cc(const Eigen::MatrixXd& V,
-                                                const Eigen::VectorXi& D,
-                                                const Eigen::MatrixXi& F,
-                                                const Eigen::MatrixXi& EV,
-                                                const Eigen::MatrixXi& EF,
-                                                const Eigen::MatrixXi& EFi,
-                                                const Eigen::MatrixXi& FE,
-                                                const Eigen::VectorXi& innerEdges,
-                                                const Eigen::VectorXi& VH,
-                                                const Eigen::MatrixXi& EH,
-                                                const Eigen::MatrixXi& FH,
-                                                const Eigen::VectorXi& HV,
-                                                const Eigen::VectorXi& HE,
-                                                const Eigen::VectorXi& HF,
-                                                const Eigen::VectorXi& nextH,
-                                                const Eigen::VectorXi& prevH,
-                                                const Eigen::VectorXi& twinH,
-                                                const hedra::OneRingSubdivisionData& cf,
-                                                Eigen::MatrixXd& fineVertexPoints,
-                                                Eigen::MatrixXd& candidateEdgePoints,
-                                                Eigen::MatrixXd& candidateFacePoints){
-    
-    using namespace Eigen;
-    
-    MatrixXi starVertices, starHalfedges, ringFaces;
-    VectorXi isBoundaryVertex, vertexValences;
-    
-    
-    
-  }
   
-
- 
   IGL_INLINE bool vertex_insertion(const Eigen::MatrixXd& V,
                                    const Eigen::VectorXi& D,
                                    const Eigen::MatrixXi& F,
@@ -512,16 +471,19 @@ namespace hedra
     
     using namespace Eigen;
     
-    Eigen::MatrixXd fineVertexPoints(V.rows(),3);
-    
     sd.setup(V,D,F);
+    
+    Eigen::MatrixXd fineVertexPoints(V.rows(),3);
+    Eigen::MatrixXd fineFacePoints(F.rows(),3);
+    Eigen::MatrixXd fineEdgePoints(sd.EV.rows(),3);
+    
     
     MatrixXd candidateFacePoints(F.rows(), D.maxCoeff()*3);
     MatrixXd candidateEdgePoints(sd.EV.rows(), 6);
     
     //canonical embedding candidate points
     for (int i=0;i<V.rows();i++){
-      MatrixXd origStarVertices(sd.vertexValences(i));
+      MatrixXd origStarVertices(sd.vertexValences(i),3);
       for (int j=0;j<sd.vertexValences(i);j++)
         origStarVertices.row(j)=V.row(sd.starVertices(i,j));
       
@@ -533,82 +495,177 @@ namespace hedra
       
       //face points
       int numRingFaces=sd.vertexValences(i)-sd.isBoundaryVertex(i);  //one less face for boundary vertices
-      MatrixXd canonFacePoints(numRingFaces,1);
+      MatrixXd canonFacePoints(numRingFaces,3);
       for (int j=0;j<numRingFaces;j++){
-        MatrixXd origFaceVertices(D(ringFaces(i,j)),3);
+        MatrixXd origFaceVertices(D(sd.ringFaces(i,j)),3);
         int currVertexinFace=-1;
-        for (int k=0;k<D(ringFaces(i,j));k++){
-          origFaceVertices.row(k)=V.row(F(ringFaces(i,j),k));
-          if (F(ringFaces(i,j),k)==i)
+        for (int k=0;k<D(sd.ringFaces(i,j));k++){
+          origFaceVertices.row(k)=V.row(F(sd.ringFaces(i,j),k));
+          if (F(sd.ringFaces(i,j),k)==i)
             currVertexinFace=k;
         }
         
         MatrixXd canonFaceVertices;
-        canonFaceVertices=cf.original2Canonical(i,origFaceVertices);
+        canonFaceVertices=sd.original2Canonical(i,origFaceVertices);
         canonFacePoints.row(j)=canonFaceVertices.colwise().mean();
         
         //Lifting to candidate points
-        candidateFacePoints.block(ringFaces(i,j), 3*currVertexinFace,1,3)=cf.canonical2Original(i,canonFacePoints.row(j));  //not entirely optimized
+        candidateFacePoints.block(sd.ringFaces(i,j), 3*currVertexinFace,1,3)=sd.canonical2Original(i,canonFacePoints.row(j));  //not entirely optimized
       }
       
       //candidate edge points
-      MatrixXd canonEdgePoints(vertexValences(i),3);
-      for (int j=isBoundaryVertex(i);j<vertexValences(i)-isBoundaryVertex(i);j++)
-        canonEdgePoints.row(i)=(canonCenter+canonStarVertices.row(j)+canonFacePoints.row(j)+canonFacePoints.row((j+vertexValences(i)-1)%vertexValences(i)))/4.0;
+      MatrixXd canonEdgePoints(sd.vertexValences(i),3);
+      for (int j=sd.isBoundaryVertex(i);j<sd.vertexValences(i)-sd.isBoundaryVertex(i);j++)
+        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j)+canonFacePoints.row(j)+canonFacePoints.row((j+sd.vertexValences(i)-1)%sd.vertexValences(i)))/4.0;
       
-      if (isBoundaryVertex(i)){
-        canonEdgePoints.row(0)=(canonCenter+canonStarVertices.row(0))/2.0;
-        canonEdgePoints.row(vertexValences(i)-1)=(canonCenter+canonStarVertices.row(vertexValences(i)-1))/2.0;
-      }
+      /*if (isBoundaryVertex(i)){
+       canonEdgePoints.row(0)=(canonCenter+canonStarVertices.row(0))/2.0;
+       canonEdgePoints.row(vertexValences(i)-1)=(canonCenter+canonStarVertices.row(vertexValences(i)-1))/2.0;
+       }*/
       
       //Lifting to candidate points
       MatrixXd localCandidateEdgePoints;
-      localCandidateEdgePoints=cf.canonical2original(i,canonEdgePoints);
-      for (int j=0;j<vertexValences(i);j++)
-        candidateEdgePoints.block(i,3*j,1,3)=localCandidateEdgePoints.row(j);  //WRONG!!!
+      localCandidateEdgePoints=sd.canonical2Original(i,canonEdgePoints);
+      for (int j=sd.isBoundaryVertex(i);j<sd.vertexValences(i)-sd.isBoundaryVertex(i);j++){
+        int onEdge=sd.HE(sd.starHalfedges(j));
+        int inEdge = (sd.EV(onEdge,0)==i ? 0 : 1);
+        candidateEdgePoints.block(i,3*inEdge,1,3)=localCandidateEdgePoints.row(j);  //WRONG!!!
+      }
       
       //vertex points
-      RowVector3d canonFineCenter; canonFineCneter.setZero();
-      if (!isBoundaryVertex(i)){
-        sd.innerVertexBlend(canonFacePoints,canonFacePoints);
+      RowVector3d canonFineCenter;
+      if (!sd.isBoundaryVertex(i)){
+        canonFineCenter = sd.innerVertexCanonicalBlend(canonCenter,canonEdgePoints,canonFacePoints);
         /*RowVector3d F = canonFacePoints.colwise().mean();
-        RowVector3d E = canonEdgePoints.colwise().mean();
-        canonFineCenter=(F+E*4.0-F*2.0+(double)(vertexValences(i)-3)*canonCenter)/(double)vertexValences(i);*/
+         RowVector3d E = canonEdgePoints.colwise().mean();
+         canonFineCenter=(F+E*4.0-F*2.0+(double)(vertexValences(i)-3)*canonCenter)/(double)vertexValences(i);*/
       } else {  //this will get assigned later
         //This will get overri
         /*if (vertexValences(i)>2)
-          canonFineCenter=canonCenter*3.0/4.0+(canonStarVertices.row(0)+canonStarVertices.row(canonStarVertices.rows()-1))/8.0;
-        else  //an ear
-          canonFineCenter=canonCenter;*/
+         canonFineCenter=canonCenter*3.0/4.0+(canonStarVertices.row(0)+canonStarVertices.row(canonStarVertices.rows()-1))/8.0;
+         else  //an ear
+         canonFineCenter=canonCenter;*/
       }
       
-      fineVertexPoints.row(i)=cf.canonical2Original(i,canonFineCenter);
+      fineVertexPoints.row(i)=sd.canonical2Original(i,canonFineCenter);
     }
+    
     
     //Blending face points from candidates
     fineFacePoints = sd.facePointBlend(candidateFacePoints);
     
-    //Blending inner edge points
-    fineEdgePoints=sd.edgePointBlend(candidateEdgePoints);
+    //Blending edge points from candidates, and boundary edge points from boundary curves.
     
-    //Blending boundary edge points
+    Eigen::MatrixXd a(sd.EH.rows(),3), b(sd.EH.rows(),3), c(sd.EH.rows(),3), d(sd.EH.rows(),3);
     
-    boundaryVertexBlendFunc(V,VH,EH,FH,HV,HE,HF,nextH,prevH,twinH, fineEdgePoints,fineVertexPoints);
+    //default values for inner edges
+    /*b=candidateEdgePoints.block(0,0,candidateEdgePoints.rows(),3);
+     c=candidateEdgePoints.block(0,3,candidateEdgePoints.rows(),3);*/
     
-    cout<<"(fineVertexPoints-V).lpNorm<Infinity>()" <<(fineVertexPoints-V).lpNorm<Infinity>()<<endl;
+    for (int i=0;i<sd.EH.rows();i++){
+      int currH;
+      if (sd.EH(i,0)==-1)
+        currH=sd.EH(i,1);
+      else currH=sd.EH(i,0);
+      int ix2=sd.HV(currH);
+      int ix3=sd.HV(sd.nextH(currH));
+      
+      Eigen::RowVector3d x2; x2<<V.row(ix2);
+      Eigen::RowVector3d x3; x3<<V.row(ix3);
+      
+      if (sd.twinH(currH)!=-1){  //inner edge
+        a.row(i)=x2;
+        d.row(i)=x3;
+        if (ix2==sd.EV(i,0)){
+          b.row(i)=candidateEdgePoints.block(i,0,1,3);
+          c.row(i)=candidateEdgePoints.block(i,3,1,3);
+        } else {
+          c.row(i)=candidateEdgePoints.block(i,0,1,3);
+          b.row(i)=candidateEdgePoints.block(i,3,1,3);
+        }
+        continue;
+      }
+      
+      bool x1Ear=(sd.twinH(sd.prevH(currH))==-1);
+      bool x4Ear=(sd.twinH(sd.nextH(currH))==-1);
+      Eigen::RowVector3d x1, x4;
+      
+      if (!x1Ear){
+        int otherBoundH=currH;
+        do{
+          otherBoundH=sd.twinH(sd.prevH(otherBoundH));
+        }while(sd.twinH(sd.prevH(otherBoundH))!=-1);
+        int ix1=sd.HV(sd.prevH(otherBoundH));
+        x1=V.row(ix1);
+      }
+      
+      if (!x4Ear){
+        int otherBoundH=currH;
+        do{
+          otherBoundH=sd.twinH(sd.nextH(otherBoundH));
+        }while(sd.twinH(sd.nextH(otherBoundH))!=-1);
+        int ix4=sd.HV(sd.nextH(sd.nextH(otherBoundH)));
+        x4=V.row(ix4);
+      }
+      
+      if (x1Ear)
+        x1=sd.threePointsExtrapolation(x4, x3, x2);
+      if (x4Ear)
+        x4=sd.threePointsExtrapolation(x1, x2, x3);
+      
+      a.row(i)=x1;
+      b.row(i)=x2;
+      c.row(i)=x3;
+      d.row(i)=x4;
+    }
+    
+    fineEdgePoints=sd.fourPointsInterpolation(a,b,c,d);
+    
+    
+    //Blending vertex boundary points
+    for (int i=0;i<sd.EH.rows();i++){
+      int currH;
+      if (sd.EH(i,0)==-1)
+        currH=sd.EH(i,1);
+      else currH=sd.EH(i,0);
+      
+      if (sd.twinH(currH)!=-1)
+        continue;  //not a boundary
+      
+      int ix2=sd.HV(currH);
+      int ix3=sd.HV(sd.nextH(currH));
+      RowVector3d x2; x2<<V.row(ix2);
+      RowVector3d x3; x3<<V.row(ix3);
+      bool x1Ear=(sd.twinH(sd.prevH(currH))==-1);
+      RowVector3d x1;
+      if (!x1Ear){
+        int otherBoundH=currH;
+        do{
+          otherBoundH=sd.twinH(sd.prevH(otherBoundH));
+        }while(sd.twinH(sd.prevH(otherBoundH))!=-1);
+        int ix1=sd.HV(sd.prevH(otherBoundH));
+        x1=V.row(ix1);
+        
+        fineVertexPoints.row(ix2)=sd.boundaryVertexPoint(x1,fineEdgePoints.row(sd.HE(sd.prevH(otherBoundH))),x2, fineEdgePoints.row(i), x3);
+      } else {
+        fineVertexPoints.row(ix2) = V.row(ix2);
+      }
+    }
+    
+    std::cout<<"(fineVertexPoints-V).lpNorm<Infinity>()" <<(fineVertexPoints-V).lpNorm<Infinity>()<<std::endl;
     
     fineV.conservativeResize(fineVertexPoints.rows()+fineFacePoints.rows()+fineEdgePoints.rows(),3);
     fineV<<fineVertexPoints, fineEdgePoints, fineFacePoints;
-    int numNewFaces=D[level].sum();
+    int numNewFaces=D.sum();
     fineD=VectorXi::Constant(numNewFaces, 4);
     fineF.conservativeResize(numNewFaces,4);
     int currNewFace=0;
     for (int i=0;i<D.rows();i++){
       for (int j=0;j<D(i);j++){
-        F[level+1].row(currNewFace++)<<F[level](i,j),
-        V.rows()+FE[level](i,j),
-        V.rows()+edgePoints.rows()+i,
-        V.rows()+FE[level](i,(j+D[level](i)-1)%D[level](i));
+        fineF.row(currNewFace++)<<F(i,j),
+        V.rows()+sd.FE(i,j),
+        V.rows()+fineEdgePoints.rows()+i,
+        V.rows()+sd.FE(i,(j+D(i)-1)%D(i));
       }
     }
     
@@ -618,15 +675,10 @@ namespace hedra
   IGL_INLINE bool catmull_clark(const Eigen::MatrixXd& V,
                                 const Eigen::VectorXi& D,
                                 const Eigen::MatrixXi& F,
-                                const Eigen::MatrixXi& EV,
-                                const Eigen::MatrixXi& EF,
-                                const Eigen::MatrixXi& EFi,
-                                const Eigen::MatrixXi& FE,
-                                const Eigen::VectorXi& innerEdges,
-                                const hedra::SubdivisionType st
-                                Eigen::MatrixXd& newV,
-                                Eigen::VectorXi& newD,
-                                Eigen::MatrixXi& newF)
+                                const hedra::SubdivisionType st,
+                                Eigen::MatrixXd& fineV,
+                                Eigen::VectorXi& fineD,
+                                Eigen::MatrixXi& fineF)
   
   {
     using namespace Eigen;
@@ -637,12 +689,12 @@ namespace hedra
     switch (st){
       case hedra::LINEAR_SUBDIVISION: {
         hedra::LinearCCSubdivisionData lsd;
-        vertex_insertion(V, D,F, EV, EF, EFi, FE, innerEdges, &lsd, fineV, fineD, fineF);
+        vertex_insertion(V, D,F,lsd, fineV, fineD, fineF);
         break;
       }
       case hedra::CANONICAL_MOEBIUS_SUBDIVISION: {
         hedra::MoebiusCCSubdivisionData msd;
-        vertex_insertion(V, D,F, EV, EF, EFi, FE, innerEdges, &msd, fineV, fineD, fineF);
+        vertex_insertion(V, D,F,msd, fineV, fineD, fineF);
         break;
       }
       default: return false;
@@ -651,7 +703,7 @@ namespace hedra
     return true;
   }
   
-
+  
 }
 
 

@@ -13,7 +13,7 @@
 #include <hedra/operator_1246.h>
 #include <hedra/simplest_subdivision.h>
 #include <hedra/dual_truncation.h>
-#include <hedra/quad_kobbelt.h>
+//#include <hedra/quad_kobbelt.h>
 
 int currViewLevel=0;
 int subdLevel=0;
@@ -48,7 +48,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       std::cout<<"Viewing Level "<<currViewLevel<<std::endl;
       break;}
       
-    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
+    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
     /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '4': hedra::simplest(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
@@ -64,6 +64,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     Eigen::MatrixXi TNext;
     Eigen::VectorXi TFNext, innerEdgesNext;
     Eigen::MatrixXi EVNext, FENext, EFNext, EFiNext;
+    Eigen::MatrixXd FEsNext;
     
     hedra::polygonal_edge_topology(DNext, FNext, EVNext, FENext, EFNext, EFiNext, FEsNext, innerEdgesNext);
     hedra::triangulate_mesh(DNext,FNext,TNext, TFNext);
@@ -73,12 +74,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     D.push_back(DNext);
     T.push_back(TNext);
     TF.push_back(TFNext);
-    EV.push_back(EVNext);
-    EF.push_back(EFNext);
-    EFi.push_back(EFiNext);
-    innerEdges.push_back(innerEdgesNext);
-    FEs.push_back(FEsNext);
-    FE.push_back(FENext);
+
   }
   
   update_mesh(viewer);
@@ -94,18 +90,19 @@ int main(int argc, char *argv[])
   "2  Catmull-Clark Subdivision "<<endl<<
   "3  Kobbelt Quad Subdivision "<<endl<<
   "4  Simplest Subdivision"<<endl<<
-  "5  Dual Truncation "<<endl;
-  "6  Dual Mesh "<<endl;
-  "7  Vertex Insertion "<<endl;
+  "5  Dual Truncation "<<endl<<
+  "6  Dual Mesh "<<endl<<
+  "7  Vertex Insertion "<<endl<<
   "8  1246 Operator "<<endl;
   
   Eigen::MatrixXd V0;
   Eigen::MatrixXi F0, T0;
   Eigen::VectorXi D0,TF0, innerEdges0;
   Eigen::MatrixXi EV0, FE0, EF0, EFi0;
+  Eigen::MatrixXd FEs;
   
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/intersection.off", V0, D0, F0);
-  hedra::polygonal_edge_topology(D0, F0, EV0, FE0, EF0, EFi0, FEs0, innerEdges0);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/cube.off", V0, D0, F0);
+  hedra::polygonal_edge_topology(D0, F0, EV0, FE0, EF0, EFi0, FEs, innerEdges0);
   hedra::triangulate_mesh(D0,F0,T0, TF0);
   
   V.push_back(V0);
@@ -114,11 +111,11 @@ int main(int argc, char *argv[])
   T.push_back(T0);
   TF.push_back(TF0);
   EV.push_back(EV0);
-  EF.push_back(EF0);
+  /*EF.push_back(EF0);
   EFi.push_back(EFi0);
   innerEdges.push_back(innerEdges0);
   FEs.push_back(FEs0);
-  FE.push_back(FE0);
+  FE.push_back(FE0);*/
   
   igl::opengl::glfw::Viewer viewer;
   viewer.callback_key_down = &key_down;
