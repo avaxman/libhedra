@@ -105,11 +105,19 @@ namespace hedra
     MatrixXd qc(vc.rows(),4); qc<<VectorXd::Zero(va.rows()),vc;
     MatrixXd qd(vd.rows(),4); qd<<VectorXd::Zero(va.rows()),vd;
     
+   /* std::cout<<"qa: "<<qa<<std::endl;
+    std::cout<<"qb: "<<qb<<std::endl;
+    std::cout<<"qc: "<<qc<<std::endl;
+    std::cout<<"qd: "<<qd<<std::endl;*/
+    
     MatrixXd cabd=QMultN(QMultN(qa-qc, QInvN(qb-qa)), QMultN((qd-qb), QInvN(qc-qd)));
+    
+     //std::cout<<"cabd: "<<cabd<<std::endl;
     
     RowVector4d minusOneQuat; minusOneQuat<<-1.0,0.0,0.0,0.0;
     
     MatrixXd cabp=-QExpN(QLogN(cabd)*0.5)*((1.0-wb)/wb);
+    //std::cout<<"cabp: "<<cabp<<std::endl;
     for (int i=0;i<va.rows();i++)
       if ((cabd.row(i)-minusOneQuat).squaredNorm()<10e-4){  //-1,0,0,0 square root not well defined
         RowVector3d faceNormal=QMult(qa.row(i)-qc.row(i), QInv(qb.row(i)-qa.row(i))).tail(3).normalized();
@@ -118,14 +126,30 @@ namespace hedra
     
     MatrixXd Unit=MatrixXd::Zero(qa.rows(),4); Unit.col(0).setOnes();
     
-    MatrixXd p=QMultN(QInvN(QMultN(QMultN(qb-qa, QInvN(qa-qc)), -cabp)+Unit),QMultN(QMultN(qb-qa, QInvN(qa-qc)),QMultN(-cabp,qc))+qb);
+    MatrixXd p=QMultN(QInvN(QMultN(QMultN(qb-qa, QInvN(qa-qc)), cabp)+Unit),QMultN(QMultN(qb-qa, QInvN(qa-qc)),QMultN(cabp,qc))+qb);
+    
+    //MatrixXd p1=QMultN(QInvN(QMultN(QMultN(qb-qa, QInvN(qa-qc)), cabp)+Unit),QMultN(QMultN(qb-qa, QInvN(qa-qc)),QMultN(cabp,qc))+qb);
+    //MatrixXd p2=QMultN(QInvN(QMultN(QMultN(qb-qa, QInvN(qa-qc)), -cabp)+Unit),QMultN(QMultN(qb-qa, QInvN(qa-qc)),QMultN(-cabp,qc))+qb);
+    
+   
+    
+    //std::cout<<"p: "<<p<<std::endl;
     
     for (int i=0;i<va.rows();i++){
       if (normab(i)<10e-14)
         p.row(i)<<0.0,va.row(i);
-      if (normcd(i)<10e-14)
+      else if (normcd(i)<10e-14)
         p.row(i)<<0.0,vd.row(i);
-      
+      /*else {
+        RowVector4d midEdge=qb.row(i)*wb+qc.row(i)*(1.0-wb);
+        double dist1=(p1.row(i)-midEdge).squaredNorm();
+        double dist2=(p2.row(i)-midEdge).squaredNorm();
+        
+        if (dist1>dist2)
+          p.row(i)=p2.row(i);
+        else
+          p.row(i)=p1.row(i);
+      }*/
       
     }
     return p.block(0,1,p.rows(),3);
@@ -416,6 +440,10 @@ namespace hedra
           RowVector4d qb; qb<<0.0,candidateFacePoints.block(i, 3*j,1,3);
           RowVector4d qc; qc<<0.0,candidateFacePoints.block(i, 3*((j+D(i)/2)%D(i)),1,3) ;
           RowVector4d qd; qd<<0.0,V.row(((j+D(i)/2)%D(i)));
+          /*std::cout<<"qa: "<<qa<<std::endl;
+          std::cout<<"qb: "<<qb<<std::endl;
+          std::cout<<"qc: "<<qc<<std::endl;
+          std::cout<<"qd: "<<qd<<std::endl;*/
           RowVector4d cabd=QMult(QMult(qa-qc, QInv(qb-qa)), QMult((qd-qb), QInv(qc-qd)));
           double currNonCirularity=abs(cabd(1)/cabd.norm()-1.0);
           if (currNonCirularity >= nonCircularity){
@@ -427,6 +455,8 @@ namespace hedra
         MatrixXd oppositePoints(D(i),3);
         for (int j=0;j<D(i);j++)
           oppositePoints.row(j)=moebius_four_points_blend(V.row(F(i,j)), candidateFacePoints.block(i, 3*j,1,3), candidateFacePoints.block(i, 3*((j+D(i)/2)%D(i)),1,3), V.row(F(i,(j+D(i)/2)%D(i))));
+        
+        //std::cout<<"oppositePoints: "<<oppositePoints<<std::endl;
         
         //sequentially computing six points
         MatrixXd seqFacePoint=oppositePoints.row(1);
@@ -498,6 +528,9 @@ namespace hedra
       RowVector3d canonCenter;
       canonCenter=sd.original2Canonical(i,V.row(i));
       
+      //std::cout<<"canonCenter: "<<canonCenter<<std::endl;
+      //std::cout<<"canonStarVertices: "<<canonStarVertices<<std::endl;
+      
       //face points
       int numRingFaces=sd.vertexValences(i)-sd.isBoundaryVertex(i);  //one less face for boundary vertices
       MatrixXd canonFacePoints(numRingFaces,3);
@@ -510,10 +543,14 @@ namespace hedra
             currVertexinFace=k;
         }
         
+        //std::cout<<"origFaceVertices: "<<origFaceVertices<<std::endl;
         MatrixXd canonFaceVertices;
         canonFaceVertices=sd.original2Canonical(i,origFaceVertices);
+        //std::cout<<"canonFaceVertices: "<<canonFaceVertices<<std::endl;
         canonFacePoints.row(j)=canonFaceVertices.colwise().mean();
         //std::cout<<"canonFacePoints.row(j): "<<canonFacePoints.row(j)<<std::endl;
+        
+        //std::cout<<"sd.canonical2Original(i,canonFacePoints.row(j)): "<<sd.canonical2Original(i,canonFacePoints.row(j))<<std::endl;
         
         //Lifting to candidate points
         candidateFacePoints.block(sd.ringFaces(i,j), 3*currVertexinFace,1,3)=sd.canonical2Original(i,canonFacePoints.row(j));  //not entirely optimized
@@ -560,11 +597,14 @@ namespace hedra
       fineVertexPoints.row(i)=sd.canonical2Original(i,canonFineCenter);
     }
     
-    //std::cout<<"candidateFacePoints: "<<candidateFacePoints<<std::endl;
-    //std::cout<<"candidateEdgePoints: "<<candidateEdgePoints<<std::endl;
+    
+    
+    //std::cout<<"fineVertexPoints: "<<fineVertexPoints<<std::endl;
     
     //Blending face points from candidates
     fineFacePoints = sd.facePointBlend(candidateFacePoints);
+    //std::cout<<"candidateFacePoints: "<<candidateFacePoints<<std::endl;
+    //std::cout<<"fineFacePoints: "<<fineFacePoints<<std::endl;
     
     //Blending edge points from candidates, and boundary edge points from boundary curves.
     
@@ -631,7 +671,10 @@ namespace hedra
       d.row(i)=x4;
     }
     
+    //std::cout<<"a,b,c,d: "<<a<<b<<c<<d<<std::endl;
     fineEdgePoints=sd.fourPointsInterpolation(a,b,c,d);
+    //std::cout<<"candidateEdgePoints: "<<candidateEdgePoints<<std::endl;
+   //std::cout<<"fineEdgePoints: "<<fineEdgePoints<<std::endl;
     
     
     //Blending vertex boundary points

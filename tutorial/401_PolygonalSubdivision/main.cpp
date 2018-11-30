@@ -28,9 +28,9 @@ void update_mesh(igl::opengl::glfw::Viewer& viewer)
 {
   viewer.data_list[0].clear();
   viewer.data_list[0].set_face_based(true);
-  viewer.data_list[0].show_lines=false;
+  viewer.data_list[0].show_lines=true;
   viewer.data_list[0].set_mesh(V[currViewLevel], T[currViewLevel]);
-  viewer.data_list[0].set_edges(V[currViewLevel],EV[currViewLevel],hedra::default_edge_color());
+  //viewer.data_list[0].set_edges(V[currViewLevel],EV[currViewLevel],hedra::default_edge_color());
   viewer.data_list[0].set_colors(hedra::default_mesh_color());
 }
 
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
   Eigen::MatrixXi EV0, FE0, EF0, EFi0;
   Eigen::MatrixXd FEs;
   
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/cube.off", V0, D0, F0);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/eight-smoothed-quads.off", V0, D0, F0);
   hedra::polygonal_edge_topology(D0, F0, EV0, FE0, EF0, EFi0, FEs, innerEdges0);
   hedra::triangulate_mesh(D0,F0,T0, TF0);
   
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
   igl::opengl::glfw::Viewer viewer;
   viewer.callback_key_down = &key_down;
   
-  viewer.core.background_color<<0.75,0.75,0.75,1.0;
+  //viewer.core.background_color<<0.75,0.75,0.75,1.0;
   update_mesh(viewer);
   viewer.launch();
 }
