@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
   Eigen::MatrixXi EV0, FE0, EF0, EFi0;
   Eigen::MatrixXd FEs;
   
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/formfinding-circular.off", V0, D0, F0);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/FlatMesh-simple.off", V0, D0, F0);
   hedra::polygonal_edge_topology(D0, F0, EV0, FE0, EF0, EFi0, FEs, innerEdges0);
   hedra::triangulate_mesh(D0,F0,T0, TF0);
   
