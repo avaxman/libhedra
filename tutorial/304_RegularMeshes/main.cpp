@@ -13,6 +13,7 @@
 #include <hedra/visualization_schemes.h>
 #include <hedra/point_spheres.h>
 #include <hedra/scalar2RGB.h>
+#include <hedra/polygonal_edge_lines.h>
 
 
 typedef enum {ORIGINAL_MESH, REGULAR_MESH} MeshModes;
@@ -22,8 +23,8 @@ typedef enum {STANDARD, MOEBIUS_REGULARITY, EUCLIDEAN_REGULARITY, WILLMORE_ENERG
 ViewingModes viewingMode=STANDARD;
 
 // Mesh
-Eigen::MatrixXd VOrig, VRegular, VHandles, FEs, CHandles;
-Eigen::MatrixXi F, T, FHandles;
+Eigen::MatrixXd VOrig, VRegular, VHandles, FEs, CHandles, VEdges, CEdges;
+Eigen::MatrixXi F, T, THandles, TEdges;
 Eigen::VectorXi D, innerEdges, TF;
 Eigen::MatrixXi EV, FE, EF, EFi;
 
@@ -78,13 +79,22 @@ void update_mesh(igl::opengl::glfw::Viewer& viewer)
   viewer.data_list[0].set_edges((meshMode==ORIGINAL_MESH ? VOrig : VRegular),EV,hedra::default_edge_color());
   
   double radius = 0.25*igl::avg_edge_length(VOrig, T);
-  hedra::point_spheres(constPoses, radius, (hedra::passive_handle_color()).replicate(F.rows(),1), 8, VHandles, FHandles, CHandles);
+  hedra::point_spheres(constPoses, radius, (hedra::passive_handle_color()).replicate(F.rows(),1), 8, VHandles, THandles, CHandles);
   viewer.data_list[1].clear();
-  viewer.data_list[1].set_mesh(VHandles, FHandles);
+  viewer.data_list[1].set_mesh(VHandles, THandles);
   viewer.data_list[1].set_face_based(true);
   viewer.data_list[1].set_colors(CHandles);
   viewer.data_list[1].show_faces = true;
   viewer.data_list[1].show_lines = false;
+  
+  hedra::polygonal_edge_lines((meshMode==ORIGINAL_MESH ? VOrig : VRegular), F, T, EV,  VEdges, TEdges, CEdges,0.25);
+  viewer.data_list[2].clear();
+  viewer.data_list[2].set_mesh(VEdges, TEdges);
+  viewer.data_list[2].set_face_based(true);
+  viewer.data_list[2].set_colors(CEdges);
+  viewer.data_list[2].show_faces = true;
+  viewer.data_list[2].show_lines = false;
+  
 }
 
 bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifiers)
@@ -146,16 +156,16 @@ int main(int argc, char *argv[])
     }
   }
   
-  
   hedra::setup_moebius_regular(VOrig, D, F, T, EV, FE, EF, EFi, FEs, innerEdges, constIndices, MRData);
   hedra::compute_moebius_regular(MRData,  MRCoeff, ERCoeff, constPoses, false, VRegular);
   
+  
   igl::opengl::glfw::Viewer viewer;
   viewer.callback_key_down = &key_down;
-
   viewer.core.background_color<<0.75,0.75,0.75,1.0;
   
-  viewer.append_mesh();
+  viewer.append_mesh();   //handles mesh
+  viewer.append_mesh();   //edges mesh
   viewer.selected_data_index=0;
   update_mesh(viewer);
   viewer.launch();
