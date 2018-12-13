@@ -13,7 +13,7 @@
 #include <hedra/operator_1246.h>
 #include <hedra/simplest_subdivision.h>
 #include <hedra/dual_truncation.h>
-#include <hedra/simplest.h>
+#include <hedra/subdivision_basics.h>
 //#include <hedra/quad_kobbelt.h>
 
 int currViewLevel=0;
@@ -54,8 +54,8 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       std::cout<<"Viewing Level "<<currViewLevel<<std::endl;
       break;}
       
-    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
-    case '3': hedra::simplest(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
+    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
+    case '3': hedra::simplest_subdivision(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
