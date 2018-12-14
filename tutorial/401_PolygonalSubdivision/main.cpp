@@ -13,10 +13,10 @@
 #include <hedra/catmull_clark.h>
 #include <hedra/simplest_subdivision.h>
 #include <hedra/dual_mesh.h>
-#include <hedra/operator_1246.h>
 #include <hedra/simplest_subdivision.h>
 #include <hedra/dual_truncation.h>
 #include <hedra/subdivision_basics.h>
+#include <hedra/operator_1264.h>
 //#include <hedra/quad_kobbelt.h>
 
 int currViewLevel=0;
@@ -65,11 +65,12 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '3': hedra::simplest_subdivision(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '4': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
+    case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
+    case '6': hedra::operator_1264(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
     /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '6': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
-    case '7': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     case '8': hedra::operator_1246(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;*/
   }
   
