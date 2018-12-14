@@ -10,6 +10,8 @@
 #include <igl/igl_inline.h>
 #include <hedra/vertex_valences.h>
 #include <hedra/polygonal_edge_topology.h>
+#include <hedra/dcel.h>
+#include <hedra/subdivision_basics.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>

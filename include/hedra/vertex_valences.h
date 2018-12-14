@@ -8,7 +8,6 @@
 #ifndef HEDRA_VERTEX_VALENCES_H
 #define HEDRA_VERTEX_VALENCES_H
 #include <igl/igl_inline.h>
-#include <hedra/dual_mesh.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>

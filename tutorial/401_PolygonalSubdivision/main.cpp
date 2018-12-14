@@ -66,7 +66,8 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     case '3': hedra::simplest_subdivision(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '4': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    case '6': hedra::operator_1264(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '6': hedra::operator_1264(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
+    case '7': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
     
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
   Eigen::MatrixXi EV0, FE0, EF0, EFi0;
   Eigen::MatrixXd FEs, CEdges0;
   
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/pipes_all_quads_closed.off", V0, D0, F0);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/pipes_all_quads.off", V0, D0, F0);
   hedra::polygonal_edge_topology(D0, F0, EV0, FE0, EF0, EFi0, FEs, innerEdges0);
   hedra::triangulate_mesh(D0,F0,T0, TF0);
   hedra::polygonal_edge_lines(V0, F0, T0, EV0,  VEdges0, TEdges0, CEdges0,0.25);
