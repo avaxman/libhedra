@@ -21,6 +21,7 @@
 
 int currViewLevel=0;
 int subdLevel=0;
+bool showControlPolygon=false;
 
 // Subdivision Meshes
 std::vector<Eigen::MatrixXd> V, VEdges, CEdges;
@@ -30,17 +31,30 @@ std::vector<Eigen::MatrixXi> EV, FE, EF, EFi;
 
 void update_mesh(igl::opengl::glfw::Viewer& viewer)
 {
+  
+  //current mesh
   viewer.data_list[0].clear();
   viewer.data_list[0].set_face_based(true);
   viewer.data_list[0].show_lines=false;
   viewer.data_list[0].set_mesh(V[currViewLevel], T[currViewLevel]);
   viewer.data_list[0].set_colors(hedra::default_mesh_color());
   
+  //edges
   viewer.data_list[1].clear();
   viewer.data_list[1].set_mesh(VEdges[currViewLevel], TEdges[currViewLevel]);
   viewer.data_list[1].set_face_based(true);
   viewer.data_list[1].set_colors(CEdges[currViewLevel]);
   viewer.data_list[1].show_lines=false;
+  
+  
+  //control polygon
+  viewer.data_list[2].clear();
+  if (showControlPolygon){
+    viewer.data_list[2].set_mesh(VEdges[0], TEdges[0]);
+    viewer.data_list[2].set_face_based(true);
+    viewer.data_list[2].set_colors(hedra::active_handle_color().replicate(TEdges[0].rows(),1));
+    viewer.data_list[2].show_lines=false;
+  }
 }
 
 bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifiers)
@@ -62,21 +76,18 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       std::cout<<"Viewing Level "<<currViewLevel<<std::endl;
       break;}
       
+    case '1': showControlPolygon=!showControlPolygon; break;
     case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '3': hedra::simplest_subdivision(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '4': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '6': hedra::operator_1264(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
     case '7': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    /*case '3': hedra::kobbelt_quad(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
-    
-    case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
-    case '6': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;
-    case '8': hedra::operator_1246(V[subdLevel], D[subdLevel], F[subdLevel], VNext, DNext, FNext, hedra::LINEAR_SUBDIVISION); break;*/
+      
   }
   
   if ((key >='2')&&( key<='8')){
- 
+    
     Eigen::MatrixXi TNext, TEdgesNext;
     Eigen::VectorXi TFNext, innerEdgesNext;
     Eigen::MatrixXi EVNext, FENext, EFNext, EFiNext;
@@ -98,7 +109,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
     CEdges.push_back(CEdgesNext);
     subdLevel++;
     currViewLevel=subdLevel;
-
+    
   }
   
   update_mesh(viewer);
@@ -110,16 +121,15 @@ int main(int argc, char *argv[])
   using namespace Eigen;
   using namespace std;
   
-  cout<<"1  Show original/Moebius regular mesh"<<endl<<
+  cout<<"1  Show control polygon mesh"<<endl<<
   "2  Catmull-Clark Subdivision "<<endl<<
-  "3  Kobbelt Quad Subdivision "<<endl<<
-  "4  Simplest Subdivision"<<endl<<
+  "3  Simplest Subdivision"<<endl<<
+  "4  Vertex Insertion "<<endl<<
   "5  Dual Truncation "<<endl<<
-  "6  Dual Mesh "<<endl<<
-  "7  Vertex Insertion "<<endl<<
-  "8  1246 Operator "<<endl<<
-  "A  show Next Level"<<endl<<
-  "S  show previous level"<<endl;
+  "6  1264 Operator "<<endl<<
+  "7  Dual Mesh "<<endl<<
+  "S  show Next Level"<<endl<<
+  "A  show previous level"<<endl;
   
   Eigen::MatrixXd V0, VEdges0;
   Eigen::MatrixXi F0, T0, TEdges0;
@@ -141,17 +151,18 @@ int main(int argc, char *argv[])
   VEdges.push_back(VEdges0);
   TEdges.push_back(TEdges0);
   CEdges.push_back(CEdges0);
-  /*EF.push_back(EF0);
-  EFi.push_back(EFi0);
-  innerEdges.push_back(innerEdges0);
-  FEs.push_back(FEs0);
-  FE.push_back(FE0);*/
   
   igl::opengl::glfw::Viewer viewer;
   viewer.callback_key_down = &key_down;
   
-  //viewer.core.background_color<<0.75,0.75,0.75,1.0;
+  viewer.core.background_color<<0.75,0.75,0.75,1.0;
+  
+  //edges mesh
   viewer.append_mesh();
+  
+  //control polygon mesh
+  viewer.append_mesh();
+  
   update_mesh(viewer);
   viewer.launch();
 }
