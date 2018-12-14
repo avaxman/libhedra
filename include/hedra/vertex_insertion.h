@@ -10,6 +10,8 @@
 #include <igl/igl_inline.h>
 #include <hedra/polygonal_face_centers.h>
 #include <hedra/subdivision_basics.h>
+#include <hedra/linear_vi_subdivision.h>
+#include <hedra/moebius_vi_subdivision.h>
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -62,9 +64,7 @@ namespace hedra
       RowVector3d canonCenter;
       canonCenter=sd.original2Canonical(i,V.row(i));
       
-      //std::cout<<"canonCenter: "<<canonCenter<<std::endl;
-      //std::cout<<"canonStarVertices: "<<canonStarVertices<<std::endl;
-      
+
       //face points
       int numRingFaces=sd.vertexValences(i)-sd.isBoundaryVertex(i);  //one less face for boundary vertices
       MatrixXd canonFacePoints(numRingFaces,3);
@@ -93,9 +93,11 @@ namespace hedra
       //std::cout<<"candidateFacePoints: "<<candidateFacePoints<<std::endl;
       
       //candidate edge points
-      MatrixXd canonEdgePoints(sd.vertexValences(i),3);
-      for (int j=sd.isBoundaryVertex(i);j<sd.vertexValences(i)-sd.isBoundaryVertex(i);j++)
-        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j)+canonFacePoints.row(j)+canonFacePoints.row((j+sd.vertexValences(i)-1)%sd.vertexValences(i)))/4.0;
+      //MatrixXd canonEdgePoints(sd.vertexValences(i),3);
+      /*for (int j=sd.isBoundaryVertex(i);j<sd.vertexValences(i)-sd.isBoundaryVertex(i);j++)
+        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j)+canonFacePoints.row(j)+canonFacePoints.row((j+sd.vertexValences(i)-1)%sd.vertexValences(i)))/4.0;*/
+      
+      MatrixXd canonEdgePoints = sd.canonicalEdgePoints(i, canonCenter, canonStarVertices, canonFacePoints);
       
       /*if (isBoundaryVertex(i)){
        canonEdgePoints.row(0)=(canonCenter+canonStarVertices.row(0))/2.0;
@@ -117,36 +119,20 @@ namespace hedra
       RowVector3d canonFineCenter;
       if (!sd.isBoundaryVertex(i)){
         canonFineCenter = sd.innerVertexCanonicalBlend(canonCenter,canonEdgePoints,canonFacePoints);
-        /*RowVector3d F = canonFacePoints.colwise().mean();
-         RowVector3d E = canonEdgePoints.colwise().mean();
-         canonFineCenter=(F+E*4.0-F*2.0+(double)(vertexValences(i)-3)*canonCenter)/(double)vertexValences(i);*/
-      } else {  //this will get assigned later
-        //This will get overri
-        /*if (vertexValences(i)>2)
-         canonFineCenter=canonCenter*3.0/4.0+(canonStarVertices.row(0)+canonStarVertices.row(canonStarVertices.rows()-1))/8.0;
-         else  //an ear
-         canonFineCenter=canonCenter;*/
-      }
+       
+      } //boundary will be assigned later
       
       fineVertexPoints.row(i)=sd.canonical2Original(i,canonFineCenter);
     }
     
-    
-    
-    //std::cout<<"fineVertexPoints: "<<fineVertexPoints<<std::endl;
-    
     //Blending face points from candidates
     fineFacePoints = sd.facePointBlend(candidateFacePoints);
-    //std::cout<<"candidateFacePoints: "<<candidateFacePoints<<std::endl;
-    //std::cout<<"fineFacePoints: "<<fineFacePoints<<std::endl;
-    
+
+
     //Blending edge points from candidates, and boundary edge points from boundary curves.
     
     Eigen::MatrixXd a(sd.EH.rows(),3), b(sd.EH.rows(),3), c(sd.EH.rows(),3), d(sd.EH.rows(),3);
     
-    //default values for inner edges
-    /*b=candidateEdgePoints.block(0,0,candidateEdgePoints.rows(),3);
-     c=candidateEdgePoints.block(0,3,candidateEdgePoints.rows(),3);*/
     
     for (int i=0;i<sd.EH.rows();i++){
       int currH;
@@ -260,6 +246,39 @@ namespace hedra
     
     return true;
   }
+  
+  
+  //user version
+  IGL_INLINE bool vertex_insertion(const Eigen::MatrixXd& V,
+                                   const Eigen::VectorXi& D,
+                                   const Eigen::MatrixXi& F,
+                                   const int& st,
+                                   Eigen::MatrixXd& fineV,
+                                   Eigen::VectorXi& fineD,
+                                   Eigen::MatrixXi& fineF)
+  
+  {
+    using namespace Eigen;
+    using namespace std;
+    
+    switch (st){
+      case hedra::LINEAR_SUBDIVISION: {
+        hedra::LinearVISubdivisionData lsd;
+        vertex_insertion(V, D,F,lsd, fineV, fineD, fineF);
+        break;
+      }
+      case hedra::CANONICAL_MOEBIUS_SUBDIVISION: {
+        hedra::MoebiusVISubdivisionData msd;
+        vertex_insertion(V, D,F,msd, fineV, fineD, fineF);
+        break;
+      }
+      default: return false;
+    }
+    
+    return true;
+  }
+  
+  
 }
 
 

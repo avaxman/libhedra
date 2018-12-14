@@ -106,6 +106,9 @@ namespace hedra
     virtual Eigen::RowVector3d innerVertexCanonicalBlend(const Eigen::RowVector3d&, const Eigen::MatrixXd&, const Eigen::MatrixXd&)=0;
     virtual Eigen::MatrixXd boundaryVertexPoint(const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&, const Eigen::MatrixXd&)=0;
     
+    virtual Eigen::MatrixXd canonicalEdgePoints(const int v0, const Eigen::RowVector3d& canonCenter,const Eigen::MatrixXd& canonStarVertices,
+                                               const Eigen::MatrixXd& canonFacePoints)=0;
+    
     //virtual OneRingSubdivisionData()=0;
     //virtual ~OneRingSubdivisionData()=0;
     

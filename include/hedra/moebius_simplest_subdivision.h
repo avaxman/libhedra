@@ -5,8 +5,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef HEDRA_MOEBIUS_CC_SUBDIVISION_H
-#define HEDRA_MOEBIUS_CC_SUBDIVISION_H
+#ifndef HEDRA_MOEBIUS_SIMPLEST_SUBDIVISION_H
+#define HEDRA_MOEBIUS_SIMPLEST_SUBDIVISION_H
 #include <igl/igl_inline.h>
 #include <hedra/quaternionic_operations.h>
 #include <hedra/vertex_valences.h>
@@ -19,7 +19,7 @@
 namespace hedra
 {
   
-  class MoebiusCCSubdivisionData:public OneRingSubdivisionData{
+  class MoebiusSimplestSubdivisionData:public OneRingSubdivisionData{
   public:
     Eigen::MatrixXd centers;
     Eigen::VectorXd radii;
@@ -105,70 +105,22 @@ namespace hedra
       
     }
     Eigen::MatrixXd threePointsExtrapolation(const Eigen::MatrixXd& va, const Eigen::MatrixXd& vb , const Eigen::MatrixXd& vc){
-      using namespace Eigen;
-      MatrixXd qa(va.rows(),4); qa<<VectorXd::Zero(va.rows()),va;
-      MatrixXd qb(vb.rows(),4); qb<<VectorXd::Zero(vb.rows()),vb;
-      MatrixXd qc(vc.rows(),4); qc<<VectorXd::Zero(vc.rows()),vc;
-      MatrixXd abcd=MatrixXd::Zero(va.rows(),4);
-      abcd.col(0).setConstant(-1.0/3.0);
-      
-      MatrixXd Unit=MatrixXd::Zero(qa.rows(),4); Unit.col(0).setOnes();
-      
-      RowVector4d d=QMultN(QInvN(Unit+QMultN(QMultN(qc-qb,QInvN(qb-qa)),abcd)),qc+QMultN(QMultN(qc-qb,QInvN(qb-qa)),QMultN(abcd,qa)));
-      
-      return d.block(0,1,d.rows(),3);
+      return Eigen::MatrixXd();
       
     }
     Eigen::MatrixXd boundaryEdgePoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
-      return moebius_four_points_blend(a,b,c,d);
+      return Eigen::MatrixXd();
     }
     
     Eigen::MatrixXd fourPointsInterpolation(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
       return moebius_four_points_blend(a,b,c,d);
     }
     Eigen::MatrixXd boundaryVertexPoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& p, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
-      return moebius_four_points_blend(a,b,c,d);
+      return Eigen::MatrixXd();
     }
     Eigen::MatrixXd facePointBlend(const Eigen::MatrixXd& candidateFacePoints)
     {
-      using namespace Eigen;
-      MatrixXd fineFacePoints=MatrixXd::Zero(F.rows(),3);
-      for (int i=0;i<D.rows();i++){
-        
-        //finding weirdest cross-ratio in terms of angle
-        double nonCircularity=0.0;
-        int startIndex=0;
-        for (int j=0;j<D(i);j++){
-          RowVector4d qa; qa<<0.0,V.row(F(i,j));
-          RowVector4d qb; qb<<0.0,candidateFacePoints.block(i, 3*j,1,3);
-          RowVector4d qc; qc<<0.0,candidateFacePoints.block(i, 3*((j+D(i)/2)%D(i)),1,3) ;
-          RowVector4d qd; qd<<0.0,V.row(((j+D(i)/2)%D(i)));
-          /*std::cout<<"qa: "<<qa<<std::endl;
-           std::cout<<"qb: "<<qb<<std::endl;
-           std::cout<<"qc: "<<qc<<std::endl;
-           std::cout<<"qd: "<<qd<<std::endl;*/
-          RowVector4d cabd=QMult(QMult(qa-qc, QInv(qb-qa)), QMult((qd-qb), QInv(qc-qd)));
-          double currNonCirularity=abs(cabd(1)/cabd.norm()-1.0);
-          if (currNonCirularity >= nonCircularity){
-            nonCircularity =currNonCirularity;
-            startIndex=i;
-          }
-        }
-        
-        MatrixXd oppositePoints(D(i),3);
-        for (int j=0;j<D(i);j++)
-          oppositePoints.row(j)=moebius_four_points_blend(V.row(F(i,j)), candidateFacePoints.block(i, 3*j,1,3), candidateFacePoints.block(i, 3*((j+D(i)/2)%D(i)),1,3), V.row(F(i,(j+D(i)/2)%D(i))));
-        
-        //std::cout<<"oppositePoints: "<<oppositePoints<<std::endl;
-        
-        //sequentially computing six points
-        MatrixXd seqFacePoint=oppositePoints.row(1);
-        for (int j=startIndex;j<D(i)+startIndex;j++)
-          seqFacePoint=moebius_six_points_blend(V.row(F(i,j%D(i))), seqFacePoint,  V.row(F(i,(j+D(i)/2)%D(i))), V.row(F(i,(j+1)%D(i))), oppositePoints.row((j+1)%D(i)),  V.row(F(i,(j+1+D(i)/2)%D(i))));
-        
-        fineFacePoints.row(i)= seqFacePoint;
-      }
-      return fineFacePoints;
+      return Eigen::MatrixXd();
     }
     
     Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
@@ -180,26 +132,24 @@ namespace hedra
                                                  const Eigen::MatrixXd& canonFacePoints)
     {
       
-      Eigen::RowVector3d F = canonFacePoints.colwise().mean();
-      Eigen::RowVector3d E = canonEdgePoints.colwise().mean();
-      return((F+E*4.0-F*2.0+(double)(canonEdgePoints.rows()-3)*canonCenter)/(double)canonEdgePoints.rows());
+      return canonCenter;
     }
     
     Eigen::MatrixXd canonicalEdgePoints(const int v0,
                                         const Eigen::RowVector3d& canonCenter,
-                                       const Eigen::MatrixXd& canonStarVertices,
-                                       const Eigen::MatrixXd& canonFacePoints)
+                                        const Eigen::MatrixXd& canonStarVertices,
+                                        const Eigen::MatrixXd& canonFacePoints)
     {
       Eigen::MatrixXd canonEdgePoints(vertexValences(v0),3);
-      for (int j=isBoundaryVertex(v0);j<vertexValences(v0)-isBoundaryVertex(v0);j++)
-        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j)+canonFacePoints.row(j)+canonFacePoints.row((j+vertexValences(v0)-1)%vertexValences(v0)))/4.0;
+      for (int j=0;j<vertexValences(v0);j++)
+        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j))/2.0;
       
       return canonEdgePoints;
       
     }
     
-    MoebiusCCSubdivisionData(){}
-    ~MoebiusCCSubdivisionData(){}
+    MoebiusSimplestSubdivisionData(){}
+    ~MoebiusSimplestSubdivisionData(){}
     
   };
   

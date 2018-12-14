@@ -5,8 +5,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License
 // v. 2.0. If a copy of the MPL was not distributed with this file, You can
 // obtain one at http://mozilla.org/MPL/2.0/.
-#ifndef HEDRA_LINEAR_CC_SUBDIVISION_H
-#define HEDRA_LINEAR_CC_SUBDIVISION_H
+#ifndef HEDRA_LINEAR_SIMPLEST_SUBDIVISION_H
+#define HEDRA_LINEAR_SIMPLEST_SUBDIVISION_H
 #include <igl/igl_inline.h>
 #include <hedra/vertex_valences.h>
 #include <Eigen/Core>
@@ -14,10 +14,12 @@
 #include <vector>
 #include <cstdio>
 
+
+
 namespace hedra
 {
   
-  class LinearCCSubdivisionData:public OneRingSubdivisionData{
+  class LinearSimplestSubdivisionData:public OneRingSubdivisionData{
   public:
     Eigen::MatrixXd centers;
     Eigen::VectorXd radii;
@@ -32,13 +34,13 @@ namespace hedra
     Eigen::MatrixXd original2Canonical(const int, const Eigen::MatrixXd& origPoints){return origPoints;}
     Eigen::MatrixXd canonical2Original(const int, const Eigen::MatrixXd& origPoints){return origPoints;}
     Eigen::MatrixXd threePointsExtrapolation(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b , const Eigen::MatrixXd& c){
-      return c*2.0-b;
+      return Eigen::MatrixXd();
     }
     Eigen::MatrixXd boundaryEdgePoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
-      return (b+c)/2.0;
+      return Eigen::MatrixXd();
     }
     Eigen::MatrixXd boundaryVertexPoint(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& p, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
-      return ((a+d).array()/8.0+p.array()*3.0/4.0);
+      return Eigen::MatrixXd();
     }
     
     Eigen::MatrixXd fourPointsInterpolation(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXd& c, const Eigen::MatrixXd& d){
@@ -46,48 +48,30 @@ namespace hedra
     }
     Eigen::MatrixXd facePointBlend(const Eigen::MatrixXd& candidateFacePoints)
     {
-      
-      Eigen::MatrixXd fineFacePoints=Eigen::MatrixXd::Zero(F.rows(),3);
-      for (int i=0;i<D.rows();i++){
-        for (int j=0;j<D(i);j++)
-          fineFacePoints.row(i)+=candidateFacePoints.block(i,3*j,1,3);
-        
-        fineFacePoints.row(i)/=(double)D(i);
-      }
-      return fineFacePoints;
+      return Eigen::MatrixXd();
     }
-    
-    /*Eigen::MatrixXd EdgePointBlend(const Eigen::MatrixXd& candidateEdgePoints)
-     {
-     //these points are anyhow equal and this is also the boundary formula from the vertex stars function, so no special treatment needed.
-     return(candidateEdgePoints.block(0,0,candidateEdgePoints.rows(),3)+candidateEdgePoints.block(0,3,candidateEdgePoints.rows(),3))/2.0;
-     }*/
     
     Eigen::RowVector3d innerVertexCanonicalBlend(const Eigen::RowVector3d& canonCenter,
                                                  const Eigen::MatrixXd& canonEdgePoints,
                                                  const Eigen::MatrixXd& canonFacePoints)
     {
-      
-      Eigen::RowVector3d F = canonFacePoints.colwise().mean();
-      Eigen::RowVector3d E = canonEdgePoints.colwise().mean();
-      return((F+E*4.0-F*2.0+(double)(canonEdgePoints.rows()-3)*canonCenter)/(double)canonEdgePoints.rows());
+      return canonCenter;
     }
     
     Eigen::MatrixXd canonicalEdgePoints(const int v0,
                                         const Eigen::RowVector3d& canonCenter,
-                                       const Eigen::MatrixXd& canonStarVertices,
-                                       const Eigen::MatrixXd& canonFacePoints)
+                                        const Eigen::MatrixXd& canonStarVertices,
+                                        const Eigen::MatrixXd& canonFacePoints)
     {
       Eigen::MatrixXd canonEdgePoints(vertexValences(v0),3);
-      for (int j=isBoundaryVertex(v0);j<vertexValences(v0)-isBoundaryVertex(v0);j++)
-        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j)+canonFacePoints.row(j)+canonFacePoints.row((j+vertexValences(v0)-1)%vertexValences(v0)))/4.0;
+      for (int j=0;j<vertexValences(v0);j++)
+        canonEdgePoints.row(j)=(canonCenter+canonStarVertices.row(j))/2.0;
       
       return canonEdgePoints;
-   
     }
     
-    LinearCCSubdivisionData(){}
-    ~LinearCCSubdivisionData(){}
+    LinearSimplestSubdivisionData(){}
+    ~LinearSimplestSubdivisionData(){}
     
   };
   
