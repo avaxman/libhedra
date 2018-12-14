@@ -54,23 +54,23 @@ if(TUTORIALS_CHAPTER1)
 endif()
 
 # Chapter 2
-if(TUTORIALS_CHAPTER2)
-  add_subdirectory("201_Planarization")
-  add_subdirectory("202_ModelingAffine")
-  add_subdirectory("203_PolyhedralPatterns")
+if(TUTORIALS_CHAPTER2 AND LIBHEDRA_WITH_CERES)
+  add_subdirectory("201_ModelingAffine")
+  add_subdirectory("202_PolyhedralPatterns")
 endif()
 
 # Chapter 3
 if(TUTORIALS_CHAPTER3 AND LIBHEDRA_WITH_CERES)
-  add_subdirectory("301_ComplexDeformation")
-  add_subdirectory("302_ComplexInterpolation")
-  add_subdirectory("303_QuaternionicDeformation")
+  add_subdirectory("301_ComplexMoebiusDeformation")
+  add_subdirectory("302_ComplexMoebiusInterpolation")
+  add_subdirectory("303_QuatMoebiusDeformation")
   add_subdirectory("304_RegularMeshes")
 endif()
 
 # Chapter 4
 if(TUTORIALS_CHAPTER4)
   add_subdirectory("401_PolygonalSubdivision")
+  add_subdirectory("402_CanonicalMoebiusSubdivision")
 endif()
 
 

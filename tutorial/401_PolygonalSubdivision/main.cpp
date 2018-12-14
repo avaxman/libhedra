@@ -77,12 +77,12 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       break;}
       
     case '1': showControlPolygon=!showControlPolygon; break;
-    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    case '3': hedra::simplest_subdivision(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    case '4': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    case '6': hedra::operator_1264(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
-    case '7': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], hedra::CANONICAL_MOEBIUS_SUBDIVISION, VNext, DNext, FNext); break;
+    case '2': hedra::catmull_clark(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '3': hedra::simplest_subdivision(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '4': hedra::vertex_insertion(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '5': hedra::dual_truncation(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '6': hedra::operator_1264(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
+    case '7': hedra::dual_mesh(V[subdLevel], D[subdLevel], F[subdLevel], hedra::LINEAR_SUBDIVISION, VNext, DNext, FNext); break;
       
   }
   
