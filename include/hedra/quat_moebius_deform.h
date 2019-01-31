@@ -10,10 +10,11 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-#include <hedra/Moebius3DCornerVarsTraits.h>
+//#include <hedra/Moebius3DCornerVarsTraits.h>
 #include <hedra/EigenSolverWrapper.h>
-#include <hedra/LMSolver.h>
+//#include <hedra/LMSolver.h>
 #include <hedra/quaternionic_operations.h>
+#include <hedra/CeresQuatDeformSolver.h>
 
 using namespace Eigen;
 using namespace std;
@@ -60,9 +61,10 @@ namespace hedra{
     MatrixXd constPoses;
     
     //optimization operators
-    hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > deformLinearSolver;
-    hedra::optimization::Moebius3DCornerVarsTraits deformTraits;
-    hedra::optimization::LMSolver<hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > >,hedra::optimization::Moebius3DCornerVarsTraits> deformSolver;
+    //hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > deformLinearSolver;
+    //hedra::optimization::Moebius3DCornerVarsTraits deformTraits;
+    //hedra::optimization::LMSolver<hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > >,hedra::optimization::Moebius3DCornerVarsTraits> deformSolver;
+    CeresQMSolver solver;
     
   };
   
@@ -77,23 +79,23 @@ namespace hedra{
                                         const Eigen::MatrixXi& FE,
                                         const Eigen::MatrixXd& FEs,
                                         const Eigen::VectorXi& innerEdges,
-                                        struct QuatMoebiusData& mdata)
+                                        struct QuatMoebiusData& qmdata)
   {
-    mdata.F=F;
-    mdata.D=D;
-    mdata.origV=V;
-    mdata.deformV=V;
-    mdata.TF=TF;
-    mdata.EV=EV;
-    mdata.EF=EF;
-    mdata.EFi=EFi;
-    mdata.FE=FE;
-    mdata.FEs=FEs;
-    mdata.innerEdges=innerEdges;
+    qmdata.F=F;
+    qmdata.D=D;
+    qmdata.origV=V;
+    qmdata.deformV=V;
+    qmdata.TF=TF;
+    qmdata.EV=EV;
+    qmdata.EF=EF;
+    qmdata.EFi=EFi;
+    qmdata.FE=FE;
+    qmdata.FEs=FEs;
+    qmdata.innerEdges=innerEdges;
     
     //complex representations
-    Coords2Quat(mdata.origV,mdata.origVq);
-    mdata.deformVq=mdata.origVq;
+    Coords2Quat(qmdata.origV,qmdata.origVq);
+    qmdata.deformVq=mdata.origVq;
     
     //creating full edge list
     vector<pair<int,int>>  diagonals;
@@ -102,20 +104,20 @@ namespace hedra{
         for (int k=j+2;k<D(i);k++)
           diagonals.push_back(pair<int,int>(F(i,j),F(i,k)));
     
-    mdata.extEV.resize(EV.rows()+diagonals.size(),2);
-    mdata.extEV.block(0,0,EV.rows(),2)=EV;
+    qmdata.extEV.resize(EV.rows()+diagonals.size(),2);
+    qmdata.extEV.block(0,0,EV.rows(),2)=EV;
     for (int i=0;i<diagonals.size();i++)
-      mdata.extEV.row(EV.rows()+i)<<diagonals[i].first, diagonals[i].second;
+      qmdata.extEV.row(EV.rows()+i)<<diagonals[i].first, diagonals[i].second;
     
     //reseting deformation result
-    mdata.deformX.resize(D.sum(),4);
-    mdata.deformX.setZero();
-    mdata.deformX.col(0).setConstant(1.0);
-    mdata.cornerOffset.resize(F.rows());
-    mdata.cornerOffset(0)=0;
+    qmdata.deformX.resize(D.sum(),4);
+    qmdata.deformX.setZero();
+    qmdata.deformX.col(0).setConstant(1.0);
+    qmdata.cornerOffset.resize(F.rows());
+    qmdata.cornerOffset(0)=0;
     
     for (int i=1;i<D.rows();i++)
-      mdata.cornerOffset(i)=mdata.cornerOffset(i-1)+D(i-1);
+      qmdata.cornerOffset(i)=mdata.cornerOffset(i-1)+D(i-1);
     
     MatrixXi adjCorners(V.rows(),12);
     VectorXi valences(V.rows()); valences.setZero();
@@ -131,9 +133,9 @@ namespace hedra{
       for (int j=0;j<valences(i)-1;j++)
         cornerPairList.push_back(pair<int,int>(adjCorners(i,j),adjCorners(i,(j+1)%valences(i))));
     
-    mdata.cornerPairs.resize(cornerPairList.size(),2);
+    qmdata.cornerPairs.resize(cornerPairList.size(),2);
     for (int i=0;i<cornerPairList.size();i++)
-      mdata.cornerPairs.row(i)<<cornerPairList[i].first, cornerPairList[i].second;
+      qmdata.cornerPairs.row(i)<<cornerPairList[i].first, cornerPairList[i].second;
     
   }
   
@@ -141,19 +143,19 @@ namespace hedra{
                                           const bool isExactDC,
                                           const bool isExactIAP,
                                           const double rigidityFactor,
-                                          struct QuatMoebiusData& mdata){
+                                          struct QuatMoebiusData& qmdata){
     
-    mdata.constIndices=h;
-    mdata.isExactDC=isExactDC;
-    mdata.isExactIAP=isExactIAP;
-    mdata.rigidityFactor=rigidityFactor;
-    mdata.deformTraits.init(mdata.origV, mdata.D, mdata.F, isExactDC, mdata.constIndices,rigidityFactor);
-    mdata.deformSolver.init(&mdata.deformLinearSolver, &mdata.deformTraits);
+    qmdata.constIndices=h;
+    qmdata.isExactDC=isExactDC;
+    qmdata.isExactIAP=isExactIAP;
+    qmdata.rigidityFactor=rigidityFactor;
+    qmdata.solver.init(mdata.origV, mdata.D, mdata.F, isExactDC, mdata.constIndices,rigidityFactor);
+    //mdata.deformSolver.init(&mdata.deformLinearSolver, &mdata.deformTraits);
     
   }
   
 
-  IGL_INLINE void quat_moebius_deform(struct QuatMoebiusData& mdata,
+  IGL_INLINE void quat_moebius_deform(struct QuatMoebiusData& qmdata,
                                          const Eigen::MatrixXd& qh,
                                          const int numIterations,
                                          Eigen::MatrixXd& q){
@@ -161,8 +163,8 @@ namespace hedra{
     //Coords2Quat(qh, mdata.quatConstPoses);
     
     //feeding initial solution as the previous one
-    mdata.constPoses=qh;
-    mdata.deformTraits.constPoses=mdata.constPoses;
+    qmdata.constPoses=qh;
+    //mdata.deformTraits.constPoses=mdata.constPoses;
     mdata.deformTraits.currPositions=mdata.deformV;
     mdata.deformTraits.currX=mdata.deformX;
 
