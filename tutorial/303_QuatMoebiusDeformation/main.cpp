@@ -154,8 +154,8 @@ bool mouse_move(igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y)
   for (int i=0;i<handles.size();i++)
     bc.row(i)=handlePoses[i].transpose();
   
-  hedra::quat_moebius_deform(qmdata, bc,150, deformV);
-  hedra::edge_mesh(deformV,D,F,EV, EF, edgeDeformV, edgeT,edgeTE);
+  hedra::quat_moebius_deform(qmdata, 1.0, rigidityFactor, isExactMC, bc,true, deformV);
+   hedra::edge_mesh(deformV,D,F,EV, EF, edgeDeformV, edgeT,edgeTE);
   UpdateCurrentView();
   return true;
   
@@ -215,7 +215,7 @@ bool mouse_down(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
     for (int i=0;i<handles.size();i++)
       b(i)=handles[i];
     
-    hedra::quat_moebius_precompute(b, isExactMC, isExactIAP, rigidityFactor, qmdata);
+    hedra::quat_moebius_precompute(b, qmdata);
     //hedra::affine_maps_precompute(V,D,F,EV,EF,EFi, FE, b, 3, affine_data);
     
     UpdateCurrentView();

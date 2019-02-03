@@ -50,7 +50,7 @@ inline Eigen::Matrix<T, 1, 4> QInvT(const Eigen::Matrix<T, 1, 4>& q)
 
 struct DCError{
 public:
-  DCError(double* _factor, Eigen::Matrix< T, 1, 4 > _qij):factor(_factor), qij(_qij){}
+  DCError(double* _factor, const double& _x, const double& _y, const double& _z):factor(_factor),x(_x),y(_y),z(_z){}
   DCError(){};
   
   template <typename T>
@@ -64,6 +64,7 @@ public:
     Eigen::Matrix< T, 1, 4 > wj; wj<<T(0),_wj[0],_wj[1],_wj[2];
     Eigen::Matrix< T, 1, 4 > Yi; Yi<<_Yi[0], _Yi[1], _Yi[2], _Yi[3];
     Eigen::Matrix< T, 1, 4 > Yj; Yj<<_Yj[0], _Yj[1], _Yj[2], _Yj[3];
+    Eigen::Matrix< T, 1, 4 > qij; qij<<T(0),T(x),T(y),T(z);
     
     T DCRes=(wj-wi).squaredNorm() - (QMultT<T>(QMultT<T>(QConjT<T>(Yi),qij),Yj)).squaredNorm();
 
@@ -71,9 +72,10 @@ public:
     
     return true;
   }
-  Eigen::Matrix< T, 1, 4 > qij;
+  double x,y,z;
   double* factor;
 };
+
 
 struct RigidityError{
 public:
@@ -85,8 +87,8 @@ public:
                   const T* const _Yj,
                   T* residuals) const {
     
-    Eigen::Matrix< T, 1, 4 > Yi; crvec<<_Yi[0], _Yi[1], _Yi[2], _Yi[3];
-    Eigen::Matrix< T, 1, 4 > Yj; crvec<<_Yj[0], _Yj[1], _Yj[2], _Yj[3];
+    Eigen::Matrix< T, 1, 4 > Yi; Yi<<_Yi[0], _Yi[1], _Yi[2], _Yi[3];
+    Eigen::Matrix< T, 1, 4 > Yj; Yj<<_Yj[0], _Yj[1], _Yj[2], _Yj[3];
     
     Eigen::Matrix< T, 1, 4 > RigidityRes=Yi-Yj;
     for (int i=0;i<4;i++)
@@ -97,10 +99,10 @@ public:
   double* factor;
 };
 
+
 struct AMAPError{
 public:
-  AMAPError(double* _factor, Eigen::Matrix< T, 1, 4 > _qij):factor(_factor), qij(_qij){}
-  AMAPError(){};
+  AMAPError(double* _factor, const double& _x, const double& _y, const double& _z):factor(_factor),x(_x),y(_y),z(_z){}
   
   template <typename T>
   bool operator()(const T* const _wi,
@@ -113,6 +115,7 @@ public:
     Eigen::Matrix< T, 1, 4 > wj; wj<<T(0),_wj[0],_wj[1],_wj[2];
     Eigen::Matrix< T, 1, 4 > Yi; Yi<<_Yi[0], _Yi[1], _Yi[2], _Yi[3];
     Eigen::Matrix< T, 1, 4 > Yj; Yj<<_Yj[0], _Yj[1], _Yj[2], _Yj[3];
+    Eigen::Matrix< T, 1, 4> qij; qij<<T(0),T(x),(y),T(z);
     
     Eigen::Matrix< T, 1, 4 > AMAPRes=(wj-wi) - QMultT<T>(QMultT<T>(QConjT<T>(Yi),qij),Yj);
     for (int i=0;i<4;i++)
@@ -120,11 +123,9 @@ public:
     
     return true;
   }
-  Eigen::Matrix< T, 1, 4 > qij;
+  double x,y,z;
   double* factor;
 };
-
-
 
 
 
@@ -135,43 +136,31 @@ public:
   ~CeresQMDSolver(){if (problem!=NULL) delete problem; if (currSolution!=NULL) delete[] currSolution;}
   
   Eigen::MatrixXi D, F;
-  MatrixXd QOrig;
+  Eigen::MatrixXd VOrig;
   
   double* currSolution;   //3*|V| (vertex positions) + 4*|V| (quaternionic vertex variables)
   
   Eigen::MatrixXi extEV;
 
+  double AMAPFactor;
   double DCFactor;
   double rigidityFactor;
   
-  VectorXi cornerOffset;  //where does every face begin in the corner list
-  
-  MatrixXi faceCornerPairs;   //faces (f,g, i,k) and vertices around every edge for compatibility and smoothness
-  MatrixXi cornerPairs;  //neighboring corner pairs across edges for AMAP/MC/IAP comparisons
-  
   //positional handles
-  VectorXi constIndices;
-  MatrixXd constPoses;
+  Eigen::VectorXi constIndices;
+  Eigen::MatrixXd constPoses;
   
   ceres::Problem* problem;
   
-  void init(const Eigen::MatrixXd& _QOrig,
+  void init(const Eigen::MatrixXd& _VOrig,
             const Eigen::MatrixXi& _D,
             const Eigen::MatrixXi& _F,
-            const Eigen::MatrixXi& _ExtEV,
-            const Eigen::MatrixXi& _IsExactDC,
-            const Eigen::MatrixXi& _CornerOffset,
-            const Eigen::MatrixXi& _faceCornerPairs,
-            )
+            const Eigen::MatrixXi& _extEV)
   {
     
     F=_F; D=_D;
-    extEV=_ExtEV;
-    isExactDC=_isExactDC;
-    QOrig=_QOrig;
-    cornerOffset=_cornerOffset;
-    faceCornerPairs=_faceCornerPairs;
-    cornerPairs=_cornerPairs;
+    extEV=_extEV;
+    VOrig=_VOrig;
     
     if (currSolution!=NULL)
       delete[] currSolution;
@@ -181,58 +170,61 @@ public:
     
     problem=new ceres::Problem;
     
-    currSolution=new double[3*QOrig.rows()+4*QOrig.rows()];
+    currSolution=new double[3*VOrig.rows()+4*VOrig.rows()];
     
-    for (int i=0;i<QOrig.rows();i++)
+    for (int i=0;i<VOrig.rows();i++)
       problem->AddParameterBlock(currSolution+3*i, 3);
     
-    for (int i=0;i<QOrig.rows();i++)
-      problem->AddParameterBlock(currSolution+3QOrig.rows()+4*i, 4);
+    for (int i=0;i<VOrig.rows();i++)
+      problem->AddParameterBlock(currSolution+3*VOrig.rows()+4*i, 4);
     
 
     //AMAP Energy
     for (int i = 0; i <extEV.rows(); ++i) {
-      ceres::CostFunction* cost_function=new AutoDiffCostFunction<AMAPError, 4, 3, 3, 4,4>(new AMAPError(&AMAPFactor));
+      Eigen::RowVector3d vij=VOrig.row(extEV(i,1))-VOrig.row(extEV(i,0));
+      ceres::CostFunction* cost_function=new AutoDiffCostFunction<AMAPError, 4, 3, 3, 4,4>(new AMAPError(&AMAPFactor, vij(0), vij(1), vij(2)));
       problem->AddResidualBlock(cost_function,
                                 NULL, // TODO: update with coefficients somehow,
                                 currSolution+3*extEV(i,0),
                                 currSolution+3*extEV(i,1),
-                                currSolution+3*QOrig.rows()+4*extEV(i,0),
-                                currSolution+3*QOrig.rows()+4*extEV(i,1));
+                                currSolution+3*VOrig.rows()+4*extEV(i,0),
+                                currSolution+3*VOrig.rows()+4*extEV(i,1));
     }
     
     //Rigidity Energy
     for (int i = 0; i<D.rows(); ++i) {
       for (int j = 0; j<D(i); ++j) {
-      ceres::CostFunction* cost_function=new AutoDiffCostFunction<RigidError, 4, 4,4>(new RigidError(&RigidityFactor));
+        ceres::CostFunction* cost_function=new AutoDiffCostFunction<RigidityError, 2, 4,4>(new RigidityError(&rigidityFactor));
       problem->AddResidualBlock(cost_function,
                                 NULL, // TODO: update with coefficients somehow,
-                                currSolution+3*QOrig.rows()+4*F(i,j),
-                                currSolution+3*QOrig.rows()+4*F(i,(j+1)%D(i));
+                                currSolution+3*VOrig.rows()+4*F(i,j),
+                                currSolution+3*VOrig.rows()+4*F(i,(j+1)%D(i)));
+      }
     }
     
     //DC soft constraint
-    for (int i = 0; i <faceTriads.rows(); ++i) {
-      ceres::CostFunction* cost_function=new AutoDiffCostFunction<DCError, 1, 3, 3, 4,4>(new DCError(&DCFactor));
+    for (int i = 0; i <extEV.rows(); ++i) {
+      Eigen::RowVector3d vij=VOrig.row(extEV(i,1))-VOrig.row(extEV(i,0));
+      ceres::CostFunction* cost_function=new AutoDiffCostFunction<DCError, 1, 3, 3, 4,4>(new DCError(&DCFactor,vij(0), vij(1),vij(2)));
       problem->AddResidualBlock(cost_function,
                                 NULL, // TODO: update with coefficients somehow,
                                 currSolution+3*extEV(i,0),
                                 currSolution+3*extEV(i,1),
-                                currSolution+3*QOrig.rows()+4*extEV(i,0),
-                                currSolution+3*QOrig.rows()+4*extEV(i,1));
+                                currSolution+3*VOrig.rows()+4*extEV(i,0),
+                                currSolution+3*VOrig.rows()+4*extEV(i,1));
     }
   }
   
-  void set_constant_handles(const Eigen::VectorXi& _constPosIndices)
+  void set_constant_handles(const Eigen::VectorXi& _constIndices)
   {
     
-    constPosIndices=_constPosIndices;
+    constIndices=_constIndices;
     //clearing constantness //TODO: check if this can be done all at once
-    for (int i=0;i<QOrig.rows();i++)
+    for (int i=0;i<VOrig.rows();i++)
       problem->SetParameterBlockVariable(currSolution+3*i);
     
-    for (int i=0;i<constPosIndices.size();i++)
-      problem->SetParameterBlockConstant(currSolution+3*constPosIndices(i));
+    for (int i=0;i<constIndices.size();i++)
+      problem->SetParameterBlockConstant(currSolution+3*constIndices(i));
     
   }
   
@@ -240,23 +232,24 @@ public:
   void set_constant_positions()
   {
     
-    for (int i=0;i<QOrig.rows();i++)
+    for (int i=0;i<VOrig.rows();i++)
       problem->SetParameterBlockConstant(currSolution+3*i);
     
     //set the ratios as variable
-    for (int i=0;i<QOrig.rows();i++)
-      problem->SetParameterBlockVariable(currSolution+3*QOrig.rows()+3*i);
+    for (int i=0;i<VOrig.rows();i++)
+      problem->SetParameterBlockVariable(currSolution+3*VOrig.rows()+3*i);
     
     for (int i=0;i<F.rows();i++)
-      problem->SetParameterBlockVariable(currSolution+3*QOrig.rows()+3*QOrig.rows()+3*i);
+      problem->SetParameterBlockVariable(currSolution+3*VOrig.rows()+3*VOrig.rows()+3*i);
     
   }
   
   //previous solution is always the current solution
   //user is responsible to initalize both
-  void solve(const double& _RigidityFactor,  const double& _DCFactor, const bool outputProgress){
+  void solve(const double& _AMAPFactor, const double& _RigidityFactor,  const double& _DCFactor, const bool outputProgress){
     
-    RigidityFactor=_RigidityFactor;
+    rigidityFactor=_RigidityFactor;
+    AMAPFactor=_AMAPFactor;
     DCFactor=_DCFactor;
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
