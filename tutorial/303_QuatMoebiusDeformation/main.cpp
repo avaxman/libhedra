@@ -3,6 +3,7 @@
 #include <igl/readDMAT.h>
 #include <igl/jet.h>
 #include <igl/per_vertex_normals.h>
+#include <igl/avg_edge_length.h>
 #include <hedra/edge_mesh.h>
 #include <hedra/polygonal_read_OFF.h>
 #include <hedra/triangulate_mesh.h>
@@ -16,6 +17,7 @@
 #include <hedra/concyclity.h>
 #include <hedra/scalar2RGB.h>
 #include <hedra/quat_moebius_deform.h>
+#include <hedra/visualization_schemes.h>
 #include <algorithm>
 
 using namespace Eigen;
@@ -31,23 +33,22 @@ std::vector<int> handles;
 std::vector<Eigen::RowVector3d> handlePoses;
 int currHandle;
 
-Eigen::MatrixXd origV, deformV, currV;
+Eigen::MatrixXd origV, deformV, currV, VHandles, CHandles;
 Eigen::MatrixXd edgeOrigV, edgeDeformV;
-Eigen::MatrixXi F, edgeT, currT, polyT;
+Eigen::MatrixXi F, edgeT, currT, polyT, THandles;
 Eigen::VectorXi D, polyTF,edgeTE, currTF;
 Eigen::MatrixXi EV, EF, FE, EFi, I4;
 Eigen::MatrixXd FEs;
 Eigen::VectorXi innerEdges;
 Eigen::Vector3d spans;
 bool isExactMC=false;
-bool isExactIAP=false;
 
 bool editing=false;
 bool choosingHandleMode=false;
 double currWinZ;
 hedra::QuatMoebiusData qmdata;
 
-double rigidityFactor=0.1;      //inversion control ratio
+double rigidityFactor=1.0;      //inversion control ratio
 double DCSensitivity=0.01;     //ratio of abs(cr)
 double IASensitivity=1.0;      //circle IA degrees difference between faces
 double QCSensitivity=0.2;      //abs(max_sing/min_sing)
@@ -72,7 +73,7 @@ void choose_current_mesh(){
   }
 }
 
-bool UpdateCurrentView()
+void UpdateCurrentView()
 {
   choose_current_mesh();
   MatrixXd bc(handles.size(),currV.cols());
@@ -105,31 +106,29 @@ bool UpdateCurrentView()
   TC.resize(currT.rows(),3);
   for (int i=0;i<currTF.rows();i++)
     TC.row(i)=C.row(currTF(i));
-  
-  double sphereRadius=spans.sum()/200.0;
-  MatrixXd sphereGreens(handles.size(),3);
-  sphereGreens.col(0).setZero();
-  sphereGreens.col(1).setOnes();
-  sphereGreens.col(2).setZero();
-  
-  MatrixXd bigV=currV;
-  MatrixXi bigT=currT;
-  MatrixXd bigTC=TC;
-  
-  hedra::point_spheres(bc, sphereRadius, sphereGreens, 10, false, true, bigV, bigT, bigTC);
-  
-  viewer.data().show_lines=false;
+
   Eigen::MatrixXd OrigEdgeColors(EV.rows(),3);
   OrigEdgeColors.col(0)=Eigen::VectorXd::Constant(EV.rows(),0.0);
   OrigEdgeColors.col(1)=Eigen::VectorXd::Constant(EV.rows(),0.0);
   OrigEdgeColors.col(2)=Eigen::VectorXd::Constant(EV.rows(),0.0);
   
-  viewer.data().clear();
-  viewer.data().set_mesh(bigV,bigT);
-  viewer.data().set_colors(bigTC);
-  viewer.data().compute_normals();
-  viewer.data().set_edges(bigV,EV,OrigEdgeColors);
-  return true;
+  viewer.data_list[0].clear();
+  viewer.data_list[0].set_mesh(currV,currT);
+  viewer.data_list[0].set_colors(TC);
+  //viewer.data().compute_normals();
+  viewer.data_list[0].set_edges(currV,EV,OrigEdgeColors);
+  
+  double radius = spans.sum()/200.0;
+  hedra::point_spheres(bc, radius, (hedra::passive_handle_color()).replicate(F.rows(),1), 8, VHandles, THandles, CHandles);
+  if (!handles.empty()){
+    viewer.data_list[1].clear();
+    viewer.data_list[1].show_lines=false;
+    viewer.data_list[1].set_mesh(VHandles, THandles);
+    viewer.data_list[1].set_face_based(true);
+    viewer.data_list[1].set_colors(CHandles);
+    viewer.data_list[1].show_faces = true;
+    viewer.data_list[1].show_lines = false;
+  }
 }
 
 bool mouse_move(igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y)
@@ -145,17 +144,6 @@ bool mouse_move(igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y)
                                                   viewer.core.viewport);
   
   handlePoses[handlePoses.size()-1]=NewPos.cast<double>();
-  
-  Eigen::MatrixXd A(3*F.rows(),3);
-  for (int i=0;i<F.rows();i++)
-    A.block(3*i,0,3,3)=Eigen::Matrix3d::Identity();
-  
-  Eigen::MatrixXd bc(handles.size(),currV.cols());
-  for (int i=0;i<handles.size();i++)
-    bc.row(i)=handlePoses[i].transpose();
-  
-  hedra::quat_moebius_deform(qmdata, 1.0, rigidityFactor, isExactMC, bc,true, deformV);
-   hedra::edge_mesh(deformV,D,F,EV, EF, edgeDeformV, edgeT,edgeTE);
   UpdateCurrentView();
   return true;
   
@@ -166,9 +154,17 @@ bool mouse_up(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
 {
   if (((igl::opengl::glfw::Viewer::MouseButton)button==igl::opengl::glfw::Viewer::MouseButton::Left))
     return false;
+
+  if (editing==true){
+    Eigen::MatrixXd bc(handles.size(),currV.cols());
+    for (int i=0;i<handles.size();i++)
+      bc.row(i)=handlePoses[i].transpose();
   
+    hedra::quat_moebius_deform(qmdata, 1.0, rigidityFactor, isExactMC, bc,true, deformV);
+    hedra::edge_mesh(deformV,D,F,EV, EF, edgeDeformV, edgeT,edgeTE);
+    UpdateCurrentView();
+  }
   editing=false;
-  
   return true;
 }
 
@@ -216,8 +212,6 @@ bool mouse_down(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
       b(i)=handles[i];
     
     hedra::quat_moebius_precompute(b, qmdata);
-    //hedra::affine_maps_precompute(V,D,F,EV,EF,EFi, FE, b, 3, affine_data);
-    
     UpdateCurrentView();
   }
   return true;
@@ -280,6 +274,17 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
       break;
     }
       
+    case '6':{
+      isExactMC=!isExactMC;
+      Eigen::MatrixXd bc(handles.size(),currV.cols());
+      for (int i=0;i<handles.size();i++)
+        bc.row(i)=handlePoses[i].transpose();
+      
+      hedra::quat_moebius_deform(qmdata, 1.0, rigidityFactor, isExactMC, bc,true, deformV);
+      hedra::edge_mesh(deformV,D,F,EV, EF, edgeDeformV, edgeT,edgeTE);
+      UpdateCurrentView();
+    }
+      
   }
   
   return false;
@@ -289,14 +294,15 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 int main(int argc, char *argv[])
 {
   
-  cout<<"press 1+right button to select new handles"<<endl;
-  cout<<"press 2 button to toggle between different quality measures"<<endl;
-  cout<<"press 3 to toggle between original and deformed mesh"<<endl;
-  cout<<"press 4-5 to change the sensitivity of the quality measurement"<<endl;
-  cout<<"press the right button and drag the current handle for deformation"<<endl;
+  cout<<"press 1+right button to select new handles."<<endl;
+  cout<<"press 2 button to toggle between different quality measures."<<endl;
+  cout<<"press 3 to toggle between original and deformed mesh."<<endl;
+  cout<<"press 4-5 to change the sensitivity of the quality measurement."<<endl;
+   cout<<"press 6 to toggle exact Discrete Conformality."<<endl;
+  cout<<"press the right button and drag the current handle for deformation."<<endl;
   
   // Load a mesh in OFF format
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/Moomoo.off", origV, D, F);
+  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/moomoo.off", origV, D, F);
   hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
   hedra::triangulate_mesh(D, F, polyT, polyTF);
   hedra::quat_moebius_setup(origV,D,F,polyTF,EV,EF,EFi,FE,FEs, innerEdges, qmdata);
@@ -307,13 +313,15 @@ int main(int argc, char *argv[])
   edgeDeformV=edgeOrigV;
   spans=currV.colwise().maxCoeff()-currV.colwise().minCoeff();
   
-  
   viewer.callback_mouse_down = &mouse_down;
   viewer.callback_mouse_move = &mouse_move;
   viewer.callback_mouse_up=&mouse_up;
   viewer.callback_key_down=&key_down;
   viewer.callback_key_up=&key_up;
   viewer.core.background_color<<0.75,0.75,0.75,1.0;
+  
+  viewer.append_mesh();  //handles mesh
+  viewer.selected_data_index=0;
   UpdateCurrentView();
   viewer.launch();
   

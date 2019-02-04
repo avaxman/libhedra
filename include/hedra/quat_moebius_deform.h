@@ -42,28 +42,13 @@ namespace hedra{
     MatrixXd origV;    //original vertex positions
     MatrixXd deformV;  //current deformed mesh
     
-    //Complex Positions
-    MatrixXd origVq;
-    MatrixXd deformVq;
-    
-    //corner variables matrices
-    MatrixXd deformX;
-    //VectorXi cornerOffset;  //where does every face begin in the corner list
-    
-    //MatrixXi faceCornerPairs;   //faces (f,g, i,k) and vertices around every edge for compatibility and smoothness, like in the paper
-    //MatrixXi cornerPairs;  //neighboring corner pairs across edges for AMAP/MC/IAP comparisons
-    
-    //for inversion control and other usages
-    //SparseMatrix<Complex> d0;
+    //vertex variables
+    MatrixXd deformY;
     
     //of positional handles
     VectorXi constIndices;
     MatrixXd constPoses;
     
-    //optimization operators
-    //hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > > deformLinearSolver;
-    //hedra::optimization::Moebius3DCornerVarsTraits deformTraits;
-    //hedra::optimization::LMSolver<hedra::optimization::EigenSolverWrapper<Eigen::SimplicialLLT<Eigen::SparseMatrix<double> > >,hedra::optimization::Moebius3DCornerVarsTraits> deformSolver;
     CeresQMDSolver solver;
     
   };
@@ -94,6 +79,10 @@ namespace hedra{
     qmdata.innerEdges=innerEdges;
     
     qmdata.origV=V;
+    qmdata.deformV=V;
+    qmdata.deformY.resize(V.rows(),4);
+    qmdata.deformY.setZero();
+    qmdata.deformY.col(0).setConstant(1.0);
     
     //creating full edge list
     vector<pair<int,int>>  diagonals;
@@ -107,46 +96,15 @@ namespace hedra{
     for (int i=0;i<diagonals.size();i++)
       qmdata.extEV.row(EV.rows()+i)<<diagonals[i].first, diagonals[i].second;
     
-    //reseting deformation result
-    /*qmdata.deformX.resize(D.sum(),4);
-    qmdata.deformX.setZero();
-    qmdata.deformX.col(0).setConstant(1.0);
-    qmdata.cornerOffset.resize(F.rows());
-    qmdata.cornerOffset(0)=0;
-    
-    for (int i=1;i<D.rows();i++)
-      qmdata.cornerOffset(i)=mdata.cornerOffset(i-1)+D(i-1);
-    
-    MatrixXi adjCorners(V.rows(),12);
-    VectorXi valences(V.rows()); valences.setZero();
-    for (int i=0;i<D.rows();i++){
-      for (int j=0;j<D(i);j++){
-        adjCorners(F(i,j),valences(F(i,j)))=mdata.cornerOffset(i)+j;
-        valences(F(i,j))++;
-      }
-    }
-    
-    vector<pair<int,int> > cornerPairList;
-    for (int i=0;i<V.rows();i++)
-      for (int j=0;j<valences(i)-1;j++)
-        cornerPairList.push_back(pair<int,int>(adjCorners(i,j),adjCorners(i,(j+1)%valences(i))));
-    
-    qmdata.cornerPairs.resize(cornerPairList.size(),2);
-    for (int i=0;i<cornerPairList.size();i++)
-      qmdata.cornerPairs.row(i)<<cornerPairList[i].first, cornerPairList[i].second;*/
-    
   }
   
   IGL_INLINE void quat_moebius_precompute(const Eigen::VectorXi& h,
                                           struct QuatMoebiusData& qmdata){
     
-    /*qmdata.constIndices=h;
-    qmdata.isExactDC=isExactDC;
-    qmdata.isExactIAP=isExactIAP;
-    qmdata.rigidityFactor=rigidityFactor;*/
     qmdata.solver.init(qmdata.origV, qmdata.D, qmdata.F,qmdata.extEV);
+    qmdata.constIndices=h;
     qmdata.solver.set_constant_handles(h);
-    //mdata.deformSolver.init(&mdata.deformLinearSolver, &mdata.deformTraits);
+    
     
   }
   
@@ -165,9 +123,9 @@ namespace hedra{
       for (int j=0;j<3;j++)
         qmdata.solver.currSolution[3*i+j]=qmdata.deformV(i,j);
     
-    for (int i=0;i<qmdata.deformX.rows();i++)
+    for (int i=0;i<qmdata.deformY.rows();i++)
       for (int j=0;j<4;j++)
-        qmdata.solver.currSolution[3*qmdata.deformVq.rows()+4*i+j]=qmdata.deformX(i,j);
+        qmdata.solver.currSolution[3*qmdata.deformV.rows()+4*i+j]=qmdata.deformY(i,j);
     
     for (int i=0;i<qmdata.constIndices.size();i++)
       for (int j=0;j<3;j++)
@@ -180,8 +138,10 @@ namespace hedra{
     for (int i=0;i<qmdata.origV.rows();i++)
       qmdata.deformV.row(i)<<qmdata.solver.currSolution[3*i],qmdata.solver.currSolution[3*i+1],qmdata.solver.currSolution[3*i+2];
     
-    for (int i=0;i<qmdata.deformX.rows();i++){
-      qmdata.deformX.row(i)<<qmdata.solver.currSolution[3*qmdata.origV.rows()+4*i],
+    deformV = qmdata.deformV;
+    
+    for (int i=0;i<qmdata.deformY.rows();i++){
+      qmdata.deformY.row(i)<<qmdata.solver.currSolution[3*qmdata.origV.rows()+4*i],
       qmdata.solver.currSolution[3*qmdata.origV.rows()+4*i+1],
       qmdata.solver.currSolution[3*qmdata.origV.rows()+4*i+2],
       qmdata.solver.currSolution[3*qmdata.origV.rows()+4*i+3];

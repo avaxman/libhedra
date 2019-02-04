@@ -115,7 +115,7 @@ public:
     Eigen::Matrix< T, 1, 4 > wj; wj<<T(0),_wj[0],_wj[1],_wj[2];
     Eigen::Matrix< T, 1, 4 > Yi; Yi<<_Yi[0], _Yi[1], _Yi[2], _Yi[3];
     Eigen::Matrix< T, 1, 4 > Yj; Yj<<_Yj[0], _Yj[1], _Yj[2], _Yj[3];
-    Eigen::Matrix< T, 1, 4> qij; qij<<T(0),T(x),(y),T(z);
+    Eigen::Matrix< T, 1, 4> qij; qij<<T(0),T(x),T(y),T(z);
     
     Eigen::Matrix< T, 1, 4 > AMAPRes=(wj-wi) - QMultT<T>(QMultT<T>(QConjT<T>(Yi),qij),Yj);
     for (int i=0;i<4;i++)
@@ -166,7 +166,7 @@ public:
       delete[] currSolution;
     
     if (problem!=NULL)
-      delete[] problem;
+      delete problem;
     
     problem=new ceres::Problem;
     

@@ -25,11 +25,11 @@ namespace hedra
   }
   
   Eigen::RowVector3d IGL_INLINE passive_handle_color(){
-    return Eigen::RowVector3d(0.0,0.2,1.0);
+    return Eigen::RowVector3d(1.0,0.5,0.0);
   }
   
   Eigen::RowVector3d IGL_INLINE active_handle_color(){
-    return Eigen::RowVector3d(1.0,0.2,0.0);
+    return Eigen::RowVector3d(0.5,1.0,0.0);
   }
   
   Eigen::RowVector3d IGL_INLINE default_edge_color(){
