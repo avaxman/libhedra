@@ -11,6 +11,7 @@ option(LIBIGL_WITH_VIEWER      "Use OpenGL viewer"  ON)
 option(LIBIGL_WITH_OPENGL      "Use OpenGL"         ON)
 option(LIBIGL_WITH_OPENGL_GLFW "Use GLFW"           ON)
 option(LIBIGL_WITH_EMBREE      "Use Embree"         ON)
+option(LIBIGL_WITH_CGAL      "Use Cgal"             ON)
 
 ### libhedra options
 option(LIBHEDRA_WITH_CERES      "Use Ceres"         ON)
@@ -38,6 +39,7 @@ option(TUTORIALS_CHAPTER1 "Compile chapter 1" ON)
 option(TUTORIALS_CHAPTER2 "Compile chapter 2" ON)
 option(TUTORIALS_CHAPTER3 "Compile chapter 3" ON)
 option(TUTORIALS_CHAPTER4 "Compile chapter 4" ON)
+option(TUTORIALS_CHAPTER5 "Compile chapter 5" ON)
 
 
 # Store location of tutorial/shared directory
@@ -72,5 +74,11 @@ if(TUTORIALS_CHAPTER4)
   add_subdirectory("401_PolygonalSubdivision")
   add_subdirectory("402_CanonicalMoebiusSubdivision")
 endif()
+
+# Chapter 5
+if (TUTORIALS_CHAPTER5 AND LIBIGL_WITH_CGAL)
+  add_subdirectory("501_Meshing")
+endif()
+
 
 
