@@ -2,7 +2,9 @@
 #include <math.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/readOBJ.h>
-#include <hedra/copyleft/cgal/extract_mesh.h>
+#include <igl/edge_topology.h>
+#include <hedra/copyleft/cgal/generate_mesh.h>
+#include <hedra/polygonal_write_OFF.h>
 
 Eigen::MatrixXd V, TV, newV;
 Eigen::MatrixXi F, newF, FTC;
@@ -26,10 +28,19 @@ int main(int argc, char *argv[])
   Eigen::MatrixXd TC;
   Eigen::MatrixXd N;
   Eigen::MatrixXd FN;
-  igl::readOBJ(TUTORIAL_SHARED_PATH "/lilium_param.obj", V, TC, N, F, FTC, FN);
+  Eigen::MatrixXi EF, FE, EV;
+  igl::readOBJ(TUTORIAL_SHARED_PATH "/Interior-parametrization.obj", V, TC, N, F, FTC, FN);
   
-  hedra::copyleft::cgal::extract_mesh(V, F, TC, FTC, newV, newD, newF);
+  //OBJ values are skewed to fit PNG as follows
+  //OutputCornerValues=[CornerValues(:,1)/3 CornerValues(:,2)/sqrt(3)];
+  TC.col(0).array()*=3;
+  TC.col(1).array()*=SQRT3;
   
+  igl::edge_topology(V,F,EV,FE,EF);
+  
+  Eigen::RowVector3d spans=V.colwise().maxCoeff()-V.colwise().minCoeff();
+  hedra::copyleft::cgal::generate_mesh(6, V, F, EV, FE, EF, TC, FTC, 0.01*spans.maxCoeff(),newV, newD, newF);
+  hedra::polygonal_write_OFF(std::string(TUTORIAL_SHARED_PATH "/Interior-hex.off"),newV,newD,newF);
   
   igl::opengl::glfw::Viewer viewer;
   viewer.callback_key_down = &key_down;

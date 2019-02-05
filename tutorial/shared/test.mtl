@@ -1,0 +1,50 @@
+newmtl bows
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd bowpattern.png
+map_Ka bowpattern.png
+
+newmtl hexes
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd hexpattern2.png
+map_Ka hexpattern2.png
+
+
+newmtl bricks
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd brickpattern.png
+map_Ka brickpattern.png
+
+newmtl ambgs
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd ambgpattern.png
+map_Ka ambgpattern.png
+
+newmtl quads
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Tr 1.000000
+illum 1
+Ns 0.000000
+map_Kd quadpattern.png
+map_Ka quadpattern.png
