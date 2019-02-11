@@ -311,6 +311,64 @@ namespace hedra
         return Point2(u,v);
       }
       
+      IGL_INLINE void stitch_boundaries(const Eigen::VectorXi triEF,
+                                        const Eigen::VectorXi triInnerEdges,
+                                        Eigen::MatrixXd& currV,
+                                       Eigen::VectorXi& VH,
+                                       Eigen::VectorXi& HV,
+                                       Eigen::VectorXi& HF,
+                                       Eigen::VectorXi& FH,
+                                       Eigen::VectorXi& nextH,
+                                       Eigen::VectorXi& prevH,
+                                       Eigen::VectorXi& twinH,
+                                       std::vector<bool>& isParamVertex,
+                                       std::vector<int>& HE2origEdges,
+                                       std::vector<bool>& isParamHE,
+                                       std::vector<int>& overlayFace2Tri,
+                                       const double closeTolerance)
+      {
+
+        using namespace Eigen;
+        
+        //TODO: tie all endpoint vertices to original triangles
+        
+        VectorXi old2NewV=VectorXi::Constant(currV.rows(),-1);
+        
+        std::vector<std::vector<int>> origEdges2HE(triEF.rows());
+        for (int i=0;i<HE2origEdges.size();i++)
+          origEdges2HE[HE2origEdges[i]].push_back(i);
+        
+        
+        
+        
+        //for every original inner edge, stitching up boundary (original boundary edges don't have any action item)
+        for (int i=0;i<triInnerEdges.size();i++){
+          //first sorting to left and right edges according to faces
+          int currEdge=triInnerEdges(i);
+          
+          int leftFace=triEF(currEdge,0);
+          int rightFace=triEF(currEdge,1);
+          
+          std::vector<int> leftHE, rightHE;
+          
+          for (int k=0;k<origEdges2HE[currEdge].size();k++){
+            if (overlayFace2Tri[HF(origEdges2HE[currEdge][k])]==leftFace)
+              leftHE.push_back(origEdges2HE[currEdge][k]);
+            else if (overlayFace2Tri[HF(origEdges2HE[currEdge][k])]==rightFace)
+              rightHE.push_back(origEdges2HE[currEdge][k]);
+            else
+              int kaka=8;  //shouldn't happen
+            
+          }
+          
+          //if the parameterization is seamless, left and right halfedges should be perfectly matched, but it's not always the case
+         
+    
+          
+        }
+        
+      }
+      
       IGL_INLINE void generate_mesh(int N,
                                     const Eigen::MatrixXd& V,
                                     const Eigen::MatrixXi& F,
@@ -345,6 +403,7 @@ namespace hedra
         std::vector<int> DList;
         std::vector<int> HE2origEdges;
         std::vector<bool> isParamHE;
+        std::vector<int> overlayFace2Triangle;
         
         MatrixXd currV(isParamVertex.size(),3);
         VH.resize(currV.rows());
@@ -376,7 +435,7 @@ namespace hedra
             if (fi->is_unbounded())
               fi->data()=-1;
             else
-              fi->data()=0;
+              fi->data()=ti;
           }
           
           //creating an arrangement of parameter lines
@@ -417,6 +476,7 @@ namespace hedra
             if (fi->data()==-1)
               continue;  //one of the outer faces
             
+            overlayFace2triangle.push_back(fi->data());
             fi->data()=formerNumFaces+currFace;
             currFace++;
             int DFace=0;
@@ -512,6 +572,8 @@ namespace hedra
         }
         
         //mesh unification
+        
+        stitch_boundaries(currV,VH,HV,HF,FH,nextH,prevH,twinH, isParamVertex, HE2origEdges, isParamHE, overlayFace2Triangle);
         
         //consolidation
         newV=currV;
