@@ -9,11 +9,11 @@
 #define HEDRA_DUAL_MESH_H
 #include <igl/igl_inline.h>
 #include <igl/setdiff.h>
-#include <hedra/polygonal_face_centers.h>
-#include <hedra/linear_vi_subdivision.h>
-#include <hedra/moebius_vi_subdivision.h>
-#include <hedra/subdivision_basics.h>
-#include <hedra/dcel.h>
+#include "polygonal_face_centers.h"
+#include "linear_vi_subdivision.h"
+#include "moebius_vi_subdivision.h"
+#include "subdivision_basics.h"
+#include "dcel.h"
 #include <Eigen/Core>
 #include <string>
 #include <vector>
@@ -40,7 +40,8 @@ namespace hedra
                             OneRingSubdivisionData& sd,
                             Eigen::MatrixXd& dualV,
                             Eigen::VectorXi& dualD,
-                            Eigen::MatrixXi& dualF)
+                            Eigen::MatrixXi& dualF,
+                            const bool clipBoundary)
   {
     using namespace Eigen;
     using namespace std;
@@ -76,14 +77,10 @@ namespace hedra
             currVertexinFace=k;
         }
         
-        //std::cout<<"origFaceVertices: "<<origFaceVertices<<std::endl;
         MatrixXd canonFaceVertices;
         canonFaceVertices=sd.original2Canonical(i,origFaceVertices);
-        //std::cout<<"canonFaceVertices: "<<canonFaceVertices<<std::endl;
         canonFacePoints.row(j)=canonFaceVertices.colwise().mean();
-        //std::cout<<"canonFacePoints.row(j): "<<canonFacePoints.row(j)<<std::endl;
         
-        //std::cout<<"sd.canonical2Original(i,canonFacePoints.row(j)): "<<sd.canonical2Original(i,canonFacePoints.row(j))<<std::endl;
         
         //Lifting to candidate points
         candidateFacePoints.block(sd.ringFaces(i,j), 3*currVertexinFace,1,3)=sd.canonical2Original(i,canonFacePoints.row(j));  //not entirely optimized
@@ -91,18 +88,11 @@ namespace hedra
       
       MatrixXd canonEdgePoints = sd.canonicalEdgePoints(i, canonCenter, canonStarVertices, canonFacePoints);
       
-      /*if (isBoundaryVertex(i)){
-       canonEdgePoints.row(0)=(canonCenter+canonStarVertices.row(0))/2.0;
-       canonEdgePoints.row(vertexValences(i)-1)=(canonCenter+canonStarVertices.row(vertexValences(i)-1))/2.0;
-       }*/
-      
       //Lifting to candidate points
       MatrixXd localCandidateEdgePoints;
       localCandidateEdgePoints=sd.canonical2Original(i,canonEdgePoints);
       for (int j=0;j<sd.vertexValences(i);j++){
         int onEdge=sd.HE(sd.starHalfedges(i,j));
-        // std::cout<<"sd.starHalfedges(i,j): "<<sd.starHalfedges(i,j)<<std::endl;
-        // std::cout<<"onEdge: "<<onEdge<<std::endl;
         int inEdge = (sd.EV(onEdge,0)==i ? 0 : 1);
         candidateEdgePoints.block(onEdge,3*inEdge,1,3)=localCandidateEdgePoints.row(j);  //WRONG!!!
       }
@@ -200,6 +190,58 @@ namespace hedra
       for (int j=0;j<dualFList[i].size();j++)
         dualF(i,j)=dualFList[i][j];
     
+    //addendum: killing dual faces (all faces that are a boundary)
+    if (clipBoundary){
+      MatrixXi EV, FE, EF, EFi;
+      MatrixXd FEs;
+      VectorXi innerEdges;
+      hedra::polygonal_edge_topology(dualD, dualF, EV, FE, EF, EFi, FEs, innerEdges);
+      VectorXi isBoundaryFace=VectorXi::Zero(dualF.rows());
+      for (int i=0;i<EF.rows();i++){
+        if (EF(i,0)==-1)
+          isBoundaryFace(EF(i,1))=1;
+        if (EF(i,1)==-1)
+          isBoundaryFace(EF(i,0))=1;
+      }
+      cout<<"Clipping "<<isBoundaryFace.sum()<<" boundary faces"<<endl;
+      MatrixXi newDualF(dualF.rows()-isBoundaryFace.sum(),dualF.cols());
+      VectorXi newDualD(dualF.rows()-isBoundaryFace.sum());
+      int fCount=0;
+      for (int i=0;i<dualF.rows();i++){
+        if (!isBoundaryFace(i)){
+          newDualD(fCount)=dualD(i);
+          newDualF.row(fCount++)=dualF.row(i);
+        }
+      }
+      
+      dualF=newDualF;
+      dualD=newDualD;
+      //removing isolated vertices
+      VectorXi isUnrefVertex=VectorXi::Constant(dualV.rows(),1);
+      for (int i=0;i<dualD.rows();i++)
+        for (int j=0;j<dualD(i);j++)
+          isUnrefVertex(dualF(i,j))=0;
+      
+      int vCount=0;
+      VectorXi transVertices=VectorXi::Constant(dualV.rows(),-1);
+      for (int i=0;i<dualV.rows();i++)
+        if (!isUnrefVertex(i))
+          transVertices(i)=vCount++;
+      
+      for (int i=0;i<dualD.rows();i++)
+        for (int j=0;j<dualD(i);j++)
+          dualF(i,j)=transVertices(dualF(i,j));
+      
+      MatrixXd newDualV(vCount, 3);
+      for (int i=0;i<dualV.rows();i++)
+        if (!isUnrefVertex(i))
+          newDualV.row(transVertices(i))=dualV.row(i);
+      
+      dualV = newDualV;
+      
+    }
+    
+    
     return true;
   }
   
@@ -212,7 +254,8 @@ namespace hedra
                             const int& st,
                             Eigen::MatrixXd& fineV,
                             Eigen::VectorXi& fineD,
-                            Eigen::MatrixXi& fineF)
+                            Eigen::MatrixXi& fineF,
+                            const bool clipBoundary)
   
   {
     using namespace Eigen;
@@ -221,12 +264,12 @@ namespace hedra
     switch (st){
       case hedra::LINEAR_SUBDIVISION: {
         hedra::LinearVISubdivisionData lsd;
-        dual_mesh(V, D,F,lsd, fineV, fineD, fineF);
+        dual_mesh(V, D,F,lsd, fineV, fineD, fineF,clipBoundary);
         break;
       }
       case hedra::CANONICAL_MOEBIUS_SUBDIVISION: {
         hedra::MoebiusVISubdivisionData msd;
-        dual_mesh(V, D,F,msd, fineV, fineD, fineF);
+        dual_mesh(V, D,F,msd, fineV, fineD, fineF,clipBoundary);
         break;
       }
       default: return false;
