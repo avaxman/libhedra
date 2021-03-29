@@ -13,7 +13,7 @@ tornado = "==5.0"
 "Jinja2" = "==2.7.1"
 Markdown = "==2.6.11"
 mdx_gh_links = ">=0.2"
-Pygments = "==2.2.0"
+Pygments = "==2.7.4"
 PyYAML = "==3.13"
 requests = "*"
 
