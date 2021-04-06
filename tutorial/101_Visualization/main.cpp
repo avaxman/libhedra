@@ -54,12 +54,10 @@ int main(int argc, char *argv[])
 {
   using namespace std;
   
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/rhombitruncated_cubeoctahedron_fixed.off", VMesh, D, F);
+  hedra::polygonal_read_OFF(argv[1], VDOG, DDOG, FDOG);
+  libigl::read_obj_(argv[2], VWedge, DWedge, F);
   
-  std::cout<<"1 Switch polygonal edges/triangulated edges"<<
-  "2 Switch vertex spheres on/off"<<
-  "3 Switch face normals on/off"<<std::endl;
-  
+
   sphereColors.resize(VMesh.rows(),3);
   for (int i=0;i<VMesh.rows();i++)
     sphereColors.row(i)<<(double)i/(double)VMesh.rows(), 1.0-(double)i/(double)VMesh.rows(), 0.0;

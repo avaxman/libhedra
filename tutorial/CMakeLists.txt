@@ -14,7 +14,7 @@ option(LIBIGL_WITH_EMBREE      "Use Embree"         ON)
 option(LIBIGL_WITH_CGAL      "Use Cgal"             ON)
 
 ### libhedra options
-option(LIBHEDRA_WITH_CERES      "Use Ceres"         ON)
+option(LIBHEDRA_WITH_CERES      "Use Ceres"         OFF)
 
 
 ### Adding libIGL and libhedra: choose the path to your local copy
