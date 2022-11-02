@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16)
 project(304_RegularMeshes)
 
 add_executable(${PROJECT_NAME}_bin main.cpp)
-target_link_libraries(${PROJECT_NAME}_bin igl::core igl::opengl_glfw ${CERES_LIBRARIES} tutorials)
+target_link_libraries(${PROJECT_NAME}_bin igl::core igl::glfw igl::opengl ${CERES_LIBRARIES} tutorials)
 

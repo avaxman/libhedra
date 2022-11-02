@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
   
   ViewingMode=PLANARITY;
   viewer.callback_key_down=&key_down;
-  viewer.core.background_color<<0.75,0.75,0.75,1.0;
+  viewer.core().background_color<<0.75,0.75,0.75,1.0;
   update_meshes(viewer);
   viewer.launch();
   
