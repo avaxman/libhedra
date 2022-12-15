@@ -310,7 +310,7 @@ namespace hedra {
                         ST->update_energy(prevx);
                         ST->update_jacobian(prevx);
                         if (verbose)
-                            cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.template squaredNorm()<<endl;
+                            cout<<"Initial Energy for Iteration "<<currIter<<": "<<ST->EVec.squaredNorm()<<endl;
                         MatrixValues(HRows, HCols, ST->JVals, S2D,  miu, HVals);
                         MultiplyAdjointVector(ST->JRows, ST->JCols, ST->JVals, -ST->EVec, rhs);
                         
