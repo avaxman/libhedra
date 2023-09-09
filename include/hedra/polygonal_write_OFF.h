@@ -21,15 +21,22 @@ namespace hedra
   //  V  eigen double matrix  #V by 3 - vertex coordinates
   //  D  eigen int vector     #F by 1 - face degrees
   //  F  eigen int matrix     #F by max(D) - vertex indices in face
+  //  high_precision:         if true the numerical precision is set to std::numeric_limits<double>::digits10 + 1,
+  //                          and the output is written in the scientific format
   IGL_INLINE bool polygonal_write_OFF(const std::string str,
                                       const Eigen::MatrixXd& V,
                                       const Eigen::VectorXi& D,
-                                      const Eigen::MatrixXi& F)
-  {
-    
+                                      const Eigen::MatrixXi& F,
+                                      bool high_precision = false) {
+
     using namespace std;
     using namespace Eigen;
     ofstream FileHandle;
+    if (high_precision)
+    {
+      FileHandle.flags(std::ios::scientific);
+      FileHandle.precision(std::numeric_limits<double>::digits10 + 1);
+    }
     FileHandle.open(str);
     if (!FileHandle.is_open())
       return false;
