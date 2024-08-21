@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
   cout<<"press the right button and drag the current handle for deformation"<<endl;
   
   // Load a mesh in OFF format
-  hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/bar2d.off", origV, D, F);
+  hedra::polygonal_read_OFF("/Users/amirvaxman/Downloads/meshes\ 2/fig1-output.off", origV, D, F);
   hedra::polygonal_edge_topology(D, F, EV, FE, EF,EFi,FEs,innerEdges);
   hedra::triangulate_mesh(D, F, polyT, polyTF);
   hedra::complex_moebius_setup(origV,D,F,polyTF,EV,EF,EFi,FE,FEs, innerEdges, cmdata);

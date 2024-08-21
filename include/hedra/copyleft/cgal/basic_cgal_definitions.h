@@ -10,11 +10,11 @@
 #include <igl/igl_inline.h>
 
 #include <Eigen/Dense>
-#include<CGAL/basic.h>
-#include<CGAL/Cartesian.h>
-#include<CGAL/Polygon_2.h>
-#include<CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include<CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/basic.h>
+#include <CGAL/Cartesian.h>
+#include <CGAL/Polygon_2.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Cartesian.h>
 #include <CGAL/Polyhedron_3.h>
@@ -23,7 +23,12 @@
 #include <CGAL/Arr_extended_dcel.h>
 #include <CGAL/Arr_overlay_2.h>
 #include <CGAL/Arr_default_overlay_traits.h>
+#include <CGAL/Orthogonal_k_neighbor_search.h>
+#include <CGAL/Search_traits_3.h>
+#include <CGAL/boost/iterator/counting_iterator.hpp>
+#include <CGAL/Search_traits_adapter.h>
 #include <vector>
+#include <utility>
 
 
 namespace hedra
@@ -63,6 +68,26 @@ namespace hedra
       typedef Kernel::Aff_transformation_3 Transform3D;
       typedef CGAL::Polyhedron_3<Kernel> Polyhedron3D;
       typedef CGAL::Polygon_2<Kernel>    Polygon2D;
+      
+      class My_point_property_map{
+        const std::vector<Point3D>& points;
+      public:
+        typedef Point3D value_type;
+        typedef const value_type& reference;
+        typedef std::size_t key_type;
+        typedef boost::lvalue_property_map_tag category;
+        My_point_property_map(const std::vector<Point3D>& pts):points(pts){}
+        reference operator[](key_type k) const {return points[k];}
+        friend reference get(const My_point_property_map& ppmap,key_type i)
+        {return ppmap[i];}
+      };
+      
+      typedef CGAL::Search_traits_3<Kernel>                                                 SearchTraits3D;
+      typedef CGAL::Search_traits_adapter<std::size_t,My_point_property_map,SearchTraits3D> SearchTraitsAdaptor;
+      typedef CGAL::Orthogonal_k_neighbor_search<SearchTraitsAdaptor>                       KNeighborSearch;
+      typedef KNeighborSearch::Tree                                                         SearchTree;
+      typedef SearchTree::Splitter                                                          SearchTreeSplitter;
+      typedef KNeighborSearch::Distance                                                     SearchTreeDistance;
       
       void normalize(Vector3D& v){
         v=v/sqrt(squared_distance(Point3D(0,0,0)+v,Point3D(0,0,0)));

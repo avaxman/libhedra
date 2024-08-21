@@ -26,6 +26,11 @@
 #include <hedra/copyleft/cgal/basic_cgal_definitions.h>
 #include <hedra/dcel.h>
 #include <vector>
+#include <CGAL/Orthogonal_k_neighbor_search.h>
+#include <CGAL/Search_traits_2.h>
+#include <list>
+#include <cmath>
+
 
 
 
@@ -311,35 +316,84 @@ namespace hedra
         return Point2(u,v);
       }
       
-      IGL_INLINE void stitch_boundaries(const Eigen::VectorXi triEF,
+      IGL_INLINE void stitch_boundaries(const Eigen::MatrixXi triEF,
                                         const Eigen::VectorXi triInnerEdges,
                                         Eigen::MatrixXd& currV,
-                                       Eigen::VectorXi& VH,
-                                       Eigen::VectorXi& HV,
-                                       Eigen::VectorXi& HF,
-                                       Eigen::VectorXi& FH,
-                                       Eigen::VectorXi& nextH,
-                                       Eigen::VectorXi& prevH,
-                                       Eigen::VectorXi& twinH,
-                                       std::vector<bool>& isParamVertex,
-                                       std::vector<int>& HE2origEdges,
-                                       std::vector<bool>& isParamHE,
-                                       std::vector<int>& overlayFace2Tri,
-                                       const double closeTolerance)
+                                        Eigen::VectorXi& VH,
+                                        Eigen::VectorXi& HV,
+                                        Eigen::VectorXi& HF,
+                                        Eigen::VectorXi& FH,
+                                        Eigen::VectorXi& nextH,
+                                        Eigen::VectorXi& prevH,
+                                        Eigen::VectorXi& twinH,
+                                        std::vector<bool>& isParamVertex,
+                                        std::vector<int>& HE2origEdges,
+                                        std::vector<bool>& isParamHE,
+                                        std::vector<int>& overlayFace2Tri,
+                                        const double closeTolerance)
       {
 
         using namespace Eigen;
         
-        //TODO: tie all endpoint vertices to original triangles
+        //unite all vertices that are more than closeTolerance together
+        //VERY INEFFICIENT DOUBLE LOOP
+        VectorXi curr2StitchedV=VectorXi::Constant(currV.rows(),-1);
+        int stitchedVertexIndex=0;
         
-        VectorXi old2NewV=VectorXi::Constant(currV.rows(),-1);
+        //creating search tree
+        std::vector<Point3D> points;
+        
+        for (int i=0;i<currV.rows();i++)
+          points.push_back(Point3D(currV(i,0),currV(i,1),currV(i,2)));
+        
+        
+        My_point_property_map ppmap(points);
+        // Insert number_of_data_points in the tree
+        SearchTree tree(
+                  boost::counting_iterator<std::size_t>(0),
+                  boost::counting_iterator<std::size_t>(points.size()),
+                  SearchTreeSplitter(),
+                  SearchTraitsAdaptor(ppmap)
+                  );
+        
+        int K=50;  //arbitrary likely big-enough number
+        for (int i=0;i<currV.rows();i++){
+          Point3D query(Point3D(currV(i,0),currV(i,1),currV(i,2)));
+          SearchTreeDistance tr_dist(ppmap);
+        
+          // search K nearest neighbours
+        
+          KNeighborSearch search(tree, query, K,0,true,tr_dist);
+          for(KNeighborSearch::iterator it = search.begin(); it != search.end(); it++){
+            
+            /*std::cout << " d(q, nearest neighbor)=  "
+            << tr_dist.inverse_of_transformed_distance(it->second) << " "
+            << points[it->first] << " " << it->first << std::endl;*/
+            
+            if (tr_dist.inverse_of_transformed_distance(it->second) >closeTolerance)
+              continue;
+            
+            if (it->first < i)
+              continue;
+            
+            if (curr2StitchedV(i)==-1)  //first vertex of the sort
+              curr2StitchedV(i)=stitchedVertexIndex++;
+            else{
+              curr2StitchedV(it->first)=curr2StitchedV(i);
+              //uniting the characterstics
+              isParamVertex[i]=isParamVertex[i] || isParamVertex[it->first];
+            }
+          }
+        }
+        
+        //the rest of the vertices get themselves
+        /*for (int i=0;i<currV.rows();i++)
+          if (curr2StitchedV(i)==-1)
+            curr2StitchedV(i)=stitchedVertexIndex++;*/
         
         std::vector<std::vector<int>> origEdges2HE(triEF.rows());
         for (int i=0;i<HE2origEdges.size();i++)
           origEdges2HE[HE2origEdges[i]].push_back(i);
-        
-        
-        
         
         //for every original inner edge, stitching up boundary (original boundary edges don't have any action item)
         for (int i=0;i<triInnerEdges.size();i++){
@@ -350,6 +404,7 @@ namespace hedra
           int rightFace=triEF(currEdge,1);
           
           std::vector<int> leftHE, rightHE;
+          std::vector<int> leftVertices, rightVertices;
           
           for (int k=0;k<origEdges2HE[currEdge].size();k++){
             if (overlayFace2Tri[HF(origEdges2HE[currEdge][k])]==leftFace)
@@ -358,14 +413,24 @@ namespace hedra
               rightHE.push_back(origEdges2HE[currEdge][k]);
             else
               int kaka=8;  //shouldn't happen
-            
+
           }
           
-          //if the parameterization is seamless, left and right halfedges should be perfectly matched, but it's not always the case
-         
-    
-          
+          for (int i=0;i<leftHE.size();i++)
+            for (int j=0;j<rightHE.size();j++)
+              if ((curr2StitchedV(HV(leftHE[i]))==curr2StitchedV(HV(nextH(rightHE[j]))))&&
+                  (curr2StitchedV(HV(rightHE[j]))==curr2StitchedV(HV(nextH(leftHE[i]))))){
+                twinH(leftHE[i])=rightHE[i];
+                twinH(rightHE[i])=leftHE[i];
+              }
         }
+          
+          //unreferencing vertices
+          for (int i=0;i<curr2StitchedV.rows();i++)
+            HV(i)=curr2StitchedV(HV(i));
+          
+          //TODO: remove unreferenced vertices
+        
         
       }
       
@@ -418,6 +483,7 @@ namespace hedra
           
           Arr_2 paramArr, triangleArr, overlayArr;
           
+          //the parametric original triangle arrangement
           for (int j=0;j<3;j++){
             RowVectorXd PC1 = PC.row(FPC(ti,j));
             RowVectorXd PC2 = PC.row(FPC(ti,(j+1)%3));
@@ -476,7 +542,7 @@ namespace hedra
             if (fi->data()==-1)
               continue;  //one of the outer faces
             
-            overlayFace2triangle.push_back(fi->data());
+            overlayFace2Triangle.push_back(fi->data());
             fi->data()=formerNumFaces+currFace;
             currFace++;
             int DFace=0;
@@ -573,7 +639,7 @@ namespace hedra
         
         //mesh unification
         
-        stitch_boundaries(currV,VH,HV,HF,FH,nextH,prevH,twinH, isParamVertex, HE2origEdges, isParamHE, overlayFace2Triangle);
+        stitch_boundaries(EF, innerEdges, currV,VH,HV,HF,FH,nextH,prevH,twinH, isParamVertex, HE2origEdges, isParamHE, overlayFace2Triangle, 10e-6);
         
         //consolidation
         newV=currV;
