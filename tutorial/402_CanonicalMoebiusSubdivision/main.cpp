@@ -82,11 +82,11 @@ bool mouse_move(igl::opengl::glfw::Viewer& viewer, int mouse_x, int mouse_y)
     return false;
   
   double x = viewer.current_mouse_x;
-  double y = viewer.core.viewport(3) - viewer.current_mouse_y;
+  double y = viewer.core().viewport(3) - viewer.current_mouse_y;
   Eigen::RowVector3f NewPos=igl::unproject<float>(Eigen::Vector3f(x,y,currWinZ),
-                                                  viewer.core.view,
-                                                  viewer.core.proj,
-                                                  viewer.core.viewport);
+                                                  viewer.core().view,
+                                                  viewer.core().proj,
+                                                  viewer.core().viewport);
   
   handlePoses[handlePoses.size()-1]=NewPos.cast<double>();
   
@@ -121,14 +121,14 @@ bool mouse_down(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
   int vid, fid;
   Eigen::Vector3f bc;
   double x = viewer.current_mouse_x;
-  double y = viewer.core.viewport(3) - viewer.current_mouse_y;
+  double y = viewer.core().viewport(3) - viewer.current_mouse_y;
   if (!choosingHandleMode){
     editingMode=true;
     return false;
   }
 
-  if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core.view,
-                              viewer.core.proj, viewer.core.viewport, V[0], F[0], fid, bc))
+  if(igl::unproject_onto_mesh(Eigen::Vector2f(x,y), viewer.core().view,
+                              viewer.core().proj, viewer.core().viewport, V[0], F[0], fid, bc))
   {
     //add the closest vertex to the handles
     Eigen::MatrixXf::Index maxRow, maxCol;
@@ -147,9 +147,9 @@ bool mouse_down(igl::opengl::glfw::Viewer& viewer, int button, int modifier)
     }
     
     Eigen::Vector3f WinCoords=igl::project<float>(V[0].row(CurrVertex).cast<float>(),
-                                                  viewer.core.view,
-                                                  viewer.core.proj,
-                                                  viewer.core.viewport);
+                                                  viewer.core().view,
+                                                  viewer.core().proj,
+                                                  viewer.core().viewport);
     
     currWinZ=WinCoords(2);
     std::cout<<"Choosing Vertex :"<<CurrVertex<<std::endl;

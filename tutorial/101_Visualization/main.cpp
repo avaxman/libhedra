@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
   using namespace std;
   
   hedra::polygonal_read_OFF(TUTORIAL_SHARED_PATH "/rhombitruncated_cubeoctahedron_fixed.off", VMesh, D, F);
-  
+
   std::cout<<"1 Switch polygonal edges/triangulated edges"<<
   "2 Switch vertex spheres on/off"<<
   "3 Switch face normals on/off"<<std::endl;

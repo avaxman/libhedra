@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.16)
 project(libhedra_tutorials)
 message(STATUS "CMAKE_C_COMPILER: ${CMAKE_C_COMPILER}")
 message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
@@ -6,19 +6,23 @@ message(STATUS "CMAKE_CXX_COMPILER: ${CMAKE_CXX_COMPILER}")
 ### conditionally compile certain modules depending on libraries found on the system
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../cmake)
 
-### libIGL options:
-option(LIBIGL_WITH_VIEWER      "Use OpenGL viewer"  ON)
-option(LIBIGL_WITH_OPENGL      "Use OpenGL"         ON)
-option(LIBIGL_WITH_OPENGL_GLFW "Use GLFW"           ON)
-option(LIBIGL_WITH_EMBREE      "Use Embree"         ON)
-option(LIBIGL_WITH_CGAL      "Use Cgal"             ON)
+### Choose which chapters to compile
+option(TUTORIALS_CHAPTER1 "Compile chapter 1" ON)
+option(TUTORIALS_CHAPTER2 "Compile chapter 2" ON)
+option(TUTORIALS_CHAPTER3 "Compile chapter 3" ON)
+option(TUTORIALS_CHAPTER4 "Compile chapter 4" ON)
 
-### libhedra options
-option(LIBHEDRA_WITH_CERES      "Use Ceres"         ON)
+### libIGL options:
+option(LIBIGL_EMBREE           "Build target igl::embree"           ON)
+option(LIBIGL_GLFW             "Build target igl::glfw"             ON)
+option(LIBIGL_IMGUI            "Build target igl::imgui"            ON)
+option(LIBIGL_OPENGL           "Build target igl::opengl"           ON)
+option(LIBIGL_PNG              "Build target igl::png"              ON)
+### set(LIBIGL_WITH_PNG CACHE BOOL ON)
 
 
 ### Adding libIGL and libhedra: choose the path to your local copy
-find_package(LIBIGL REQUIRED QUIET)
+include(libigl)
 include(libhedra)
 
 if (LIBHEDRA_WITH_CERES)
@@ -34,12 +38,7 @@ else()
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../")
 endif()
 
-### Choose which chapters to compile
-option(TUTORIALS_CHAPTER1 "Compile chapter 1" ON)
-option(TUTORIALS_CHAPTER2 "Compile chapter 2" ON)
-option(TUTORIALS_CHAPTER3 "Compile chapter 3" ON)
-option(TUTORIALS_CHAPTER4 "Compile chapter 4" ON)
-option(TUTORIALS_CHAPTER5 "Compile chapter 5" ON)
+
 
 
 # Store location of tutorial/shared directory
@@ -47,6 +46,7 @@ set(TUTORIAL_SHARED_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared CACHE PATH "location
 add_library(tutorials INTERFACE)
 target_compile_definitions(tutorials INTERFACE "-DTUTORIAL_SHARED_PATH=\"${TUTORIAL_SHARED_PATH}\"")
 target_include_directories(tutorials INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
 
 
 # Chapter 1
@@ -74,11 +74,5 @@ if(TUTORIALS_CHAPTER4)
   add_subdirectory("401_PolygonalSubdivision")
   add_subdirectory("402_CanonicalMoebiusSubdivision")
 endif()
-
-# Chapter 5
-if (TUTORIALS_CHAPTER5 AND LIBIGL_WITH_CGAL)
-  add_subdirectory("501_Meshing")
-endif()
-
 
 
