@@ -29,21 +29,18 @@ namespace hedra
     {
         using namespace Eigen;
         faceNormals.resize(D.rows(),3);
-        for (int i=0;i<D.rows();i++){
+        for (int i=0;i<D.rows();i++) {
             RowVector3d faceNormal; faceNormal<<0.0,0.0,0.0;
-            for (int j=0;j<D(i);j++){
+            for (int j=0;j<D(i);j++) {
                 RowVector3d vn=V.row(F(i,(j+D(i)-1)%D(i)));
                 RowVector3d v0=V.row(F(i,j));
                 RowVector3d v1=V.row(F(i,(j+1)%D(i)));
-                if (((v1-v0).cross(vn-v0)).norm()>10e-6)
-                    faceNormal=faceNormal+((v1-v0).cross(vn-v0)).normalized();
+                faceNormal += (v1-v0).cross(vn-v0);
             }
-            
             faceNormals.row(i)=faceNormal.normalized();
         }
-        
         return true;
-    }
+   }
 }
 
 
