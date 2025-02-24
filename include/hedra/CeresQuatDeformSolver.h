@@ -252,8 +252,8 @@ public:
     AMAPFactor=_AMAPFactor;
     DCFactor=_DCFactor;
     ceres::Solver::Options options;
-    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    options.sparse_linear_algebra_library_type=ceres::SUITE_SPARSE;
+    //options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    //options.sparse_linear_algebra_library_type=ceres::SUITE_SPARSE;
     options.minimizer_progress_to_stdout = outputProgress;
     //options.preconditioner_type = ceres::JACOBI;
     //options.use_inner_iterations=true;
