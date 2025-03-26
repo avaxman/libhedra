@@ -14,7 +14,7 @@ tornado = "==5.0"
 Markdown = "==2.6.11"
 mdx_gh_links = ">=0.2"
 Pygments = "==2.2.0"
-PyYAML = "==3.13"
+PyYAML = "==5.4"
 requests = "*"
 
 [dev-packages]
